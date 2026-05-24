@@ -47,6 +47,14 @@ _THEMES: dict[str, dict] = {
         'floor':    (32,   4,   0),
         'floor_dot':(52,  12,   4),
     },
+    "abyss": {                              # NG+ — void cyan deep-dark
+        'mortar':   (0,    8,  18),
+        'stone':    (18,  72,  96),
+        'stone_hi': (36, 132, 160),
+        'stone_sh': (6,   36,  52),
+        'floor':    (4,    8,  12),
+        'floor_dot':(8,   18,  26),
+    },
 }
 
 _current_theme: dict = _THEMES["dungeon"]
@@ -62,10 +70,16 @@ _STEP_3    = (96,   72,  16)
 _STEP_HI   = (216, 188,  88)
 
 
-def set_theme(floor: int):
+_THEME_CYCLE = ["dungeon", "crypt", "forge", "inferno", "abyss"]
+
+
+def set_theme(floor: int, ng_plus: int = 0):
     """Select a tile palette for the given dungeon floor and invalidate the cache."""
     global _current_theme
-    if floor <= 2:
+    if ng_plus > 0:
+        idx  = (floor - 1 + ng_plus) % len(_THEME_CYCLE)
+        name = _THEME_CYCLE[idx]
+    elif floor <= 2:
         name = "dungeon"
     elif floor == 3:
         name = "crypt"

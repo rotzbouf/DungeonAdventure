@@ -82,10 +82,39 @@ BAR_HEIGHT = 18
 STATUS_POISON = "poison"   # green DoT — applied by elite enemies
 STATUS_SLOW   = "slow"     # speed −40% — applied by Skeletons
 STATUS_BURN   = "burn"     # orange DoT — applied by player fireball
+STATUS_FREEZE = "freeze"   # ice-blue slow — applied by Ice Nova
 
-# Fireball spell
+# Fireball spell (Z)
 FIREBALL_MANA_COST = 25
 FIREBALL_SPEED     = 420.0   # px/s
 FIREBALL_MAX_RANGE = 520.0   # px before it fizzles
 FIREBALL_DAMAGE    = 35
 FIREBALL_RADIUS    = 56.0    # AOE explosion radius
+
+# Ice Nova spell (X) — AoE slow burst around player
+ICE_NOVA_MANA_COST = 20
+ICE_NOVA_DAMAGE    = 22
+ICE_NOVA_RADIUS    = 90.0
+ICE_NOVA_SLOW_DUR  = 3.0
+ICE_NOVA_COOLDOWN  = 1.2
+
+# Chain Lightning spell (R) — jumps between up to 4 enemies
+CHAIN_LIGHTNING_MANA_COST = 35
+CHAIN_LIGHTNING_DAMAGE    = 30
+CHAIN_LIGHTNING_JUMPS     = 4
+CHAIN_LIGHTNING_RANGE     = 320.0   # max jump distance per arc
+CHAIN_LIGHTNING_COOLDOWN  = 1.6
+
+# Blink spell (V) — teleport to mouse cursor
+BLINK_MANA_COST  = 15
+BLINK_COOLDOWN   = 2.0
+
+# Battle Cry active skill (B) — temporary melee damage boost
+BATTLE_CRY_MANA_COST = 20
+BATTLE_CRY_DURATION  = 5.0
+
+# Whirlwind active skill (SHIFT+SPC) — 360° melee
+WHIRLWIND_MANA_COST = 25
+
+# Floors per New-Game-Plus cycle
+FLOORS_PER_NG = 5
