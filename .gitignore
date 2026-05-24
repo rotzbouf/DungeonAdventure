@@ -1,0 +1,80 @@
+# ── Secrets & credentials ─────────────────────────────────────────────────────
+.env
+.env.*
+*.env
+!*.env.example      # allow example/template files
+.envrc
+secrets.py
+secrets.json
+secrets.yaml
+secrets.yml
+config.local.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+credentials
+credentials.*
+auth.json
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.eggs/
+MANIFEST
+
+# ── Build & packaging ─────────────────────────────────────────────────────────
+dist/
+build/
+*.spec              # PyInstaller spec files (auto-generated)
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# ── Testing & coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.log
+
+# ── IDE & editors ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ── OS junk ───────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ── Temporary / scratch files ─────────────────────────────────────────────────
+*.tmp
+*.bak
+*.orig
+*.rej
+scratch/
+tmp/
+temp/

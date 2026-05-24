@@ -1,0 +1,116 @@
+name: Build Release
+
+# Runs when a release is published from the GitHub UI.
+# Builds a standalone executable for every platform and attaches
+# the archives to the release as downloadable assets.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write   # needed to upload assets to the release
+
+jobs:
+  build:
+    name: Build — ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false   # let all platforms finish even if one fails
+      matrix:
+        include:
+
+          # ── Linux ──────────────────────────────────────────────────────────
+          - os: ubuntu-latest
+            label: Linux x86_64
+            asset_name: DungeonAdventure-linux-x86_64.tar.gz
+            # No --windowed on Linux: SDL output stays in terminal (useful for
+            # debugging; doesn't cause a visible console window for players)
+            pyinstaller_extra: ""
+
+          # ── Windows ────────────────────────────────────────────────────────
+          - os: windows-latest
+            label: Windows x86_64
+            asset_name: DungeonAdventure-windows-x86_64.zip
+            # --noconsole hides the cmd.exe window; players only see the game
+            pyinstaller_extra: "--noconsole"
+
+          # ── macOS Apple Silicon ─────────────────────────────────────────────
+          - os: macos-14          # arm64 (Apple M-series)
+            label: macOS arm64
+            asset_name: DungeonAdventure-macos-arm64.zip
+            # --windowed creates a proper .app bundle on macOS
+            pyinstaller_extra: "--windowed"
+
+          # ── macOS Intel ─────────────────────────────────────────────────────
+          - os: macos-13          # x86_64 (Intel)
+            label: macOS x86_64
+            asset_name: DungeonAdventure-macos-x86_64.zip
+            pyinstaller_extra: "--windowed"
+
+    steps:
+
+      # ── 1. Source ───────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Python ───────────────────────────────────────────────────────────
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ── 3. Dependencies ─────────────────────────────────────────────────────
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # ── 4. Build ────────────────────────────────────────────────────────────
+      #   --onefile   → single redistributable file (or .app bundle on macOS)
+      #   --name      → controls the output filename / bundle name
+      - name: Build with PyInstaller
+        run: >
+          pyinstaller
+          --onefile
+          ${{ matrix.pyinstaller_extra }}
+          --name DungeonAdventure
+          main.py
+
+      # ── 5a. Package — Linux ─────────────────────────────────────────────────
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          tar -czf "${{ matrix.asset_name }}" \
+              -C dist DungeonAdventure
+
+      # ── 5b. Package — Windows ───────────────────────────────────────────────
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive `
+            -Path dist\DungeonAdventure.exe `
+            -DestinationPath "${{ matrix.asset_name }}"
+
+      # ── 5c. Package — macOS ─────────────────────────────────────────────────
+      # --windowed on macOS produces a .app bundle (directory); zip it.
+      # Fall back to plain binary if .app was not generated.
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          if [ -d dist/DungeonAdventure.app ]; then
+            cd dist && zip -r --symlinks "../${{ matrix.asset_name }}" DungeonAdventure.app
+          else
+            tar -czf "${{ matrix.asset_name }}" -C dist DungeonAdventure
+          fi
+
+      # ── 6. Upload to release ────────────────────────────────────────────────
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset_name }}
+          # Tag is inferred from the triggering release event automatically.
+          # fail_on_unmatched_files catches packaging mistakes early.
+          fail_on_unmatched_files: true
