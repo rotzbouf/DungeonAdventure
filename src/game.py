@@ -5,8 +5,9 @@ import pygame
 
 from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, TILE_SIZE,
                            TITLE, FPS, VOID_COLOR, RED, YELLOW, WHITE,
-                           LIGHT_GRAY, GRAY, GOLD_COLOR, STATE_MENU, STATE_PLAYING,
-                           STATE_GAME_OVER, FLOORS_PER_NG,
+                           LIGHT_GRAY, GRAY, GOLD_COLOR,
+                           STATE_MENU, STATE_PLAYING, STATE_GAME_OVER, STATE_TOWN,
+                           FLOORS_PER_NG,
                            FIREBALL_MANA_COST, FIREBALL_SPEED, FIREBALL_MAX_RANGE,
                            FIREBALL_DAMAGE, FIREBALL_RADIUS, STATUS_BURN,
                            ICE_NOVA_MANA_COST, ICE_NOVA_DAMAGE, ICE_NOVA_RADIUS,
@@ -19,9 +20,13 @@ from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, TILE_SIZE,
                            WHIRLWIND_MANA_COST)
 from src.utils.camera      import Camera
 from src.world.dungeon     import Dungeon
+from src.world.town        import (TownRenderer, TOWN_BOUNDS,
+                                   PLAYER_SPAWN as TOWN_PLAYER_SPAWN,
+                                   DUNGEON_ENTRANCE_POS, DUNGEON_INTERACT_R,
+                                   MERCHANT_SPECS)
 from src.entities.player   import Player
 from src.entities.enemy    import get_enemy_types
-from src.entities.merchant import Merchant
+from src.entities.merchant import Merchant, TownMerchant
 from src.items.item        import GoldPile, random_item, TreasureChest
 from src.ui.hud            import HUD
 from src.ui.minimap        import Minimap
@@ -73,6 +78,12 @@ class Game:
         self.chests:    list = []
         self.projectiles: list = []
         self.merchants:   list = []
+
+        # ── Town ─────────────────────────────────────────────────────────────
+        self.town_renderer    = TownRenderer()
+        self.town_merchants:  list = []    # TownMerchant instances
+        self._town_notice_t   = 0.0        # "Rested" banner timer
+        self._town_notice_msg = ""
 
         self._time      = 0.0
         self._shake_t   = 0.0
@@ -173,34 +184,88 @@ class Game:
 
     def _new_game(self):
         self.ng_plus    = 0
+        self.dungeon_level = 1
         self.quest_log  = QuestLog()
         self._battle_cry_timer = 0.0
         self._ice_nova_cd = self._chain_cd = self._blink_cd = 0.0
-        self._load_level(1)
-        self.state = STATE_PLAYING
+        # Create fresh player and enter town
+        from src.entities.player import Player as _Player
+        self.player = _Player(TOWN_PLAYER_SPAWN[0], TOWN_PLAYER_SPAWN[1])
+        self._enter_town(rest=False)
 
     def _continue_game(self):
-        """Load a saved game and resume."""
+        """Load a saved game and drop the player into town."""
         data = savesys.load_game()
         if not data:
             self._new_game()
             return
-        # Reconstruct quest log and skill tree from save
         from src.skills import SkillTree
-        self.ng_plus   = data.get("ng_plus", 0)
-        self.quest_log = QuestLog.from_dict(data.get("quests", {}))
+        from src.entities.player import Player as _Player
+        self.ng_plus       = data.get("ng_plus", 0)
+        self.dungeon_level = data.get("dungeon_level", 1)
+        self.quest_log     = QuestLog.from_dict(data.get("quests", {}))
 
-        saved_level = data.get("dungeon_level", 1)
-        self._load_level(saved_level)   # builds fresh dungeon at that level
-
-        # Restore player over the freshly-placed one
+        # Build a bare player and restore saved state
+        self.player = _Player(TOWN_PLAYER_SPAWN[0], TOWN_PLAYER_SPAWN[1])
         savesys.restore_player(self.player, data)
-        # Restore skill tree
         self.player.skill_tree = SkillTree.from_dict(data.get("skills", {}))
 
         self._battle_cry_timer = 0.0
         self._ice_nova_cd = self._chain_cd = self._blink_cd = 0.0
+        self._enter_town(rest=False)
+
+    # ─── Town ────────────────────────────────────────────────────────────────────
+
+    def _enter_town(self, rest: bool = True):
+        """Switch to STATE_TOWN.  Restocks town merchants and optionally heals."""
+        if self.player is None:
+            return
+        plvl = getattr(self.player, 'level', 1)
+        self.town_merchants = [
+            TownMerchant(px, py, title, spec, plvl)
+            for title, spec, px, py in MERCHANT_SPECS
+        ]
+        self.player.x = float(TOWN_PLAYER_SPAWN[0])
+        self.player.y = float(TOWN_PLAYER_SPAWN[1])
+        self.player._sync_rect()
+
+        # Close any open dungeon overlays
+        self.inv_open = self.shop_open = self.char_open = False
+        self.quest_open = self.skill_open = False
+        self._active_merchant = None
+
+        if rest:
+            self.player.hp   = float(self.player.max_hp_total)
+            self.player.mana = float(self.player.max_mana_total)
+            self._town_notice_msg = "Rested at the inn — HP and MP fully restored"
+            self._town_notice_t   = 3.5
+
+        # Lock camera at (0,0) for the fixed-size town view
+        self.camera.x = 0.0
+        self.camera.y = 0.0
+        self.state    = STATE_TOWN
+
+    def _return_to_town(self):
+        """Save the game and send the player back to town to rest."""
+        if self.state != STATE_PLAYING or self.player is None:
+            return
+        savesys.save_game(self.player, self.dungeon_level, self.ng_plus,
+                          self.quest_log, self.player.skill_tree)
+        self._enter_town(rest=True)
+
+    def _enter_dungeon_from_town(self):
+        """Leave town and enter the dungeon at the last-saved floor."""
+        if self.player is None:
+            return
+        self._load_level(self.dungeon_level, self.player)
         self.state = STATE_PLAYING
+
+    def _try_open_town_shop(self):
+        for m in self.town_merchants:
+            if m.near_player(self.player):
+                self._active_merchant = m
+                self.shop_open        = True
+                return
 
     # ─── Main loop ───────────────────────────────────────────────────────────────
 
@@ -222,12 +287,14 @@ class Game:
                 k = event.key
 
                 if k == pygame.K_ESCAPE:
-                    if self.inv_open:   self.inv_open   = False
+                    if self.inv_open:    self.inv_open   = False
                     elif self.shop_open: self.shop_open  = False
                     elif self.char_open: self.char_open  = False
                     elif self.quest_open: self.quest_open = False
                     elif self.skill_open: self.skill_open = False
                     elif self.state == STATE_PLAYING:
+                        self.state = STATE_MENU
+                    elif self.state == STATE_TOWN:
                         self.state = STATE_MENU
                     else:
                         pygame.quit(); sys.exit()
@@ -246,6 +313,31 @@ class Game:
                 any_overlay = (self.inv_open or self.shop_open or self.char_open
                                or self.quest_open or self.skill_open)
 
+                # ── Town keys ──────────────────────────────────────────────
+                if self.state == STATE_TOWN:
+                    if k == pygame.K_f and not self.shop_open:
+                        self._try_open_town_shop()
+                    elif k == pygame.K_f and self.shop_open:
+                        self.shop_open = False
+                        self._active_merchant = None
+                    if k == pygame.K_e:
+                        if math.hypot(self.player.x - DUNGEON_ENTRANCE_POS[0],
+                                      self.player.y - DUNGEON_ENTRANCE_POS[1]) < DUNGEON_INTERACT_R:
+                            self._enter_dungeon_from_town()
+                    if k in (pygame.K_i, pygame.K_TAB):
+                        if not self.shop_open:
+                            self.inv_open = not self.inv_open
+                    if k == pygame.K_c and not self.shop_open and not self.inv_open:
+                        self.char_open = not self.char_open
+                    if k == pygame.K_k:
+                        self.skill_open = not self.skill_open
+                        if self.skill_open:
+                            self.inv_open = self.shop_open = self.char_open = False
+
+                # ── Dungeon keys ───────────────────────────────────────────
+                if self.state == STATE_PLAYING and not any_overlay:
+                    if k == pygame.K_t:
+                        self._return_to_town()
                 if self.state == STATE_PLAYING and not any_overlay:
                     if k == pygame.K_SPACE:
                         mods = pygame.key.get_mods()
@@ -286,7 +378,7 @@ class Game:
                         elif not any_overlay:
                             self._try_open_shop()
 
-            if event.type == pygame.MOUSEBUTTONDOWN and self.state == STATE_PLAYING:
+            if event.type == pygame.MOUSEBUTTONDOWN and self.state in (STATE_PLAYING, STATE_TOWN):
                 if self.inv_open and event.button == 1:
                     self.inventory.handle_click(*event.pos, self.player)
                 elif self.shop_open and self._active_merchant:
@@ -690,6 +782,9 @@ class Game:
         if self.state == STATE_MENU:
             self._update_sparks(dt)
             return
+        if self.state == STATE_TOWN:
+            self._update_town(dt)
+            return
         if self.state != STATE_PLAYING:
             return
 
@@ -913,6 +1008,21 @@ class Game:
             sz   = max(1, int(p['sz'] * (0.5 + 0.5 * fade)))
             pygame.draw.circle(self.screen, col, (sx, sy), sz)
 
+    # ─── Town update ─────────────────────────────────────────────────────────────
+
+    def _update_town(self, dt: float):
+        if self.player is None:
+            return
+        # Player walks around town; TOWN_BOUNDS acts as a minimal wall collider
+        self.player.update(dt, TOWN_BOUNDS, self.camera)
+        for m in self.town_merchants:
+            m.update(dt)
+        self.shop.update(dt)
+        self.inventory.update(dt)
+        self.charscreen.update(dt)
+        self._town_notice_t = max(0.0, self._town_notice_t - dt)
+        # Mana regen handled by player.update above
+
     # ─── Draw ────────────────────────────────────────────────────────────────────
 
     def _draw(self):
@@ -920,6 +1030,8 @@ class Game:
 
         if self.state == STATE_MENU:
             self._draw_menu()
+        elif self.state == STATE_TOWN:
+            self._draw_town()
         elif self.state == STATE_PLAYING:
             self._draw_world()
             if self.inv_open:
@@ -948,6 +1060,62 @@ class Game:
             self._draw_overlay("GAME OVER", "Press ENTER to return to menu", RED)
 
         pygame.display.flip()
+
+    def _draw_town(self):
+        play_h = SCREEN_HEIGHT - HUD_HEIGHT
+        near_entrance = (
+            self.player is not None and
+            math.hypot(self.player.x - DUNGEON_ENTRANCE_POS[0],
+                       self.player.y - DUNGEON_ENTRANCE_POS[1]) < DUNGEON_INTERACT_R
+        )
+        # Background + entrance + stall names
+        self.town_renderer.draw(self.screen, self._time, near_entrance)
+
+        # Merchant sprites and interaction hints
+        for m in self.town_merchants:
+            m.draw(self.screen, self.camera)   # camera is zeroed in town
+            if m.near_player(self.player):
+                hx = int(m.x)
+                hy = int(m.y) - 50
+                hint = self._font_sm.render("F — Shop", True, m._palette["hi"])
+                self.screen.blit(hint, hint.get_rect(centerx=hx, centery=hy))
+
+        # Player
+        self.player.draw(self.screen, self.camera)
+
+        # HUD (bottom strip) — reuse the dungeon HUD without floor/NG info
+        self.hud.draw(self.screen, self.player, self.dungeon_level,
+                      ng_plus=self.ng_plus)
+
+        # "Rested" notice
+        if self._town_notice_t > 0:
+            alpha = min(255, int(self._town_notice_t * 100))
+            self.town_renderer.draw_return_notice(self.screen, self._town_notice_msg)
+            # fade by adjusting alpha via a cover surface if needed
+            _ = alpha  # alpha already baked into draw_return_notice
+
+        # Overlays (inventory, shop, char screen, skill tree)
+        if self.inv_open:
+            self.inventory.draw(self.screen, self.player)
+        elif self.shop_open and self._active_merchant:
+            self.shop.draw(self.screen, self._active_merchant, self.player)
+        elif self.char_open:
+            self.charscreen.draw(self.screen, self.player)
+        elif self.skill_open:
+            self.skillscreen.draw(self.screen, self.player)
+
+        # Key hints footer
+        hint_line = self._font_sm.render(
+            f"F: Shop   I: Inventory   C: Character   K: Skills   "
+            f"E: Enter Dungeon (floor {self.dungeon_level})   ESC: Menu",
+            True, LIGHT_GRAY)
+        hy2 = SCREEN_HEIGHT - HUD_HEIGHT - 16
+        bg_s = pygame.Surface((hint_line.get_width() + 16, hint_line.get_height() + 6),
+                               pygame.SRCALPHA)
+        bg_s.fill((0, 0, 0, 140))
+        self.screen.blit(bg_s, bg_s.get_rect(centerx=SCREEN_WIDTH // 2, centery=hy2))
+        self.screen.blit(hint_line, hint_line.get_rect(
+            centerx=SCREEN_WIDTH // 2, centery=hy2))
 
     def _draw_world(self):
         shk_x = shk_y = 0
@@ -1317,7 +1485,8 @@ class Game:
             ("R",          "Chain Lightning* (35 mana)"),
             ("V",          "Blink* (15 mana → cursor)"),
             ("B",          "Battle Cry* (20 mana, +dmg)"),
-            ("E",          "Descend Stairs"),
+            ("E",          "Descend Stairs  /  Enter Dungeon (town)"),
+            ("T",          "Return to Town  (saves game)"),
             ("F",          "Open Shop"),
             ("I / TAB",    "Inventory"),
             ("C",          "Character Screen"),

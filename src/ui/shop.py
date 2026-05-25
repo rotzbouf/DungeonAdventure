@@ -10,7 +10,7 @@ import pygame
 from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT,
                            WHITE, YELLOW, GRAY, LIGHT_GRAY)
 from src.items.item import EquipItem, HealthPotion
-from src.entities.merchant import item_buy_price, item_sell_price
+from src.entities.merchant import item_sell_price
 
 # ── Geometry ──────────────────────────────────────────────────────────────────
 _PW      = 720
@@ -115,7 +115,7 @@ class ShopScreen:
                          (panel.x, panel.y + _HDR_H),
                          (panel.right, panel.y + _HDR_H), 1)
 
-        title = self._font_lg.render("☆  MERCHANT  ☆", True, (180, 110, 255))
+        title = self._font_lg.render(f"☆  {merchant.get_title()}  ☆", True, (180, 110, 255))
         surface.blit(title, title.get_rect(
             centerx=panel.centerx, centery=panel.y + 18))
 
@@ -160,7 +160,7 @@ class ShopScreen:
             pygame.draw.rect(surface, _BORDER, r, 1)
 
             name, col = self._label(item)
-            price     = item_buy_price(item)
+            price     = merchant.price_of(item)
             p_col     = _BUY_C if player.gold >= price else _CANT_C
 
             n_surf = self._font_md.render(name, True, col)
@@ -250,7 +250,7 @@ class ShopScreen:
                 if r.bottom > panel.bottom - 4:
                     break
                 if r.collidepoint(mx, my):
-                    price = item_buy_price(item)
+                    price = merchant.price_of(item)
                     if player.gold >= price:
                         player.gold -= price
                         merchant.stock.remove(item)

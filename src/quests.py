@@ -102,8 +102,15 @@ class QuestLog:
         ))
 
         available = [q for q in pool if q.id not in self._all_ids]
-        random.shuffle(available)
-        for q in available[:3]:
+
+        # The descent quest is always offered — pull it out first so the random
+        # shuffle of kill/collect quests can't accidentally drop it.
+        reach_id   = f"reach_f{cycle + 1}"
+        guaranteed = [q for q in available if q.id == reach_id]
+        random_pool = [q for q in available if q.id != reach_id]
+        random.shuffle(random_pool)
+
+        for q in guaranteed + random_pool[:2]:
             self.add_quest(q)
 
     # ── Notifying ─────────────────────────────────────────────────────────────
