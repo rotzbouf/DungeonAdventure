@@ -598,7 +598,7 @@ class EquipItem(Item):
                 sr    = int(215 + 40 * math.sin(t))
                 sg    = int(140 + 55 * math.sin(t + 1.2))
                 sb    = int(20  + 20 * abs(math.sin(t + 0.6)))
-                glow  = (min(255, sr), min(255, sg), min(0, sb) + 10)
+                glow  = (min(255, sr), min(255, sg), min(255, sb))
                 alpha = int(110 * pulse)
                 # Second outer ring for extra punch
                 gr2   = gr + 8

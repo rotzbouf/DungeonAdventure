@@ -155,14 +155,20 @@ class Dungeon:
             if self.rng.random() < 0.65:
                 self.item_spawns.append(room.random_inner(self.rng))
 
-        # 1-2 merchants in mid-dungeon rooms (skip first and last room)
+        # Merchants — rare find; ~28 % on floor 1, scaling to ~60 % on floor 5.
+        # Player should feel lucky to stumble upon one, not annoyed by them everywhere.
         eligible = self.rooms[2:-1]
         if eligible:
-            self.rng.shuffle(eligible)
-            n = min(2, max(1, len(eligible) // 4))
-            for room in eligible[:n]:
-                cx, cy = room.center
-                self.merchant_spawns.append((cx, cy))
+            spawn_chance = 0.20 + self.level * 0.08   # 0.28 → 0.60
+            if self.rng.random() < spawn_chance:
+                self.rng.shuffle(eligible)
+                # Almost always just one; deep floors very occasionally spawn two
+                n_merchants = 1
+                if self.level >= 4 and len(eligible) >= 4 and self.rng.random() < 0.25:
+                    n_merchants = 2
+                for room in eligible[:n_merchants]:
+                    cx, cy = room.center
+                    self.merchant_spawns.append((cx, cy))
 
         # Spike traps — scatter in floor tiles that are in corridors (not in rooms)
         room_cells: set[tuple[int, int]] = set()

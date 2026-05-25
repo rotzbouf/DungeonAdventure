@@ -71,6 +71,8 @@ class Entity:
             return (30, 200, 30)
         if 'burn' in self._status:
             return (230, 80, 10)
+        if 'freeze' in self._status:
+            return (120, 210, 255)   # ice blue
         if 'slow' in self._status:
             return (60, 100, 220)
         return None

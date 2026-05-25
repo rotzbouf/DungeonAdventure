@@ -151,6 +151,8 @@ class Game:
                      level)
             for tx, ty in self.dungeon.merchant_spawns
         ]
+        if self.merchants:
+            self.hud.notify_quest("A merchant is trading on this floor  (F)")
 
         self.chests = [TreasureChest(tx, ty)
                        for tx, ty in self.dungeon.chest_positions]
@@ -263,7 +265,6 @@ class Game:
                         if self.player.use_potion():
                             self.inventory.notify(
                                 f"Used potion  (Remaining: {len(self.player.potions)})")
-                    if k == pygame.K_f: self._try_open_shop()
 
                 if self.state == STATE_PLAYING:
                     if k in (pygame.K_i, pygame.K_TAB):
@@ -279,8 +280,11 @@ class Game:
                         self.skill_open = not self.skill_open
                         if self.skill_open:
                             self.inv_open = self.shop_open = self.char_open = self.quest_open = False
-                    if k == pygame.K_f and self.shop_open:
-                        self.shop_open = False
+                    if k == pygame.K_f:
+                        if self.shop_open:
+                            self.shop_open = False
+                        elif not any_overlay:
+                            self._try_open_shop()
 
             if event.type == pygame.MOUSEBUTTONDOWN and self.state == STATE_PLAYING:
                 if self.inv_open and event.button == 1:
