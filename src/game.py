@@ -1196,9 +1196,9 @@ class Game:
 
         # Player hurt ring
         if self._player_hurt_t > 0:
-            t = 1.0 - self._player_hurt_t / 0.28
-            r = int(16 + 28*t)
-            a = int(200 * (1.0-t))
+            tf = 1.0 - self._player_hurt_t / 0.28
+            r = int(16 + 28*tf)
+            a = int(200 * (1.0-tf))
             if r > 1 and a > 0:
                 hs = pygame.Surface((r*2+4, r*2+4), pygame.SRCALPHA)
                 pygame.draw.circle(hs, (220,30,30,a), (r+2,r+2), r, 3)
@@ -1215,8 +1215,8 @@ class Game:
 
         # Damage numbers
         for dn in self._dmg_nums:
-            t      = dn['timer'] / dn['max_timer']
-            alpha  = int(255 * min(1.0, t * 1.6))
+            tf     = dn['timer'] / dn['max_timer']
+            alpha  = int(255 * min(1.0, tf * 1.6))
             if alpha <= 0:
                 continue
             font  = self._font_lg if dn['big'] else self._font_md
@@ -1457,10 +1457,10 @@ class Game:
                                      (tx+1,ty+1),(tx+TILE_SIZE-2,ty+1))
 
         for s in self._sparks:
-            t   = s['life'] / s['max']
-            a   = int(min(255, t*230))
-            r   = max(1, int(s['sz']*t))
-            col = (min(255,int(195+t*60)), int(105*t*t), 0)
+            tf  = s['life'] / s['max']
+            a   = int(min(255, tf*230))
+            r   = max(1, int(s['sz']*tf))
+            col = (min(255,int(195+tf*60)), int(105*tf*tf), 0)
             gs  = pygame.Surface((r*4+2,r*4+2), pygame.SRCALPHA)
             pygame.draw.circle(gs, (*col, a//3), (r*2+1,r*2+1), r*2)
             pygame.draw.circle(gs, (*col, a),    (r*2+1,r*2+1), r)
@@ -1555,7 +1555,7 @@ class Game:
         pc    = tuple(int(c*pulse) for c in color)
         sh    = self._font_xl.render(title, True, (15,5,5))
         self.screen.blit(sh, sh.get_rect(center=(cx+4,cy-40)))
-        t = self._font_xl.render(title, True, pc)
-        s = self._font_lg.render(sub,   True, WHITE)
-        self.screen.blit(t, t.get_rect(center=(cx,cy-44)))
-        self.screen.blit(s, s.get_rect(center=(cx,cy+24)))
+        ts = self._font_xl.render(title, True, pc)
+        s  = self._font_lg.render(sub,   True, WHITE)
+        self.screen.blit(ts, ts.get_rect(center=(cx,cy-44)))
+        self.screen.blit(s,  s.get_rect(center=(cx,cy+24)))
