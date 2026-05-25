@@ -37,6 +37,8 @@ from src.ui.questlog       import QuestLogScreen
 from src.ui.skillscreen    import SkillScreen
 from src.quests            import QuestLog
 from src import save as savesys
+import src.locale as locale
+from src.locale import t, t_quest_name
 
 
 class Game:
@@ -91,6 +93,7 @@ class Game:
         self._hitstop_t = 0.0
         self._sparks:    list = []
         self._particles: list = []
+        self._lang_btn_rects: dict = {}   # populated by _draw_menu, read by events
 
         self._player_hurt_t    = 0.0
         self._transition_timer = 0.0
@@ -163,7 +166,7 @@ class Game:
             for tx, ty in self.dungeon.merchant_spawns
         ]
         if self.merchants:
-            self.hud.notify_quest("A merchant is trading on this floor  (F)")
+            self.hud.notify_quest(t("game.merchant_found"))
 
         self.chests = [TreasureChest(tx, ty)
                        for tx, ty in self.dungeon.chest_positions]
@@ -237,7 +240,7 @@ class Game:
         if rest:
             self.player.hp   = float(self.player.max_hp_total)
             self.player.mana = float(self.player.max_mana_total)
-            self._town_notice_msg = "Rested at the inn — HP and MP fully restored"
+            self._town_notice_msg = t("town.rested")
             self._town_notice_t   = 3.5
 
         # Lock camera at (0,0) for the fixed-size town view
@@ -310,6 +313,10 @@ class Game:
                     if savesys.has_save():
                         self._continue_game()
 
+                # Language toggle — L key on menu
+                if k == pygame.K_l and self.state == STATE_MENU:
+                    locale.set_lang("de" if locale.lang() == "en" else "en")
+
                 any_overlay = (self.inv_open or self.shop_open or self.char_open
                                or self.quest_open or self.skill_open)
 
@@ -356,7 +363,7 @@ class Game:
                     if k == pygame.K_q:
                         if self.player.use_potion():
                             self.inventory.notify(
-                                f"Used potion  (Remaining: {len(self.player.potions)})")
+                                t("game.used_potion", n=len(self.player.potions)))
 
                 if self.state == STATE_PLAYING:
                     if k in (pygame.K_i, pygame.K_TAB):
@@ -377,6 +384,13 @@ class Game:
                             self.shop_open = False
                         elif not any_overlay:
                             self._try_open_shop()
+
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if self.state == STATE_MENU:
+                    for code, rect in self._lang_btn_rects.items():
+                        if rect.collidepoint(event.pos):
+                            locale.set_lang(code)
+                            break
 
             if event.type == pygame.MOUSEBUTTONDOWN and self.state in (STATE_PLAYING, STATE_TOWN):
                 if self.inv_open and event.button == 1:
@@ -501,7 +515,8 @@ class Game:
                     self.hud.notify_level_up()
             if q.reward_gold:
                 self.player.gold += q.reward_gold
-            self.hud.notify_quest(f"Quest: {q.name}  +{q.reward_xp} XP")
+            self.hud.notify_quest(
+                t("game.quest_reward", name=t_quest_name(q.id), xp=q.reward_xp))
 
     # ─── Spells ──────────────────────────────────────────────────────────────────
 
@@ -1057,7 +1072,7 @@ class Game:
                 self._draw_world()
             else:
                 self.screen.fill((0, 0, 0))
-            self._draw_overlay("GAME OVER", "Press ENTER to return to menu", RED)
+            self._draw_overlay(t("game.game_over"), t("game.press_enter"), RED)
 
         pygame.display.flip()
 
@@ -1077,7 +1092,8 @@ class Game:
             if m.near_player(self.player):
                 hx = int(m.x)
                 hy = int(m.y) - 50
-                hint = self._font_sm.render("F — Shop", True, m._palette["hi"])
+                hi_col = m._palette.get("robe_h", (220, 220, 220))
+                hint = self._font_sm.render(t("town.shop_hint"), True, hi_col)
                 self.screen.blit(hint, hint.get_rect(centerx=hx, centery=hy))
 
         # Player
@@ -1106,8 +1122,7 @@ class Game:
 
         # Key hints footer
         hint_line = self._font_sm.render(
-            f"F: Shop   I: Inventory   C: Character   K: Skills   "
-            f"E: Enter Dungeon (floor {self.dungeon_level})   ESC: Menu",
+            t("town.footer", n=self.dungeon_level),
             True, LIGHT_GRAY)
         hy2 = SCREEN_HEIGHT - HUD_HEIGHT - 16
         bg_s = pygame.Surface((hint_line.get_width() + 16, hint_line.get_height() + 6),
@@ -1156,8 +1171,8 @@ class Game:
         if math.hypot(self.player.x-stx, self.player.y-sty) < TILE_SIZE*3:
             dsx, dsy = stx-self.camera.x, sty-self.camera.y
             if 0 < dsx < SCREEN_WIDTH and 0 < dsy < play_h:
-                ng_hint = " (NG+!)" if self.dungeon_level >= FLOORS_PER_NG else ""
-                hint = self._font_sm.render(f"E — descend{ng_hint}", True, YELLOW)
+                descend_key = "game.descend_ng" if self.dungeon_level >= FLOORS_PER_NG else "game.descend"
+                hint = self._font_sm.render(t(descend_key), True, YELLOW)
                 self.screen.blit(hint, (int(dsx)-hint.get_width()//2, max(4,int(dsy)-32)))
 
         self._draw_traps()
@@ -1174,7 +1189,7 @@ class Game:
                 mx_s = int(merchant.x - self.camera.x)
                 my_s = int(merchant.y - self.camera.y)
                 if 0 < mx_s < SCREEN_WIDTH and 4 < my_s < play_h:
-                    hint = self._font_sm.render("F — Shop", True, (180,110,255))
+                    hint = self._font_sm.render(t("town.shop_hint"), True, (180,110,255))
                     self.screen.blit(hint, (mx_s-hint.get_width()//2, max(4,my_s-40)))
 
         self.player.draw(self.screen, self.camera)
@@ -1453,22 +1468,22 @@ class Game:
 
         pulse = 0.88 + 0.12*math.sin(self._time*2.2)
         ycol  = tuple(int(c*pulse) for c in YELLOW)
-        title = self._font_xl.render("DUNGEON ADVENTURE", True, ycol)
-        t_sh  = self._font_xl.render("DUNGEON ADVENTURE", True, (0,0,0))
-        self.screen.blit(t_sh,  t_sh.get_rect(center=(cx+3,180+3)))
-        self.screen.blit(title, title.get_rect(center=(cx,180)))
+        game_title = self._font_xl.render("DUNGEON ADVENTURE", True, ycol)
+        t_sh       = self._font_xl.render("DUNGEON ADVENTURE", True, (0,0,0))
+        self.screen.blit(t_sh,       t_sh.get_rect(center=(cx+3,180+3)))
+        self.screen.blit(game_title, game_title.get_rect(center=(cx,180)))
 
-        sub = self._font_lg.render("A Classic Dungeon Crawler", True, WHITE)
+        sub = self._font_lg.render(t("menu.subtitle"), True, WHITE)
         self.screen.blit(sub, sub.get_rect(center=(cx,242)))
 
         # Buttons
         if int(self._time*2) % 2 == 0:
-            enter = self._font_md.render("- PRESS  ENTER  TO  START -", True, YELLOW)
+            enter = self._font_md.render(t("menu.press_enter"), True, YELLOW)
             self.screen.blit(enter, enter.get_rect(center=(cx,310)))
 
         if savesys.has_save():
             if int(self._time*2) % 2 == 0:
-                cont = self._font_md.render("- PRESS  C  TO  CONTINUE -", True, (120,200,255))
+                cont = self._font_md.render(t("menu.press_c"), True, (120,200,255))
                 self.screen.blit(cont, cont.get_rect(center=(cx,344)))
 
         sep_y = 376 if savesys.has_save() else 345
@@ -1478,21 +1493,21 @@ class Game:
                             [(cx,sep_y-6),(cx+6,sep_y),(cx,sep_y+6),(cx-6,sep_y)])
 
         controls = [
-            ("WASD",       "Move"),
-            ("SPACE",      "Attack   SHIFT+SPC  Whirlwind*"),
-            ("Z",          "Fireball (25 mana → mouse)"),
-            ("X",          "Ice Nova* (20 mana, AoE slow)"),
-            ("R",          "Chain Lightning* (35 mana)"),
-            ("V",          "Blink* (15 mana → cursor)"),
-            ("B",          "Battle Cry* (20 mana, +dmg)"),
-            ("E",          "Descend Stairs  /  Enter Dungeon (town)"),
-            ("T",          "Return to Town  (saves game)"),
-            ("F",          "Open Shop"),
-            ("I / TAB",    "Inventory"),
-            ("C",          "Character Screen"),
-            ("K",          "Skill Tree"),
-            ("J",          "Quest Journal"),
-            ("Q",          "Use Potion"),
+            ("WASD",       t("ctrl.move")),
+            ("SPACE",      t("ctrl.attack")),
+            ("Z",          t("ctrl.fireball")),
+            ("X",          t("ctrl.ice_nova")),
+            ("R",          t("ctrl.chain_light")),
+            ("V",          t("ctrl.blink")),
+            ("B",          t("ctrl.battle_cry")),
+            ("E",          t("ctrl.descend")),
+            ("T",          t("ctrl.return_town")),
+            ("F",          t("ctrl.shop")),
+            ("I / TAB",    t("ctrl.inventory")),
+            ("C",          t("ctrl.char")),
+            ("K",          t("ctrl.skills")),
+            ("J",          t("ctrl.quests")),
+            ("Q",          t("ctrl.potion")),
         ]
         key_x = cx - 16
         act_x = cx + 16
@@ -1508,8 +1523,27 @@ class Game:
                                 [(cx,y-3),(cx+4,y),(cx,y+3),(cx-4,y)])
             self.screen.blit(acs, acs.get_rect(left=act_x, centery=y))
 
-        note = self._font_sm.render("* requires skill tree unlock", True, GRAY)
+        note = self._font_sm.render(t("menu.skill_note"), True, GRAY)
         self.screen.blit(note, note.get_rect(right=cx+240, y=SCREEN_HEIGHT-28))
+
+        # ── Language selector ─────────────────────────────────────────────────
+        self._lang_btn_rects = {}
+        lang_lbl = self._font_sm.render(t("menu.lang_label") + ":", True, GRAY)
+        lx = 20
+        self.screen.blit(lang_lbl, (lx, SCREEN_HEIGHT - 28))
+        lx += lang_lbl.get_width() + 8
+        for code, label in (("en", "EN"), ("de", "DE")):
+            active  = locale.lang() == code
+            col     = YELLOW if active else GRAY
+            btn_txt = self._font_sm.render(f"[{label}]", True, col)
+            btn_r   = btn_txt.get_rect(left=lx, top=SCREEN_HEIGHT - 28)
+            if active:
+                bg = pygame.Surface((btn_r.width + 4, btn_r.height + 2))
+                bg.fill((40, 30, 0))
+                self.screen.blit(bg, (btn_r.left - 2, btn_r.top - 1))
+            self.screen.blit(btn_txt, btn_r)
+            self._lang_btn_rects[code] = btn_r
+            lx += btn_r.width + 6
 
     def _draw_overlay(self, title: str, sub: str, color):
         ov = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)

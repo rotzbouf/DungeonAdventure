@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 import pygame
 from src.settings import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, TILE_SIZE
+from src.locale import t
 
 TOWN_W = SCREEN_WIDTH
 TOWN_H = SCREEN_HEIGHT - HUD_HEIGHT
@@ -213,16 +214,17 @@ class TownRenderer:
         # ── Stall names (rendered each frame so fonts are ready) ──────────────
         for title, specialty, px, py in MERCHANT_SPECS:
             pal = _STALL[specialty]
-            name_s = self._font.render(title, True, pal["hi"])
+            display_name = t(f"merchant.{title.lower()}")
+            name_s = self._font.render(display_name, True, pal["hi"])
             surface.blit(name_s, name_s.get_rect(centerx=px, centery=py - 60))
 
         # ── Dungeon entrance sign ─────────────────────────────────────────────
         lbl_col = (180, 140, 255) if near_entrance else (120, 90, 180)
-        lbl = self._font.render("DUNGEON", True, lbl_col)
+        lbl = self._font.render(t("town.dungeon_sign"), True, lbl_col)
         surface.blit(lbl, lbl.get_rect(centerx=ex, centery=ey - 62))
 
         if near_entrance:
-            hint = self._font_sm.render("E  —  Enter Dungeon", True, (200, 170, 255))
+            hint = self._font_sm.render(t("town.enter_dungeon"), True, (200, 170, 255))
             surface.blit(hint, hint.get_rect(centerx=ex, centery=ey + 38))
 
     def draw_return_notice(self, surface: pygame.Surface, msg: str):

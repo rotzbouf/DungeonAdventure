@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
+from src.locale import t, t_quest_name
 
 
 @dataclass
@@ -129,7 +130,8 @@ class QuestLog:
                     self.active.remove(q)
                     self.completed.append(q)
                     done.append(q)
-                    self._pending.append(f"Quest Complete: {q.name}!")
+                    self._pending.append(
+                        f"{t('quest.complete')}: {t_quest_name(q.id, q.name)}!")
         return done
 
     def pop_notifications(self) -> list[str]:

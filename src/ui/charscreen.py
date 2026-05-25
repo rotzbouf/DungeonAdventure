@@ -9,6 +9,7 @@ from __future__ import annotations
 import pygame
 from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, MAX_PLAYER_LEVEL,
                            WHITE, YELLOW, GRAY, LIGHT_GRAY)
+from src.locale import t
 
 # ── Geometry ──────────────────────────────────────────────────────────────────
 _PW = 520
@@ -98,13 +99,14 @@ class CharScreen:
                          (panel.x, panel.y + 50),
                          (panel.right, panel.y + 50), 1)
 
-        title = self._font_xl.render("CHARACTER", True, _GOLD_C)
+        title = self._font_xl.render(t("char.title"), True, _GOLD_C)
         surface.blit(title, title.get_rect(
             centerx=panel.centerx, centery=panel.y + 16))
 
-        lv_str = f"Level {player.level}  Hero"
         if player.level >= MAX_PLAYER_LEVEL:
-            lv_str = f"Level {player.level}  (MAX)"
+            lv_str = t("char.max", n=player.level)
+        else:
+            lv_str = t("char.hero", n=player.level)
         lv_s = self._font_md.render(lv_str, True, LIGHT_GRAY)
         surface.blit(lv_s, lv_s.get_rect(
             centerx=panel.centerx, centery=panel.y + 38))
@@ -120,9 +122,9 @@ class CharScreen:
                 pygame.draw.rect(surface, _XP_FG,
                                  (xp_r.x, xp_r.y, fill, xp_r.h))
         pygame.draw.rect(surface, _BORDER, xp_r, 1)
-        xp_label = (f"XP  {player.xp} / {player.xp_to_next}"
+        xp_label = (t("char.xp", cur=player.xp, nxt=player.xp_to_next)
                     if player.level < MAX_PLAYER_LEVEL
-                    else "XP  MAX LEVEL")
+                    else t("char.xp_max"))
         xp_s = self._font_sm.render(xp_label, True, LIGHT_GRAY)
         surface.blit(xp_s, xp_s.get_rect(centerx=xp_r.centerx,
                                            centery=xp_r.centery))
@@ -133,7 +135,7 @@ class CharScreen:
             blink = int(pygame.time.get_ticks() / 400) % 2 == 0
             pts_col = (80, 255, 120) if blink else _GOLD_C
             pts_txt = self._font_lg.render(
-                f"  ★  {player.stat_points} Stat Points Available  ★  ",
+                t("char.stat_pts", n=player.stat_points),
                 True, pts_col)
             bg_r = pts_txt.get_rect(centerx=panel.centerx, centery=y + 12)
             pygame.draw.rect(surface, (0, 40, 0), bg_r.inflate(8, 4))
@@ -143,7 +145,10 @@ class CharScreen:
         # ── Core stats block ──────────────────────────────────────────────────
         self._btn_rects.clear()
         ROW_H = 56
-        for key, long_name, short_name, desc in _STATS:
+        for key, _long_en, _short_en, _desc_en in _STATS:
+            long_name  = t(f"stat.{key}.long")
+            short_name = t(f"stat.{key}.short")
+            desc       = t(f"stat.{key}.desc")
             val = getattr(player, f"{key}_pts")
             row_r = pygame.Rect(panel.x + 8, y, panel.w - 16, ROW_H - 4)
             pygame.draw.rect(surface, _ROW_N, row_r)
@@ -188,14 +193,14 @@ class CharScreen:
 
         # ── Derived stats (two columns) ────────────────────────────────────────
         derived = [
-            ("Attack",      str(player.attack)),
-            ("Defense",     str(player.defense)),
-            ("Max Life",    str(player.max_hp_total)),
-            ("Max Mana",    str(player.max_mana_total)),
-            ("Crit Chance", f"{player.crit_chance:.1f}%"),
-            ("Life Steal",  f"{player.life_steal:.0f}%"),
-            ("Move Speed",  f"{int(player.move_speed)}"),
-            ("Gold Find",   f"+{player.gold_find_bonus:.0f}%"),
+            (t("derived.attack"),   str(player.attack)),
+            (t("derived.defense"),  str(player.defense)),
+            (t("derived.max_life"), str(player.max_hp_total)),
+            (t("derived.max_mana"), str(player.max_mana_total)),
+            (t("derived.crit"),     f"{player.crit_chance:.1f}%"),
+            (t("derived.lifesteal"),f"{player.life_steal:.0f}%"),
+            (t("derived.move_spd"), f"{int(player.move_speed)}"),
+            (t("derived.gold_find"),f"+{player.gold_find_bonus:.0f}%"),
         ]
         col_w = (_PW - 20) // 2
         for i, (label, val) in enumerate(derived):
@@ -219,8 +224,7 @@ class CharScreen:
                 centerx=panel.centerx, y=panel.bottom - 26))
 
         # ── Hint footer ───────────────────────────────────────────────────────
-        hint = self._font_sm.render(
-            "Click  +  to spend stat point    C / ESC  to close", True, GRAY)
+        hint = self._font_sm.render(t("char.hint"), True, GRAY)
         surface.blit(hint, hint.get_rect(
             centerx=panel.centerx, y=panel.bottom - 13))
 
@@ -230,10 +234,9 @@ class CharScreen:
         for key, btn in self._btn_rects.items():
             if btn.collidepoint(mx, my):
                 if player.spend_stat(key):
-                    _, long_name, _, _ = next(
-                        t for t in _STATS if t[0] == key)
-                    self.notify(f"{long_name} → {getattr(player, key + '_pts')}")
+                    long_name_l = t(f"stat.{key}.long")
+                    self.notify(f"{long_name_l} → {getattr(player, key + '_pts')}")
                 else:
-                    self.notify("No stat points available!")
+                    self.notify(t("char.no_pts"))
                 return True
         return False

@@ -5,6 +5,7 @@ from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT,
                            ICE_NOVA_MANA_COST, CHAIN_LIGHTNING_MANA_COST,
                            BLINK_MANA_COST, BATTLE_CRY_MANA_COST,
                            YELLOW, LIGHT_GRAY)
+from src.locale import t
 
 # ── HUD colours ──────────────────────────────────────────────────────────────
 _BG          = (0,   0,   0)
@@ -101,7 +102,7 @@ class HUD:
         bar_w = hearts_per_row * heart_w
         bar_h = 6
         if bar_y + bar_h < SCREEN_HEIGHT - 4:
-            label = self._font_sm.render("MP", True, _TEXT_DIM)
+            label = self._font_sm.render(t("hud.mp"), True, _TEXT_DIM)
             surface.blit(label, (bar_x, bar_y - 1))
             bx = bar_x + 18
             pygame.draw.rect(surface, _MAGIC_BG, (bx, bar_y, bar_w - 18, bar_h))
@@ -135,7 +136,7 @@ class HUD:
         # ── FLOOR / NG+ ───────────────────────────────────────────────────────
         fx = SCREEN_WIDTH - 200
         ng_label = f"NG+{ng_plus}" if ng_plus > 0 else ""
-        fl_str   = f"B{dungeon_level}/5  {ng_label}".strip()
+        fl_str   = f"{t('hud.floor_prefix')}{dungeon_level}/5  {ng_label}".strip()
         fl_col   = (180, 220, 255) if ng_plus > 0 else LIGHT_GRAY
         fl_txt   = self._font_lg.render(fl_str, True, fl_col)
         surface.blit(fl_txt, (fx, hud_y + 5))
@@ -149,18 +150,18 @@ class HUD:
             col = _ATK_READY if rdy >= 1.0 else _ATK_WAIT
             pygame.draw.rect(surface, col, (fx, hud_y + 30, fill, 7))
         pygame.draw.rect(surface, _BORDER, (fx, hud_y + 30, cd_w, 7), 1)
-        lbl = "READY" if rdy >= 1.0 else "ATK"
+        lbl = t("hud.ready") if rdy >= 1.0 else t("hud.atk_lbl")
         surface.blit(self._font_sm.render(lbl, True, _TEXT_DIM),
                      (fx + cd_w + 4, hud_y + 29))
 
         # ── SPELL ICONS (row below ATK bar) ──────────────────────────────────
         st = player.skill_tree
         spells = [
-            ("Z",  "Fireball",  FIREBALL_MANA_COST,        0.0,         True),
-            ("X",  "Ice Nova",  ICE_NOVA_MANA_COST,         ice_nova_cd, st.has_ice_nova()),
-            ("R",  "ChainLtng", CHAIN_LIGHTNING_MANA_COST,  chain_cd,    st.has_chain_lightning()),
-            ("V",  "Blink",     BLINK_MANA_COST,            blink_cd,    st.has_blink()),
-            ("B",  "BattleCry", BATTLE_CRY_MANA_COST,       0.0,         st.level("battle_cry") > 0),
+            ("Z",  t("spell.fireball"),   FIREBALL_MANA_COST,        0.0,         True),
+            ("X",  t("spell.ice_nova"),   ICE_NOVA_MANA_COST,         ice_nova_cd, st.has_ice_nova()),
+            ("R",  t("spell.chain_ltng"), CHAIN_LIGHTNING_MANA_COST,  chain_cd,    st.has_chain_lightning()),
+            ("V",  t("spell.blink"),      BLINK_MANA_COST,            blink_cd,    st.has_blink()),
+            ("B",  t("spell.battle_cry"), BATTLE_CRY_MANA_COST,       0.0,         st.level("battle_cry") > 0),
         ]
         icon_x = fx - 60
         icon_y = hud_y + 46
@@ -179,10 +180,10 @@ class HUD:
 
         # ── STATUS ICONS ─────────────────────────────────────────────────────
         _STATUS_DEFS = [
-            ('poison', (30,  200,  30), "PSN"),
-            ('burn',   (252, 120,  20), "BRN"),
-            ('slow',   (60,  120, 220), "SLW"),
-            ('freeze', (80,  200, 255), "FRZ"),
+            ('poison', (30,  200,  30), t("hud.status.poison")),
+            ('burn',   (252, 120,  20), t("hud.status.burn")),
+            ('slow',   (60,  120, 220), t("hud.status.slow")),
+            ('freeze', (80,  200, 255), t("hud.status.freeze")),
         ]
         icon_x2 = sx + 148
         for sname, scol, slabel in _STATUS_DEFS:
@@ -197,14 +198,14 @@ class HUD:
 
         # Battle-cry active glow
         if battle_cry_active:
-            msg = self._font_sm.render("⚔ BATTLE CRY!", True, (252, 180, 0))
+            msg = self._font_sm.render(t("hud.battle_cry"), True, (252, 180, 0))
             surface.blit(msg, (sx + 148, hud_y + 46))
 
         # ── LEVEL-UP FLASH ────────────────────────────────────────────────────
         if self._lvup_timer > 0:
             alpha = min(255, int(self._lvup_timer * 130))
             msg   = self._font_lg.render(
-                f"LEVEL UP!  NOW LEVEL {player.level}", True, _LVUP_COL)
+                t("hud.level_up", n=player.level), True, _LVUP_COL)
             msg.set_alpha(alpha)
             surface.blit(msg, msg.get_rect(
                 center=(SCREEN_WIDTH // 2, (SCREEN_HEIGHT - HUD_HEIGHT) // 2 - 60)))
@@ -212,8 +213,11 @@ class HUD:
         # ── STAT POINTS AVAILABLE ─────────────────────────────────────────────
         if player.stat_points > 0:
             if int(pygame.time.get_ticks() / 500) % 2 == 0:
+                n = player.stat_points
                 sp_msg = self._font_md.render(
-                    f"★ {player.stat_points} STAT POINT{'S' if player.stat_points!=1 else ''}  [C]",
+                    t("hud.stat_pts", n=n,
+                      s="S" if n != 1 else "",
+                      e="E" if n != 1 else ""),
                     True, (80, 255, 120))
                 surface.blit(sp_msg, sp_msg.get_rect(
                     center=(SCREEN_WIDTH // 2, (SCREEN_HEIGHT - HUD_HEIGHT) // 2 - 38)))
@@ -221,8 +225,11 @@ class HUD:
         # Skill points available hint
         if player.skill_tree.skill_points > 0:
             if int(pygame.time.get_ticks() / 700) % 2 == 0:
+                n = player.skill_tree.skill_points
                 sp2 = self._font_md.render(
-                    f"✦ {player.skill_tree.skill_points} SKILL POINT{'S' if player.skill_tree.skill_points!=1 else ''}  [K]",
+                    t("hud.skill_pts", n=n,
+                      s="S" if n != 1 else "",
+                      e="E" if n != 1 else ""),
                     True, (100, 160, 255))
                 surface.blit(sp2, sp2.get_rect(
                     center=(SCREEN_WIDTH // 2, (SCREEN_HEIGHT - HUD_HEIGHT) // 2 - 18)))

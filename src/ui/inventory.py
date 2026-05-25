@@ -14,6 +14,7 @@ from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT,
                            YELLOW, RED, GREEN)
 from src.items.item import (EquipItem, HealthPotion,
                              SLOT_ORDER, SLOT_LABELS, Q_COLOR, QUALITY_NORMAL)
+from src.locale import t, get_slot_label
 
 # ── Panel geometry ─────────────────────────────────────────────────────────────
 _PW   = 700
@@ -85,7 +86,7 @@ class InventoryScreen:
         if key is not None and player.equipment.get(key) is not None:
             old = player.equipment[key]
             player.unequip(key)
-            self.notify(f"Unequipped: {old.display_name}")
+            self.notify(t("inv.unequipped", name=old.display_name))
             return True
 
         # Click on backpack item → equip / use
@@ -110,14 +111,14 @@ class InventoryScreen:
             old  = player.equip(item, key2)
             if old:
                 player.backpack.append(old)
-            self.notify(f"Equipped: {item.display_name}")
+            self.notify(t("inv.equipped", name=item.display_name))
         elif isinstance(item, HealthPotion):
             if player.hp < player.max_hp_total:
                 player.potions.remove(item)
                 player.heal(item.heal_amount)
-                self.notify(f"Used potion  +{item.heal_amount} HP")
+                self.notify(t("inv.used_potion", n=item.heal_amount))
             else:
-                self.notify("Already at full HP")
+                self.notify(t("inv.full_hp"))
         return True
 
     def draw(self, surface: pygame.Surface, player):
@@ -136,10 +137,9 @@ class InventoryScreen:
                          (_PX, _PY, _PW, 28))
         pygame.draw.line(surface, _COL_BORDER,
                          (_PX, _PY + 28), (_PX + _PW, _PY + 28))
-        t = self._font_lg.render("INVENTORY", True, YELLOW)
-        surface.blit(t, (_PX + _PAD, _PY + 5))
-        hint = self._font_xs.render("I/TAB close   click to equip/unequip   Q use potion",
-                                    True, GRAY)
+        title_s = self._font_lg.render(t("inv.title"), True, YELLOW)
+        surface.blit(title_s, (_PX + _PAD, _PY + 5))
+        hint = self._font_xs.render(t("inv.hint"), True, GRAY)
         surface.blit(hint, (_PX + _PW - hint.get_width() - _PAD, _PY + 9))
 
         # Vertical divider
@@ -189,8 +189,7 @@ class InventoryScreen:
                 pygame.draw.rect(surface, _COL_SEP, r, 1)
 
             # Slot label
-            lbl = self._font_xs.render(SLOT_LABELS.get(key, key.upper()),
-                                       True, GRAY)
+            lbl = self._font_xs.render(get_slot_label(key), True, GRAY)
             surface.blit(lbl, (r.left + 3, r.top + 2))
 
             # Item name (colour-coded by quality)
@@ -213,7 +212,7 @@ class InventoryScreen:
                     surface.blit(ps_surf, (r.right - ps_surf.get_width() - 3,
                                            r.centery - ps_surf.get_height() // 2))
             else:
-                empty = self._font_xs.render("--- empty ---", True, (50, 40, 30))
+                empty = self._font_xs.render(t("inv.empty_slot"), True, (50, 40, 30))
                 surface.blit(empty, (r.left + 64, r.centery - empty.get_height() // 2))
 
     # ── Backpack panel ────────────────────────────────────────────────────────
@@ -239,7 +238,7 @@ class InventoryScreen:
         by = _PY + 36
 
         # Section header
-        hdr = self._font_md.render("BACKPACK", True, LIGHT_GRAY)
+        hdr = self._font_md.render(t("inv.backpack"), True, LIGHT_GRAY)
         surface.blit(hdr, (bx, _PY + 36 - 16))
 
         items = self._bag_items(player)
@@ -277,8 +276,7 @@ class InventoryScreen:
         pot_y = _PY + 36 + _BAG_ROWS * (_BAG_CELL + _BAG_GAP) + 4
         pc = len(player.potions)
         col = _POTION_COL if pc else GRAY
-        pot_txt = self._font_sm.render(
-            f"Potions: {pc}  (Q to use)", True, col)
+        pot_txt = self._font_sm.render(t("inv.potions", n=pc), True, col)
         surface.blit(pot_txt, (bx, pot_y))
 
         # Character stats summary below potions
@@ -326,7 +324,7 @@ class InventoryScreen:
         # Name header
         lines.append((item.display_name, item.quality_color))
         # Slot
-        lines.append((f"{SLOT_LABELS.get(item.slot, item.slot).title()}  —  {item.base_name}",
+        lines.append((f"{get_slot_label(item.slot).title()}  —  {item.base_name}",
                       GRAY))
         lines.append(("", GRAY))  # spacer
         # All stat lines
@@ -337,7 +335,7 @@ class InventoryScreen:
         eq_item = player.equipment.get(eq_key) or player.equipment.get("ring2")
         if eq_item and eq_item is not item:
             lines.append(("", GRAY))
-            lines.append(("vs. equipped:", (80, 80, 80)))
+            lines.append((t("inv.vs_equipped"), (80, 80, 80)))
             lines.append((eq_item.display_name, eq_item.quality_color))
             for ml in eq_item.stat_lines():
                 if ml[0]:

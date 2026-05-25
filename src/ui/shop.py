@@ -11,6 +11,7 @@ from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT,
                            WHITE, YELLOW, GRAY, LIGHT_GRAY)
 from src.items.item import EquipItem, HealthPotion
 from src.entities.merchant import item_sell_price
+from src.locale import t
 
 # ── Geometry ──────────────────────────────────────────────────────────────────
 _PW      = 720
@@ -84,7 +85,7 @@ class ShopScreen:
     @staticmethod
     def _label(item) -> tuple[str, tuple]:
         if isinstance(item, HealthPotion):
-            return f"Health Potion  +{item.heal_amount} HP", (240, 100, 100)
+            return t("shop.health_pot", n=item.heal_amount), (240, 100, 100)
         if isinstance(item, EquipItem):
             return item.display_name, item.quality_color
         return "Item", WHITE
@@ -119,12 +120,11 @@ class ShopScreen:
         surface.blit(title, title.get_rect(
             centerx=panel.centerx, centery=panel.y + 18))
 
-        gold_s = self._font_md.render(f"Gold: {player.gold}", True, _GOLD_C)
+        gold_s = self._font_md.render(t("shop.gold", n=player.gold), True, _GOLD_C)
         surface.blit(gold_s, gold_s.get_rect(
             right=panel.right - 12, centery=panel.y + 18))
 
-        hint_s = self._font_sm.render(
-            "Left-click: Buy   Right-click: Sell   F / ESC: Close", True, GRAY)
+        hint_s = self._font_sm.render(t("shop.hint"), True, GRAY)
         surface.blit(hint_s, hint_s.get_rect(
             centerx=panel.centerx, centery=panel.y + 40))
 
@@ -135,7 +135,7 @@ class ShopScreen:
                          (mid_x, panel.bottom), 1)
 
         # ── Column headers ────────────────────────────────────────────────────
-        for col_r, label in [(buy_col, "FOR SALE"), (sell_col, "SELL ITEMS")]:
+        for col_r, label in [(buy_col, t("shop.for_sale")), (sell_col, t("shop.sell_items"))]:
             ch_r = pygame.Rect(col_r.x, col_r.y, col_r.w, _COL_HDR)
             pygame.draw.rect(surface, _CHDR, ch_r)
             pygame.draw.line(surface, _BORDER,
@@ -256,9 +256,9 @@ class ShopScreen:
                         merchant.stock.remove(item)
                         player.add_item(item)
                         name, _ = self._label(item)
-                        self.notify(f"Bought: {name}")
+                        self.notify(t("shop.bought", name=name))
                     else:
-                        self.notify(f"Need {price - player.gold} more gold!")
+                        self.notify(t("shop.need_gold", n=price - player.gold))
                     return True
 
         # ── Sell ──────────────────────────────────────────────────────────────
@@ -276,7 +276,7 @@ class ShopScreen:
                     elif item in player.potions:
                         player.potions.remove(item)
                     name, _ = self._label(item)
-                    self.notify(f"Sold {name}  +{val} g")
+                    self.notify(t("shop.sold", name=name, n=val))
                     return True
 
         return False

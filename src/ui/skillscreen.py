@@ -4,6 +4,7 @@ from __future__ import annotations
 import pygame
 from src.settings import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT
 from src.skills import SkillTree, _BY_ID, _ALL_DEFS
+from src.locale import t
 
 _BG_FILL    = (8,   6,  4, 218)
 _BORDER     = (110, 88,  60)
@@ -52,8 +53,9 @@ class SkillScreen:
 
         # Title
         pts  = st.skill_points
-        ttxt = (f"SKILL TREE  [ K ]   —   "
-                f"{pts} SKILL POINT{'S' if pts != 1 else ''} AVAILABLE")
+        ttxt = t("skill.title_pts", n=pts,
+                 s="S" if pts != 1 else "",
+                 e="E" if pts != 1 else "")
         t = self._font_lg.render(ttxt, True, _TITLE_COL)
         surface.blit(t, (px + pw // 2 - t.get_width() // 2, py + 8))
         pygame.draw.line(surface, _BORDER, (px + 10, py + 36), (px + pw - 10, py + 36))
@@ -68,7 +70,7 @@ class SkillScreen:
             tcol = _TREE_COLORS[tree]
 
             # Header
-            hdr = self._font_md.render(_TREE_HEADERS[tree], True, tcol)
+            hdr = self._font_md.render(t(f"skill.tree.{tree}"), True, tcol)
             surface.blit(hdr, (cx + col_w // 2 - hdr.get_width() // 2, cy))
             cy += 22
 
@@ -98,7 +100,8 @@ class SkillScreen:
                 # Name
                 name_col = (tcol if unlocked else
                             (_DIM_COL if req_met else _LOCKED_COL))
-                ns = self._font_md.render(sdef.name, True, name_col)
+                skill_name = t(f"skill.{sdef.id}.name")
+                ns = self._font_md.render(skill_name, True, name_col)
                 surface.blit(ns, (rect.left + 6, rect.top + 5))
 
                 # Level pips (right-aligned, left-to-right = right-to-left draw)
@@ -112,24 +115,26 @@ class SkillScreen:
 
                 # Description
                 dc = (155, 145, 115) if req_met else _LOCKED_COL
-                ds = self._font_sm.render(sdef.desc, True, dc)
+                skill_desc = t(f"skill.{sdef.id}.desc")
+                ds = self._font_sm.render(skill_desc, True, dc)
                 surface.blit(ds, (rect.left + 6, rect.top + 24))
 
                 # Requirement / call-to-action
                 if sdef.requires and not req_met:
-                    rn = _BY_ID[sdef.requires].name
-                    rs = self._font_sm.render(f"Req: {rn}", True, _LOCKED_COL)
+                    req_name = t(f"skill.{sdef.requires}.name")
+                    rs = self._font_sm.render(
+                        t("skill.req", name=req_name), True, _LOCKED_COL)
                     surface.blit(rs, (rect.left + 6, rect.top + 40))
                 elif can:
-                    hs = self._font_sm.render("Click to learn", True, (80, 180, 80))
+                    hs = self._font_sm.render(
+                        t("skill.click_learn"), True, (80, 180, 80))
                     surface.blit(hs, (rect.left + 6, rect.top + 40))
                 elif lvl >= sdef.max_level:
-                    ms = self._font_sm.render("MASTERED", True, tcol)
+                    ms = self._font_sm.render(t("skill.mastered"), True, tcol)
                     surface.blit(ms, (rect.left + 6, rect.top + 40))
 
                 cy += BOX_H + 8
 
         # Footer
-        hint = self._font_sm.render(
-            "Click a skill to spend a point    K / ESC  to close", True, _DIM_COL)
+        hint = self._font_sm.render(t("skill.hint"), True, _DIM_COL)
         surface.blit(hint, (px + pw // 2 - hint.get_width() // 2, py + ph - 15))

@@ -72,7 +72,8 @@ class Merchant:
     # ── Queries ───────────────────────────────────────────────────────────────
 
     def get_title(self) -> str:
-        return "TRAVELLING MERCHANT" if self.elite else "MERCHANT"
+        from src.locale import t
+        return t("merchant.travelling") if self.elite else t("merchant.default")
 
     def price_of(self, item) -> int:
         """Price the player must pay to buy this item from this merchant."""
@@ -226,7 +227,10 @@ class TownMerchant(Merchant):
     # ── Identity ──────────────────────────────────────────────────────────────
 
     def get_title(self) -> str:
-        return self.title.upper()
+        from src.locale import t
+        key = f"merchant.{self.title.lower()}"
+        txt = t(key)
+        return txt.upper() if txt != key else self.title.upper()
 
     def price_of(self, item) -> int:
         return item_buy_price(item)

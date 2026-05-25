@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pygame
 from src.settings import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT
+from src.locale import t, t_quest_name, t_quest_desc
 
 _BG_FILL    = (8,   6,  4, 218)
 _BORDER     = (110, 88, 60)
@@ -39,8 +40,8 @@ class QuestLogScreen:
         pygame.draw.rect(surface, _BORDER, (px, py, pw, ph), 2)
 
         # Title bar
-        t = self._font_lg.render("QUEST JOURNAL  [ J ]", True, _TITLE_COL)
-        surface.blit(t, (px + pw // 2 - t.get_width() // 2, py + 10))
+        title_s = self._font_lg.render(t("quest.title"), True, _TITLE_COL)
+        surface.blit(title_s, (px + pw // 2 - title_s.get_width() // 2, py + 10))
         pygame.draw.line(surface, _BORDER, (px + 10, py + 38), (px + pw - 10, py + 38))
 
         y    = py + 52
@@ -61,13 +62,13 @@ class QuestLogScreen:
             y += 2
 
         # ── Active quests ─────────────────────────────────────────────────────
-        section("─── ACTIVE QUESTS ───")
+        section(t("quest.active"))
         if not quest_log.active:
-            line("No active quests.  Talk to a merchant to get quests.", _DIM_COL, 8)
+            line(t("quest.no_active"), _DIM_COL, 8)
         else:
             for q in quest_log.active:
-                line(f"▶ {q.name}", _ACTIVE_COL)
-                line(q.desc, _DIM_COL, 12)
+                line(f"▶ {t_quest_name(q.id)}", _ACTIVE_COL)
+                line(t_quest_desc(q.id, q.required, q.target), _DIM_COL, 12)
 
                 # Progress bar
                 bar_x  = px + 26
@@ -85,9 +86,9 @@ class QuestLogScreen:
                 surface.blit(prog_s, (bar_x + bar_w + 4, y - 1))
                 y += bar_h + 4
 
-                rwd = f"Reward: {q.reward_xp} XP"
+                rwd = t("quest.reward_xp", xp=q.reward_xp)
                 if q.reward_gold:
-                    rwd += f"  +{q.reward_gold} Gold"
+                    rwd += t("quest.reward_gold", gold=q.reward_gold)
                 line(rwd, (180, 155, 60), 12)
                 y += 6
 
@@ -98,10 +99,10 @@ class QuestLogScreen:
             y += 10
 
         # ── Completed quests ──────────────────────────────────────────────────
-        section(f"─── COMPLETED ({len(quest_log.completed)}) ───")
+        section(t("quest.completed", n=len(quest_log.completed)))
         for q in reversed(quest_log.completed[-10:]):
-            line(f"✓  {q.name}", _DONE_COL)
+            line(f"✓  {t_quest_name(q.id)}", _DONE_COL)
 
         # Footer hint
-        hint = self._font_sm.render("J / ESC  to close", True, _DIM_COL)
+        hint = self._font_sm.render(t("quest.hint"), True, _DIM_COL)
         surface.blit(hint, (px + pw // 2 - hint.get_width() // 2, py + ph - 18))

@@ -100,8 +100,14 @@ class Modifier:
         self.value = value
 
     def describe(self) -> str:
-        fmt = self._FMT.get(self.kind)
-        return fmt(self.value) if fmt else f"+{self.value} {self.kind}"
+        from src.locale import t
+        k  = self.kind
+        vs = f"{self.value:.1f}" if k == "hp_regen" else str(int(self.value))
+        text = t(f"mod.{k}", v=vs)
+        if text == f"mod.{k}":        # key not in locale table → old fallback
+            fmt = self._FMT.get(k)
+            return fmt(self.value) if fmt else f"+{int(self.value)} {k}"
+        return text
 
 
 # ── Affix pools ───────────────────────────────────────────────────────────────
