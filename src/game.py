@@ -4,7 +4,7 @@ import sys
 import pygame
 
 from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, TILE_SIZE,
-                           TITLE, FPS, VOID_COLOR, RED, ORANGE, YELLOW, WHITE,
+                           TITLE, FPS, VOID_COLOR, RED, YELLOW, WHITE,
                            LIGHT_GRAY, GRAY, GOLD_COLOR, STATE_MENU, STATE_PLAYING,
                            STATE_GAME_OVER, FLOORS_PER_NG,
                            FIREBALL_MANA_COST, FIREBALL_SPEED, FIREBALL_MAX_RANGE,
@@ -656,7 +656,7 @@ class Game:
                 self._on_enemy_killed(enemy)
 
     def _drop_loot(self, enemy):
-        from src.entities.enemy import Goblin, Skeleton, Orc, Demon
+        from src.entities.enemy import Skeleton, Orc, Demon
         px, py = enemy.x, enemy.y
         lvl    = self.dungeon_level
         q_bonus = (40 if isinstance(enemy, Demon) else
@@ -827,7 +827,7 @@ class Game:
     # ─── Particles ───────────────────────────────────────────────────────────────
 
     def _spawn_death_particles(self, enemy):
-        from src.entities.enemy import Goblin, Skeleton, Orc, Demon
+        from src.entities.enemy import Skeleton, Orc, Demon
         if isinstance(enemy, Skeleton):
             palette = [(204,196,176),(160,150,130),(240,235,220),(80,72,60)]
             count, sz = 22, (2, 4); spd_r = (50,230); life_r = (0.4, 1.1)

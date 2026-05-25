@@ -11,29 +11,15 @@ STATE_GAME_OVER = "game_over"
 # STATE_SHOP removed — shop is an overlay flag (Game.shop_open), not a game state
 
 # ── Colour palette ────────────────────────────────────────────────────────────
-BLACK      = (0,   0,   0)
 WHITE      = (252, 252, 252)
 RED        = (204,  0,   0)
-DARK_RED   = (120,  0,   0)
 GREEN      = (0,  168,   0)
-BLUE       = (0,   60, 216)
-DARK_BLUE  = (0,   24, 140)
 YELLOW     = (252, 188,   0)
-ORANGE     = (220,  92,  16)
-PURPLE     = (148,   0, 216)
-DARK_GRAY  = (60,   60,  60)
 GRAY       = (108, 108, 108)
 LIGHT_GRAY = (188, 188, 188)
 GOLD_COLOR = (252, 188,   0)
 
-# Dungeon tile palette
-FLOOR_COLOR     = (16,   8,   0)   # near-black warm dungeon floor
-FLOOR_ALT_COLOR = (12,   6,   0)
-WALL_COLOR      = (0,    8,  52)   # dark blue mortar
-WALL_TOP_COLOR  = (112, 152, 220)  # stone block highlight
-DOOR_COLOR      = (160, 100,  28)  # wood brown
-STAIRS_COLOR    = (216, 188,  88)  # gold step highlight
-VOID_COLOR      = (0,   0,   0)    # pure black
+VOID_COLOR      = (0,   0,   0)    # pure black — used by tile.py for void tiles
 
 # Player
 PLAYER_COLOR           = (110, 160, 255)
@@ -61,9 +47,6 @@ ENEMY_SIZE = 20
 
 # Items
 ITEM_SIZE    = 18
-POTION_COLOR = (200, 50,  50)
-WEAPON_COLOR = (190, 190, 230)
-ARMOR_COLOR  = (160, 135, 100)
 
 # Dungeon
 DUNGEON_WIDTH      = 80
@@ -71,12 +54,9 @@ DUNGEON_HEIGHT     = 60
 MIN_ROOM_SIZE      = 6
 MAX_ROOM_SIZE      = 14
 MAX_ROOMS          = 18
-MAX_DUNGEON_LEVELS = 5
 
 # UI
 HUD_HEIGHT = 80
-BAR_WIDTH  = 200
-BAR_HEIGHT = 18
 
 # Status effects
 STATUS_POISON = "poison"   # green DoT — applied by elite enemies

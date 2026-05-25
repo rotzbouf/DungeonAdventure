@@ -4,8 +4,7 @@ from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT,
                            FIREBALL_MANA_COST,
                            ICE_NOVA_MANA_COST, CHAIN_LIGHTNING_MANA_COST,
                            BLINK_MANA_COST, BATTLE_CRY_MANA_COST,
-                           BLACK, WHITE, YELLOW, GRAY, LIGHT_GRAY,
-                           RED, DARK_RED, BLUE, DARK_BLUE, GREEN)
+                           YELLOW, LIGHT_GRAY)
 
 # ── HUD colours ──────────────────────────────────────────────────────────────
 _BG          = (0,   0,   0)

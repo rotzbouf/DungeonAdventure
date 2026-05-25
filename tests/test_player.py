@@ -1,13 +1,10 @@
 """Tests for the Player entity."""
-import pytest
 from src.entities.player import Player
 from src.skills import SkillTree, SK_TOUGHNESS, SK_ARCANE_MIND
-from src.settings import (PLAYER_MAX_HP, PLAYER_MAX_MANA, BASE_STR,
-                           BASE_DEX, BASE_VIT, BASE_ENE, XP_BASE, MAX_PLAYER_LEVEL)
-from src.items.item import (EquipItem, HealthPotion, GoldPile, Modifier,
-                             QUALITY_NORMAL, QUALITY_MAGIC, QUALITY_UNIQUE,
-                             SLOT_WEAPON, SLOT_CHEST, SLOT_RING,
-                             MOD_ATK, MOD_DEF, MOD_MAX_HP, MOD_MAX_MANA)
+from src.settings import (PLAYER_MAX_HP, BASE_STR,
+                           MAX_PLAYER_LEVEL)
+from src.items.item import (EquipItem, HealthPotion, Modifier,
+                             QUALITY_NORMAL, QUALITY_MAGIC, SLOT_WEAPON, SLOT_CHEST, MOD_ATK, MOD_DEF)
 
 
 # ── Derived stats ─────────────────────────────────────────────────────────────

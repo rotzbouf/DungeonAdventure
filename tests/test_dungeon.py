@@ -1,5 +1,4 @@
 """Tests for dungeon generation."""
-import pytest
 from src.world.dungeon import Dungeon
 from src.settings import TILE_SIZE, FLOORS_PER_NG
 
@@ -45,7 +44,7 @@ class TestGeneration:
 
     def test_trap_positions_on_corridor_tiles(self):
         """Traps must be on floor tiles."""
-        from src.world.tile import TILE_FLOOR, TILE_STAIRS_DOWN, WALKABLE
+        from src.world.tile import WALKABLE
         d = Dungeon(level=3, seed=55)
         for tx, ty in d.trap_positions:
             assert d.grid[ty][tx] in WALKABLE

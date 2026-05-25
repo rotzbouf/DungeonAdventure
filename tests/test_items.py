@@ -1,13 +1,9 @@
 """Tests for the loot / item system."""
-import pytest
-import random as _random
 from src.items.item import (
     EquipItem, HealthPotion, GoldPile, Modifier, TreasureChest,
     random_equip, random_item, _pick_quality, _pick_affixes,
     QUALITY_NORMAL, QUALITY_MAGIC, QUALITY_RARE, QUALITY_UNIQUE,
-    SLOT_WEAPON, SLOT_SHIELD, SLOT_HELM, SLOT_CHEST,
-    SLOT_GLOVES, SLOT_BOOTS, SLOT_BELT, SLOT_RING, SLOT_AMULET,
-    MOD_ATK, MOD_DEF, MOD_MAX_HP, MOD_CRIT, MOD_LIFE_STEAL,
+    SLOT_WEAPON, SLOT_BELT, MOD_ATK, MOD_DEF,
 )
 
 

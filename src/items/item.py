@@ -12,7 +12,7 @@ import math
 import random
 import pygame
 from src.settings import (TILE_SIZE, ITEM_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT,
-                           HUD_HEIGHT, WHITE, BLACK)
+                           HUD_HEIGHT, WHITE)
 
 # ── Quality ───────────────────────────────────────────────────────────────────
 
@@ -33,13 +33,6 @@ Q_GLOW = {                             # inner glow for ground sprite
     QUALITY_RARE:   (160, 120,   0),
     QUALITY_UNIQUE: (180,  60,   0),
 }
-Q_LABEL = {
-    QUALITY_NORMAL: "",
-    QUALITY_MAGIC:  "Magic ",
-    QUALITY_RARE:   "Rare ",
-    QUALITY_UNIQUE: "",          # unique items use their proper name directly
-}
-
 # ── Equipment slots ───────────────────────────────────────────────────────────
 
 SLOT_WEAPON = "weapon"
@@ -513,7 +506,6 @@ class EquipItem(Item):
         super().__init__(tx, ty)
         slot_data     = _BASES[base_name]
         self.slot     = slot_data[0]
-        self.base_stat_range = (slot_data[1], slot_data[2])
         self.base_stat = random.randint(slot_data[1], slot_data[2]) if slot_data[2] > 0 else 0
 
         self.base_name   = base_name
@@ -845,7 +837,6 @@ class TreasureChest:
         item_list.append(gold)
 
     def draw(self, surface: pygame.Surface, camera):
-        from src.utils.camera import Camera
         ox = int(self.x - camera.x)
         oy = int(self.y - camera.y)
 

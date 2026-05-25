@@ -1,5 +1,5 @@
 import pygame
-from src.settings import SCREEN_WIDTH, TILE_SIZE, STAIRS_COLOR
+from src.settings import SCREEN_WIDTH, TILE_SIZE
 from src.world.tile  import TILE_VOID, TILE_WALL, TILE_STAIRS_DOWN
 
 SCALE    = 2         # pixels per tile

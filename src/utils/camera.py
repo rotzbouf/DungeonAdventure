@@ -1,4 +1,3 @@
-import pygame
 from src.settings import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, TILE_SIZE
 
 
@@ -25,6 +24,3 @@ class Camera:
 
     def apply(self, rect):
         return rect.move(-int(self.x), -int(self.y))
-
-    def apply_point(self, x, y):
-        return x - self.x, y - self.y

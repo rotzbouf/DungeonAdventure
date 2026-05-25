@@ -1,5 +1,4 @@
 """Tests for the quest system."""
-import pytest
 from src.quests import Quest, QuestLog
 
 

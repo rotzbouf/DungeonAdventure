@@ -174,12 +174,3 @@ class SkillTree:
         st.skill_points = data.get("points", 0)
         return st
 
-    # ── Tree iteration (used by UI) ────────────────────────────────────────────
-
-    @staticmethod
-    def all_defs() -> list[SkillDef]:
-        return _ALL_DEFS
-
-    @staticmethod
-    def tree_defs(tree: str) -> list[SkillDef]:
-        return [s for s in _ALL_DEFS if s.tree == tree]

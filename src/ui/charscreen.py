@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pygame
 from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, MAX_PLAYER_LEVEL,
-                           WHITE, YELLOW, GRAY, LIGHT_GRAY, GREEN)
+                           WHITE, YELLOW, GRAY, LIGHT_GRAY)
 
 # ── Geometry ──────────────────────────────────────────────────────────────────
 _PW = 520

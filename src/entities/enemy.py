@@ -3,12 +3,11 @@ import random
 import pygame
 from src.entities.entity import Entity
 from src.settings import (TILE_SIZE, ENEMY_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT,
-                           HUD_HEIGHT, RED, DARK_RED, YELLOW, WHITE, ORANGE,
+                           HUD_HEIGHT, RED, YELLOW,
                            STATUS_POISON, STATUS_SLOW)
 
 
 class Enemy(Entity):
-    NAME        = "Enemy"
     COLOR       = RED
     MAX_HP      = 30
     ATTACK      = 8
@@ -246,7 +245,7 @@ class Enemy(Entity):
 # ─── Goblin / Octorok-style ── fast, squat, red eyes ─────────────────────────
 
 class Goblin(Enemy):
-    NAME        = "Goblin";  COLOR = (220,  92,  16)
+    COLOR = (220,  92,  16)
     MAX_HP      = 25;        ATTACK = 7;    DEFENSE = 0
     SPEED       = 115.0;     DETECT = 220.0; ATK_RANGE = 26.0; ATK_CD = 0.9
     XP_REWARD   = 15;        LOOT_CHANCE = 0.35
@@ -283,7 +282,7 @@ class Goblin(Enemy):
 # ─── Skeleton / Stalfos-style ── bone white, hollow eye sockets, SLOWS on hit ─
 
 class Skeleton(Enemy):
-    NAME        = "Skeleton"; COLOR = (204, 196, 176)   # bone white
+    COLOR = (204, 196, 176)   # bone white
     MAX_HP      = 38;         ATTACK = 11;   DEFENSE = 2
     SPEED       = 75.0;       DETECT = 250.0; ATK_RANGE = 28.0; ATK_CD = 1.1
     XP_REWARD   = 28;         LOOT_CHANCE = 0.45
@@ -323,7 +322,7 @@ class Skeleton(Enemy):
 # ─── Orc / Darknut-style ── armoured knight, blue plate mail ─────────────────
 
 class Orc(Enemy):
-    NAME        = "Orc";  COLOR = (0,  52, 216)   # blue armour
+    COLOR = (0,  52, 216)   # blue armour
     MAX_HP      = 70;     ATTACK = 20;   DEFENSE = 4
     SPEED       = 60.0;   DETECT = 180.0; ATK_RANGE = 32.0; ATK_CD = 1.5
     XP_REWARD   = 50;     LOOT_CHANCE = 0.62
@@ -364,7 +363,7 @@ class Orc(Enemy):
 # ─── Demon / Wizzrobe-style ── hooded sorcerer, glowing eyes ─────────────────
 
 class Demon(Enemy):
-    NAME        = "Demon"; COLOR = (148,  0, 216)   # purple
+    COLOR = (148,  0, 216)   # purple
     MAX_HP      = 130;     ATTACK = 27;   DEFENSE = 6
     SPEED       = 92.0;    DETECT = 300.0; ATK_RANGE = 35.0; ATK_CD = 0.95
     XP_REWARD   = 110;     LOOT_CHANCE = 0.9

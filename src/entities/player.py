@@ -151,17 +151,6 @@ class Player(Entity):
         bonus = self._equip_total(MOD_ATK_SPD)
         return max(0.12, PLAYER_ATTACK_COOLDOWN * (1.0 - bonus / 100))
 
-    # Backward-compat aliases
-    @property
-    def equipped_weapon(self):
-        from src.items.item import SLOT_WEAPON
-        return self.equipment.get(SLOT_WEAPON)
-
-    @property
-    def equipped_armor(self):
-        from src.items.item import SLOT_CHEST
-        return self.equipment.get(SLOT_CHEST)
-
     # ─── Inventory ───────────────────────────────────────────────────────────────
 
     def add_item(self, item):

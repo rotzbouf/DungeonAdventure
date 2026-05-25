@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pygame
 from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT,
-                           BLACK, WHITE, GRAY, LIGHT_GRAY,
-                           YELLOW, ORANGE, RED, BLUE, GREEN)
+                           GRAY, LIGHT_GRAY,
+                           YELLOW, RED, GREEN)
 from src.items.item import (EquipItem, HealthPotion,
                              SLOT_ORDER, SLOT_LABELS, Q_COLOR, QUALITY_NORMAL)
 

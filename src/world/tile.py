@@ -1,6 +1,5 @@
 import pygame
-from src.settings import (TILE_SIZE, FLOOR_COLOR, FLOOR_ALT_COLOR, WALL_COLOR,
-                           WALL_TOP_COLOR, DOOR_COLOR, STAIRS_COLOR, VOID_COLOR)
+from src.settings import TILE_SIZE, VOID_COLOR
 
 TILE_VOID        = 0
 TILE_FLOOR       = 1

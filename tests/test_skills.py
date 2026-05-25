@@ -1,7 +1,6 @@
 """Tests for the skill tree."""
-import pytest
 from src.skills import (SkillTree, SK_POWER_STRIKE, SK_TOUGHNESS,
-                        SK_BATTLE_CRY, SK_WHIRLWIND, SK_ARCANE_MIND,
+                        SK_BATTLE_CRY, SK_ARCANE_MIND,
                         SK_FIREBALL_MASTERY, SK_ICE_NOVA, SK_CHAIN_LIGHTNING,
                         SK_CRIT_MASTERY, SK_EVASION, SK_POISON_BLADE,
                         SK_SHADOW_STEP)

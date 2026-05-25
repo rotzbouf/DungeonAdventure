@@ -1,7 +1,4 @@
 """Tests for the save / load system."""
-import json
-import pathlib
-import tempfile
 import pytest
 
 import src.save as savesys
@@ -9,9 +6,7 @@ from src.entities.player import Player
 from src.quests import QuestLog
 from src.skills import SkillTree, SK_POWER_STRIKE, SK_TOUGHNESS
 from src.items.item import (EquipItem, HealthPotion, Modifier,
-                             QUALITY_MAGIC, SLOT_WEAPON, SLOT_CHEST,
-                             MOD_ATK, MOD_DEF)
-from src.settings import PLAYER_MAX_HP, PLAYER_MAX_MANA
+                             QUALITY_MAGIC, SLOT_WEAPON, MOD_ATK, MOD_DEF)
 
 
 @pytest.fixture(autouse=True)

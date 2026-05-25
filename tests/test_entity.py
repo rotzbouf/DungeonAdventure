@@ -1,5 +1,4 @@
 """Tests for Entity base class (status effects, knockback)."""
-import pytest
 from src.entities.entity import Entity
 from src.settings import STATUS_POISON, STATUS_BURN, STATUS_SLOW, STATUS_FREEZE
 
