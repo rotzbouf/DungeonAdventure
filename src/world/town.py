@@ -55,7 +55,7 @@ class TownBounds:
     Reports non-walkable for the two-tile border strip so the player
     cannot walk into the walls.
     """
-    _MARGIN = 2   # tiles from each edge that are off-limits
+    _MARGIN = 1   # tiles from each edge that are off-limits
 
     def is_walkable(self, tx: int, ty: int) -> bool:
         max_x = TOWN_W  // TILE_SIZE - 1
@@ -428,93 +428,101 @@ def _draw_dungeon_gate(surf, ex, ey):
                          (ex + gate_w // 2 - 6, hy_), 1)
 
 
+def _draw_tower(surf, cx, cy, radius, n_sides=10):
+    """Draw a stone tower centered at (cx,cy), clipped naturally at screen edges."""
+    # Fill layers: dark → mid → light for a rounded 3D look
+    for shrink, col in [(0, _ST_DARK), (5, _ST_MID), (12, _ST_LGT), (18, _ST_HI)]:
+        r = radius - shrink
+        pts = []
+        for i in range(n_sides):
+            ang = i * 2 * math.pi / n_sides - math.pi / n_sides
+            pts.append((int(cx + math.cos(ang) * r), int(cy + math.sin(ang) * r)))
+        if shrink < 18:
+            pygame.draw.polygon(surf, col, pts)
+        else:
+            pygame.draw.polygon(surf, col, pts, 2)
+
+    # Battlements around tower perimeter
+    for i in range(n_sides * 2):
+        ang = i * math.pi / n_sides
+        if i % 2 == 0:
+            inner_r = radius - 2
+            outer_r = radius + 10
+            ang_w   = math.pi / (n_sides * 1.8)
+            pts = [
+                (int(cx + math.cos(ang - ang_w) * inner_r),
+                 int(cy + math.sin(ang - ang_w) * inner_r)),
+                (int(cx + math.cos(ang + ang_w) * inner_r),
+                 int(cy + math.sin(ang + ang_w) * inner_r)),
+                (int(cx + math.cos(ang + ang_w) * outer_r),
+                 int(cy + math.sin(ang + ang_w) * outer_r)),
+                (int(cx + math.cos(ang - ang_w) * outer_r),
+                 int(cy + math.sin(ang - ang_w) * outer_r)),
+            ]
+            pygame.draw.polygon(surf, _ST_MID, pts)
+            pygame.draw.polygon(surf, _ST_HI,  pts, 1)
+
+    # Stone texture ring
+    pygame.draw.circle(surf, _MORTAR, (cx, cy), radius, 2)
+
+
 def _draw_outer_walls(surf):
-    """Draw thick stone outer walls with battlements, corner towers."""
-    B = 62   # wall thickness
+    """Draw irregular stone outer walls: thin bands with large corner towers
+    and mid-wall towers that break up every straight run."""
+    B  = 38   # wall band thickness (thinner → more interior visible)
+    CR = 84   # corner tower radius  (centred at screen corners, curves inward)
+    MR = 52   # mid-wall tower radius
 
-    # ── Fill wall bands with stone blocks ─────────────────────────────────────
+    # ── 1. Wall bands (thin rectangular stone sections) ───────────────────────
     for wr in [
-        pygame.Rect(0, 0, TOWN_W, B),
-        pygame.Rect(0, TOWN_H - B, TOWN_W, B),
-        pygame.Rect(0, B, B, TOWN_H - B * 2),
-        pygame.Rect(TOWN_W - B, B, B, TOWN_H - B * 2),
+        pygame.Rect(0,           0,           TOWN_W, B),
+        pygame.Rect(0,           TOWN_H - B,  TOWN_W, B),
+        pygame.Rect(0,           B,           B,      TOWN_H - B * 2),
+        pygame.Rect(TOWN_W - B,  B,           B,      TOWN_H - B * 2),
     ]:
-        _draw_stone_blocks(surf, wr, 22, 14, seed=hash(str(wr)))
-        pygame.draw.rect(surf, _MORTAR, wr, 2)
+        _draw_stone_blocks(surf, wr, 20, 13, seed=hash(str(wr)))
+        pygame.draw.rect(surf, _MORTAR, wr, 1)
 
-    # ── Inner wall lip (inset highlight) ──────────────────────────────────────
-    pygame.draw.rect(surf, _ST_HI, (B, B, TOWN_W - B * 2, TOWN_H - B * 2), 2)
-    pygame.draw.rect(surf, _ST_MID, (B + 2, B + 2, TOWN_W - B * 4, TOWN_H - B * 4), 1)
+    # Thin inner-edge highlight so the wall reads as raised
+    pygame.draw.rect(surf, _ST_HI,  (B, B, TOWN_W - B * 2, TOWN_H - B * 2), 2)
+    pygame.draw.rect(surf, _ST_MID, (B + 3, B + 3, TOWN_W - B * 2 - 6, TOWN_H - B * 2 - 6), 1)
 
-    # ── Top wall battlements (merlons) ────────────────────────────────────────
-    merlon_w, merlon_h = 22, 18
-    crenel_w = 14
-    step = merlon_w + crenel_w
-    for mx in range(B + 8, TOWN_W - B - merlon_w, step):
-        mr = pygame.Rect(mx, 0, merlon_w, merlon_h)
-        _draw_stone_blocks(surf, mr, 12, 10, seed=mx)
-        pygame.draw.rect(surf, _MORTAR, mr, 1)
-        # merlon top rounded hint
-        pygame.draw.line(surf, _ST_HI, (mx, 0), (mx + merlon_w - 1, 0))
-        pygame.draw.line(surf, _ST_HI, (mx, 0), (mx, merlon_h))
-        pygame.draw.line(surf, _ST_HI, (mx + merlon_w - 1, 0), (mx + merlon_w - 1, merlon_h))
-
-    # ── Bottom wall battlements ───────────────────────────────────────────────
-    for mx in range(B + 8, TOWN_W - B - merlon_w, step):
-        mr = pygame.Rect(mx, TOWN_H - merlon_h, merlon_w, merlon_h)
-        _draw_stone_blocks(surf, mr, 12, 10, seed=mx + 9999)
-        pygame.draw.rect(surf, _MORTAR, mr, 1)
-        pygame.draw.line(surf, _ST_HI, (mx, TOWN_H - 1), (mx + merlon_w - 1, TOWN_H - 1))
-
-    # ── Left/right wall battlements ───────────────────────────────────────────
-    for my in range(B + 8, TOWN_H - B - merlon_w, step):
-        for wx, flip in [(0, False), (TOWN_W - merlon_h, True)]:
-            mr = pygame.Rect(wx, my, merlon_h, merlon_w)
-            _draw_stone_blocks(surf, mr, 10, 12, seed=my + wx)
-            pygame.draw.rect(surf, _MORTAR, mr, 1)
-
-    # ── Corner towers (slightly octagonal, protruding) ────────────────────────
-    tower_r = 58
-    tower_border = 10
-    for tcx, tcy in [(B // 2, B // 2),
-                     (TOWN_W - B // 2, B // 2),
-                     (B // 2, TOWN_H - B // 2),
-                     (TOWN_W - B // 2, TOWN_H - B // 2)]:
-        # octagonal base — approximate with polygon
-        oct_pts = []
-        for i in range(8):
-            ang = math.pi / 8 + i * math.pi / 4
-            ox = int(tcx + math.cos(ang) * tower_r)
-            oy = int(tcy + math.sin(ang) * tower_r)
-            oct_pts.append((ox, oy))
-        # fill layers for stone effect
-        for offset, col in [(0, _ST_DARK), (4, _ST_MID), (8, _ST_LGT)]:
-            inner_pts = []
-            for i in range(8):
-                ang = math.pi / 8 + i * math.pi / 4
-                ox = int(tcx + math.cos(ang) * (tower_r - offset))
-                oy = int(tcy + math.sin(ang) * (tower_r - offset))
-                inner_pts.append((ox, oy))
-            pygame.draw.polygon(surf, col, inner_pts)
-        pygame.draw.polygon(surf, _ST_HI, oct_pts, 2)
-        pygame.draw.polygon(surf, _MORTAR, oct_pts, 1)
-        # tower top battlement ring (small merlons on tower)
-        for i in range(8):
-            ang = i * math.pi / 4
-            mx_ = int(tcx + math.cos(ang) * (tower_r - 6))
-            my_ = int(tcy + math.sin(ang) * (tower_r - 6))
-            mr  = pygame.Rect(mx_ - 6, my_ - 6, 12, 12)
+    # ── 2. Battlements along wall outer edges ─────────────────────────────────
+    mw, mh, cw = 20, 16, 12
+    step = mw + cw
+    # Top / bottom
+    for mx in range(CR // 2, TOWN_W - CR // 2 - mw, step):
+        for my_, flip in [(0, False), (TOWN_H - mh, True)]:
+            mr = pygame.Rect(mx, my_, mw, mh)
             pygame.draw.rect(surf, _ST_MID, mr)
-            pygame.draw.rect(surf, _ST_HI, mr, 1)
-        # inner platform
-        pygame.draw.circle(surf, _ST_MID, (tcx, tcy), tower_r - tower_border - 6)
-        pygame.draw.circle(surf, _ST_LGT, (tcx, tcy), tower_r - tower_border - 6, 1)
+            pygame.draw.rect(surf, _ST_HI,  mr, 1)
+    # Left / right
+    for my in range(CR // 2, TOWN_H - CR // 2 - mw, step):
+        for mx_ in [(0, mh), (TOWN_W - mh, mh)]:
+            mr = pygame.Rect(mx_[0], my, mx_[1], mw)
+            pygame.draw.rect(surf, _ST_MID, mr)
+            pygame.draw.rect(surf, _ST_HI,  mr, 1)
 
-    # ── Gate opening in top wall (where dungeon entrance goes) ────────────────
+    # ── 3. Corner towers — centred at screen corners, protrude inward ─────────
+    for cx, cy in [(0, 0), (TOWN_W, 0), (0, TOWN_H), (TOWN_W, TOWN_H)]:
+        _draw_tower(surf, cx, cy, CR, n_sides=12)
+
+    # ── 4. Mid-wall towers — break up the long straight runs ──────────────────
+    # Top wall: two towers flanking the gate
+    ex = DUNGEON_ENTRANCE_POS[0]
+    mid_towers = [
+        (ex - 280, 0), (ex + 280, 0),            # top wall flanking gate
+        (TOWN_W // 4, TOWN_H), (3 * TOWN_W // 4, TOWN_H),  # bottom wall
+        (0, TOWN_H // 3),  (0, 2 * TOWN_H // 3), # left wall
+        (TOWN_W, TOWN_H // 3), (TOWN_W, 2 * TOWN_H // 3),  # right wall
+    ]
+    for cx, cy in mid_towers:
+        _draw_tower(surf, cx, cy, MR, n_sides=10)
+
+    # ── 5. Gate gap in top wall ────────────────────────────────────────────────
     ex, ey = DUNGEON_ENTRANCE_POS
-    gap = 90
-    gate_bg = pygame.Rect(ex - gap // 2, 0, gap, B)
-    pygame.draw.rect(surf, _GR_DARK, gate_bg)   # clear the wall here
+    gap = 94
+    pygame.draw.rect(surf, _GR_DARK, (ex - gap // 2, 0, gap, B + 2))
 
 
 def _draw_ground(surf):
@@ -620,15 +628,17 @@ class TownRenderer:
         _draw_fountain(surf, fcx, fcy)
 
         # ── 4. Corner trees ───────────────────────────────────────────────────
-        B = 62
+        B = 38
         tree_positions = [
-            (B + 90,        B + 90),
-            (TOWN_W - B - 90, B + 90),
-            (B + 90,        TOWN_H - B - 90),
-            (TOWN_W - B - 90, TOWN_H - B - 90),
-            # extra trees mid-wall sections
-            (B + 50,        TOWN_H // 2),
-            (TOWN_W - B - 50, TOWN_H // 2),
+            (B + 88,          B + 88),
+            (TOWN_W - B - 88, B + 88),
+            (B + 88,          TOWN_H - B - 88),
+            (TOWN_W - B - 88, TOWN_H - B - 88),
+            # extra trees flanking mid-wall towers on left/right
+            (B + 60,          TOWN_H // 3 + 80),
+            (TOWN_W - B - 60, TOWN_H // 3 + 80),
+            (B + 60,          2 * TOWN_H // 3 - 80),
+            (TOWN_W - B - 60, 2 * TOWN_H // 3 - 80),
         ]
         for i, (tx, ty) in enumerate(tree_positions):
             _draw_tree(surf, tx, ty, seed=i * 37)
@@ -655,19 +665,21 @@ class TownRenderer:
         _draw_dungeon_gate(surf, ex, ey)
 
         # ── 8. Wall torch sconces (static bracket; flame drawn in draw()) ─────
-        B = 62
+        B = 38
         torch_rng = random.Random(31)
         wall_torches = []
-        # top wall torches
-        for wx in range(200, TOWN_W - 200, 180):
-            wall_torches.append((wx, B - 4))
+        # top wall torches (skip gate area)
+        ex_ = DUNGEON_ENTRANCE_POS[0]
+        for wx in range(160, TOWN_W - 160, 200):
+            if abs(wx - ex_) > 120:
+                wall_torches.append((wx, B - 2))
         # left/right wall torches
-        for wy in range(160, TOWN_H - 160, 180):
-            wall_torches.append((B - 4,      wy))
-            wall_torches.append((TOWN_W - B + 4, wy))
+        for wy in range(140, TOWN_H - 140, 200):
+            wall_torches.append((B - 2,          wy))
+            wall_torches.append((TOWN_W - B + 2, wy))
         # bottom wall torches
-        for wx in range(200, TOWN_W - 200, 220):
-            wall_torches.append((wx, TOWN_H - B + 4))
+        for wx in range(160, TOWN_W - 160, 240):
+            wall_torches.append((wx, TOWN_H - B + 2))
 
         for tx, ty in wall_torches:
             # iron bracket
