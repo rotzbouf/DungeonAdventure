@@ -29,6 +29,15 @@ _GOLD_COL    = (220, 175,   0)
 _LVUP_COL    = (252, 188,   0)
 
 
+def _shadow_blit(surface, text_surf, pos, offset=2):
+    """Blit a text surface with a dark drop shadow for readability."""
+    sh = pygame.Surface(text_surf.get_size(), pygame.SRCALPHA)
+    sh.blit(text_surf, (0, 0))
+    sh.fill((0, 0, 0, 180), special_flags=pygame.BLEND_RGBA_MULT)
+    surface.blit(sh, (pos[0] + offset, pos[1] + offset))
+    surface.blit(text_surf, pos)
+
+
 def _gradient_bar(surface, x, y, w, h, pct, col_fill, col_hi, col_bg, border):
     pygame.draw.rect(surface, col_bg, (x, y, w, h))
     fw = max(0, int(w * pct))
@@ -94,7 +103,7 @@ class HUD:
         _gradient_bar(surface, bx, by, bar_w, bar_h, hp_pct, hp_col, _HP_HI, _BAR_BG, _BORDER_LO)
         hp_txt = self._font_md.render(
             f"HP  {int(player.hp)}/{player.max_hp_total}", True, _TEXT_BRIGHT)
-        surface.blit(hp_txt, (bx + bar_w // 2 - hp_txt.get_width() // 2, by + 2))
+        _shadow_blit(surface, hp_txt, (bx + bar_w // 2 - hp_txt.get_width() // 2, by + 2))
 
         # MP bar
         mp_pct = max(0.0, player.mana / player.max_mana_total) if player.max_mana_total else 0.0
@@ -102,32 +111,32 @@ class HUD:
         _gradient_bar(surface, bx, my_, bar_w, 14, mp_pct, _MP_FULL, _MP_HI, _BAR_BG, _BORDER_LO)
         mp_txt = self._font_sm.render(
             f"MP  {int(player.mana)}/{player.max_mana_total}", True, _TEXT_BRIGHT)
-        surface.blit(mp_txt, (bx + bar_w // 2 - mp_txt.get_width() // 2, my_ + 1))
+        _shadow_blit(surface, mp_txt, (bx + bar_w // 2 - mp_txt.get_width() // 2, my_ + 1))
 
         # XP bar (thin strip below MP)
         xp_pct = min(1.0, player.xp / player.xp_to_next) if player.xp_to_next else 1.0
         xy_ = my_ + 14 + 4
         _gradient_bar(surface, bx, xy_, bar_w, 8, xp_pct, _XP_FULL, _XP_HI, _BAR_BG, _BORDER_LO)
         xp_lbl = self._font_sm.render(f"XP", True, _TEXT_DIM)
-        surface.blit(xp_lbl, (bx - 2, xy_))
+        _shadow_blit(surface, xp_lbl, (bx - 2, xy_))
 
         # Potion count
         pot_col = (252, 100, 80) if player.potions else _TEXT_DIM
         pot_txt = self._font_sm.render(
             f"POT {len(player.potions)}", True, pot_col)
-        surface.blit(pot_txt, (bx + bar_w + 10, by + 2))
+        _shadow_blit(surface, pot_txt, (bx + bar_w + 10, by + 2))
 
         # ── CENTER-LEFT: Level + stats ────────────────────────────────────────
         sx = pad + bar_w + 110
 
         lv_txt = self._font_xl.render(f"LV {player.level}", True, YELLOW)
-        surface.blit(lv_txt, (sx, hud_y + 8))
+        _shadow_blit(surface, lv_txt, (sx, hud_y + 8))
 
         atk_col = _ATK_READY if player.attack_ready >= 1.0 else _ATK_WAIT
         atk_txt = self._font_md.render(f"ATK {player.attack}", True, atk_col)
         def_txt = self._font_md.render(f"DEF {player.defense}", True, LIGHT_GRAY)
-        surface.blit(atk_txt, (sx, hud_y + 34))
-        surface.blit(def_txt, (sx + 100, hud_y + 34))
+        _shadow_blit(surface, atk_txt, (sx, hud_y + 34))
+        _shadow_blit(surface, def_txt, (sx + 100, hud_y + 34))
 
         # ATK cooldown bar
         rdy = player.attack_ready
@@ -137,15 +146,15 @@ class HUD:
                       _ATK_READY if rdy >= 1.0 else _ATK_WAIT,
                       _TEXT_BRIGHT, _BAR_BG, _BORDER_LO)
         lbl = t("hud.ready") if rdy >= 1.0 else t("hud.atk_lbl")
-        surface.blit(self._font_sm.render(lbl, True, _TEXT_DIM),
+        _shadow_blit(surface, self._font_sm.render(lbl, True, _TEXT_DIM),
                      (sx + cd_w + 5, cd_y - 1))
 
         # ── CENTER: Gold + status effects ─────────────────────────────────────
         gx = sx + 280
         gold_icon = self._font_lg.render("♦", True, _GOLD_COL)
-        surface.blit(gold_icon, (gx, hud_y + 8))
+        _shadow_blit(surface, gold_icon, (gx, hud_y + 8))
         gold_txt = self._font_lg.render(f" {player.gold}", True, _TEXT_BRIGHT)
-        surface.blit(gold_txt, (gx + gold_icon.get_width(), hud_y + 8))
+        _shadow_blit(surface, gold_txt, (gx + gold_icon.get_width(), hud_y + 8))
 
         # Status effects
         _STATUS_DEFS = [
@@ -162,19 +171,19 @@ class HUD:
                 bg_s = pygame.Surface((stxt.get_width() + 6, stxt.get_height() + 2), pygame.SRCALPHA)
                 bg_s.fill((*scol, 30))
                 surface.blit(bg_s, (sx2 - 3, hud_y + 54))
-                surface.blit(stxt, (sx2, hud_y + 55))
+                _shadow_blit(surface, stxt, (sx2, hud_y + 55))
                 sx2 += stxt.get_width() + 10
 
         if battle_cry_active:
             msg = self._font_sm.render(t("hud.battle_cry"), True, (252, 180, 0))
-            surface.blit(msg, (sx2, hud_y + 55))
+            _shadow_blit(surface, msg, (sx2, hud_y + 55))
 
         # ── RIGHT SECTION: Floor + spells ─────────────────────────────────────
         fx = SCREEN_WIDTH - 380
 
         fl_str = f"{t('hud.floor_prefix')}{dungeon_level}"
         fl_txt = self._font_xl.render(fl_str, True, LIGHT_GRAY)
-        surface.blit(fl_txt, (fx, hud_y + 8))
+        _shadow_blit(surface, fl_txt, (fx, hud_y + 8))
 
         # Spell icons
         st = player.skill_tree
@@ -196,8 +205,8 @@ class HUD:
                 kc = (252, 180, 0)
             ks = self._font_sm.render(f"[{key}]", True, kc)
             ns = self._font_sm.render(f" {name}", True, _TEXT_DIM)
-            surface.blit(ks, (icon_x, icon_y))
-            surface.blit(ns, (icon_x + ks.get_width(), icon_y))
+            _shadow_blit(surface, ks, (icon_x, icon_y))
+            _shadow_blit(surface, ns, (icon_x + ks.get_width(), icon_y))
             icon_x += ks.get_width() + ns.get_width() + 8
 
         # ── OVERLAY MESSAGES ──────────────────────────────────────────────────
@@ -208,21 +217,24 @@ class HUD:
             msg   = self._font_xl.render(
                 t("hud.level_up", n=player.level), True, _LVUP_COL)
             msg.set_alpha(alpha)
-            surface.blit(msg, msg.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 60)))
+            pos = msg.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 60))
+            _shadow_blit(surface, msg, pos.topleft)
 
         if player.stat_points > 0 and int(pygame.time.get_ticks() / 500) % 2 == 0:
             n = player.stat_points
             sp_msg = self._font_lg.render(
                 t("hud.stat_pts", n=n, s="S" if n != 1 else "", e="E" if n != 1 else ""),
                 True, (80, 255, 120))
-            surface.blit(sp_msg, sp_msg.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 38)))
+            pos = sp_msg.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 38))
+            _shadow_blit(surface, sp_msg, pos.topleft)
 
         if player.skill_tree.skill_points > 0 and int(pygame.time.get_ticks() / 700) % 2 == 0:
             n = player.skill_tree.skill_points
             sp2 = self._font_lg.render(
                 t("hud.skill_pts", n=n, s="S" if n != 1 else "", e="E" if n != 1 else ""),
                 True, (100, 160, 255))
-            surface.blit(sp2, sp2.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 18)))
+            pos = sp2.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 18))
+            _shadow_blit(surface, sp2, pos.topleft)
 
         qy = play_cy + 10
         for txt, timer in self._quest_msgs:
@@ -230,5 +242,6 @@ class HUD:
             alpha = int(fade * 220)
             qs = self._font_lg.render(txt, True, (140, 230, 140))
             qs.set_alpha(alpha)
-            surface.blit(qs, qs.get_rect(center=(SCREEN_WIDTH // 2, qy)))
+            pos = qs.get_rect(center=(SCREEN_WIDTH // 2, qy))
+            _shadow_blit(surface, qs, pos.topleft)
             qy += 28
