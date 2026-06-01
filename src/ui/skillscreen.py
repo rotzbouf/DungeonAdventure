@@ -56,8 +56,8 @@ class SkillScreen:
         ttxt = t("skill.title_pts", n=pts,
                  s="S" if pts != 1 else "",
                  e="E" if pts != 1 else "")
-        t = self._font_lg.render(ttxt, True, _TITLE_COL)
-        surface.blit(t, (px + pw // 2 - t.get_width() // 2, py + 8))
+        title_s = self._font_lg.render(ttxt, True, _TITLE_COL)
+        surface.blit(title_s, (px + pw // 2 - title_s.get_width() // 2, py + 8))
         pygame.draw.line(surface, _BORDER, (px + 10, py + 36), (px + pw - 10, py + 36))
 
         self._boxes.clear()
