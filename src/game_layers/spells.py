@@ -23,10 +23,19 @@ class SpellLayer:
             return
         self.player.mana -= cost
 
-        mx, my = pygame.mouse.get_pos()
-        wx, wy = mx + self.camera.x, my + self.camera.y
-        dx, dy = wx - self.player.x, wy - self.player.y
-        dist   = math.hypot(dx, dy)
+        # Target nearest living enemy; fall back to mouse cursor when none present
+        nearest = min(
+            (e for e in self.enemies if e.alive),
+            key=lambda e: math.hypot(e.x - self.player.x, e.y - self.player.y),
+            default=None,
+        )
+        if nearest:
+            dx, dy = nearest.x - self.player.x, nearest.y - self.player.y
+        else:
+            mx, my = pygame.mouse.get_pos()
+            wx, wy = mx + self.camera.x, my + self.camera.y
+            dx, dy = wx - self.player.x, wy - self.player.y
+        dist = math.hypot(dx, dy)
         if dist < 1.0:
             dx, dy, dist = math.cos(self.player.attack_angle), math.sin(self.player.attack_angle), 1.0
         nx, ny = dx / dist, dy / dist
