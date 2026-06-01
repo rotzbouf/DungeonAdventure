@@ -185,6 +185,7 @@ _SPECIALTY_SLOTS: dict[str, list[str] | None] = {
                 SLOT_GLOVES, SLOT_BOOTS, SLOT_BELT],
     "jewelry": [SLOT_RING, SLOT_AMULET],
     "potions": None,   # mixed — handled separately
+    "enchant": None,   # no traditional stock — handled by EnchantScreen
 }
 
 # Visual palette per specialty
@@ -197,6 +198,8 @@ _SPECIALTY_PALETTE: dict[str, dict] = {
                 "robe_h": (50, 220, 220), "gem": (0, 230, 230), "gem_h": (140, 255, 255)},
     "potions": {"robe": (40, 130, 50), "robe_d": (18, 72, 22),
                 "robe_h": (80, 210, 90), "gem": (80, 240, 80), "gem_h": (180, 255, 180)},
+    "enchant": {"robe": (80, 20, 140), "robe_d": (40, 8, 80),
+                "robe_h": (160, 80, 255), "gem": (200, 100, 255), "gem_h": (230, 180, 255)},
 }
 
 
@@ -257,6 +260,8 @@ class TownMerchant(Merchant):
 
         slots = _SPECIALTY_SLOTS[self.specialty]
 
+        if self.specialty == "enchant":
+            return []   # Enchanter has no traditional stock; EnchantScreen handles it
         if self.specialty == "potions":
             # Alchemist: lots of potions + a few mixed-slot items
             for _ in range(5):

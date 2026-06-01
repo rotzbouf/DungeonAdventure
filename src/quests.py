@@ -56,10 +56,10 @@ class QuestLog:
             self._all_ids.add(quest.id)
             self.active.append(quest)
 
-    def add_floor_quests(self, floor: int, ng_plus: int = 0):
+    def add_floor_quests(self, floor: int):
         """Offer 2–3 quests suited to this floor depth."""
         pool: list[Quest] = []
-        cycle = floor + ng_plus * 5
+        cycle = floor
 
         # Kill quests — scale by depth
         enemy_quests = [

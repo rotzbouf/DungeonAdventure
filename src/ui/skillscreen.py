@@ -43,7 +43,7 @@ class SkillScreen:
         bg.fill(_BG_FILL)
         surface.blit(bg, (0, 0))
 
-        pw, ph = 740, H - 36
+        pw, ph = 925, H - 36
         px = (W - pw) // 2
         py = 18
         panel = pygame.Surface((pw, ph), pygame.SRCALPHA)

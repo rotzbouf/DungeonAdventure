@@ -12,8 +12,8 @@ from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, MAX_PLAYER_LE
 from src.locale import t
 
 # ── Geometry ──────────────────────────────────────────────────────────────────
-_PW = 520
-_PH = 490
+_PW = 640
+_PH = 600
 
 # ── Palette ───────────────────────────────────────────────────────────────────
 _BG     = (8,   4,  12)

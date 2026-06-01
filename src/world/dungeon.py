@@ -147,13 +147,17 @@ class Dungeon:
     def _place_spawns(self):
         enemies_per_room = min(2 + self.level // 2, 4)
         for room in self.rooms[1:-1]:
-            positions = room.inner_positions()
+            positions = [p for p in room.inner_positions()
+                         if self.grid[p[1]][p[0]] == TILE_FLOOR]
             self.rng.shuffle(positions)
             for pos in positions[:enemies_per_room]:
                 self.enemy_spawns.append(pos)
         for room in self.rooms[1:]:
             if self.rng.random() < 0.65:
-                self.item_spawns.append(room.random_inner(self.rng))
+                walkable = [p for p in room.inner_positions()
+                            if self.grid[p[1]][p[0]] == TILE_FLOOR]
+                if walkable:
+                    self.item_spawns.append(self.rng.choice(walkable))
 
         # Travelling merchant — a very rare, lucky find in the dungeon.
         # Spawn chance: ~10-15 % flat.  Always one at most, always elite stock.

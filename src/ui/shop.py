@@ -14,8 +14,8 @@ from src.entities.merchant import item_sell_price
 from src.locale import t
 
 # ── Geometry ──────────────────────────────────────────────────────────────────
-_PW      = 720
-_PH      = 500
+_PW      = 880
+_PH      = 620
 _HDR_H   = 54
 _COL_HDR = 24    # column-header strip height
 _ROW_H   = 46

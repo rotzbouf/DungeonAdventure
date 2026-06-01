@@ -17,8 +17,8 @@ from src.items.item import (EquipItem, HealthPotion,
 from src.locale import t, get_slot_label
 
 # ── Panel geometry ─────────────────────────────────────────────────────────────
-_PW   = 700
-_PH   = 460
+_PW   = 860
+_PH   = 560
 _PX   = (SCREEN_WIDTH  - _PW) // 2
 _PY   = (SCREEN_HEIGHT - HUD_HEIGHT - _PH) // 2
 

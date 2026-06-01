@@ -25,10 +25,11 @@ DUNGEON_INTERACT_R   = TILE_SIZE * 2.8   # px, enter-dungeon prompt radius
 
 # (display_title, specialty_key, px, py)
 MERCHANT_SPECS: list[tuple[str, str, int, int]] = [
-    ("Blacksmith",  "weapons",  200,  200),
-    ("Armourer",    "armor",   1080,  200),
-    ("Jeweler",     "jewelry",  200,  470),
-    ("Alchemist",   "potions", 1080,  470),
+    ("Blacksmith",  "weapons",  TOWN_W * 5 // 32,  TOWN_H * 5 // 16),
+    ("Armourer",    "armor",    TOWN_W * 27 // 32, TOWN_H * 5 // 16),
+    ("Jeweler",     "jewelry",  TOWN_W * 5 // 32,  TOWN_H * 47 // 64),
+    ("Alchemist",   "potions",  TOWN_W * 27 // 32, TOWN_H * 47 // 64),
+    ("Enchanter",   "enchant",  TOWN_W // 2,        TOWN_H * 3 // 16),
 ]
 
 TOWN_INTERACT_R = TILE_SIZE * 3.0   # bigger interact radius than dungeon
@@ -41,6 +42,7 @@ _STALL: dict[str, dict] = {
     "armor":    {"bg": (16,  36, 68),  "hi": ( 80, 130, 210), "awning": (30, 70, 130)},
     "jewelry":  {"bg": (12,  64, 64),  "hi": ( 40, 200, 200), "awning": (20, 130, 130)},
     "potions":  {"bg": (20,  56, 20),  "hi": ( 60, 200,  60), "awning": (30, 120, 30)},
+    "enchant":  {"bg": (36,   8, 72),  "hi": (160,  80, 255), "awning": (80, 20, 150)},
 }
 
 

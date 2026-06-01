@@ -68,7 +68,40 @@ class Player(Entity):
         for item in self.equipment.values():
             if item is not None:
                 total += item.get_mod_total(kind)
+        return total + self._synergy_bonus(kind)
+
+    def _synergy_bonus(self, kind: str) -> float:
+        """Extra stats from cross-item enchantment synergies."""
+        # Collect all tags from every equipped item's enchantments
+        all_tags: set[str] = set()
+        has_any = False
+        for item in self.equipment.values():
+            if item is not None and getattr(item, 'enchantments', None):
+                has_any = True
+                from src.items.enchant import ENCHANTMENTS
+                for eid in item.enchantments:
+                    enc = ENCHANTMENTS.get(eid)
+                    if enc:
+                        all_tags.update(enc.tags)
+        if not has_any:
+            return 0.0
+        from src.items.enchant import active_synergies
+        total = 0.0
+        for _name, bonus_mods in active_synergies(all_tags):
+            total += sum(v for k, v in bonus_mods if k == kind)
         return total
+
+    def equipped_enchant_tags(self) -> set[str]:
+        """All enchantment tags across every equipped item (for display)."""
+        tags: set[str] = set()
+        from src.items.enchant import ENCHANTMENTS
+        for item in self.equipment.values():
+            if item is not None:
+                for eid in getattr(item, 'enchantments', []):
+                    enc = ENCHANTMENTS.get(eid)
+                    if enc:
+                        tags.update(enc.tags)
+        return tags
 
     # ─── Derived stats ───────────────────────────────────────────────────────────
 
@@ -150,6 +183,22 @@ class Player(Entity):
         from src.items.item import MOD_ATK_SPD
         bonus = self._equip_total(MOD_ATK_SPD)
         return max(0.12, PLAYER_ATTACK_COOLDOWN * (1.0 - bonus / 100))
+
+    @property
+    def has_bow(self) -> bool:
+        from src.items.item import BOW_BASES, SLOT_WEAPON
+        w = self.equipment.get(SLOT_WEAPON)
+        return w is not None and w.base_name in BOW_BASES
+
+    @property
+    def bow_attack(self) -> int:
+        from src.items.item import MOD_ATK, SLOT_WEAPON
+        from src.settings import ARROW_BASE_DMG
+        dex_bonus = (self.dex_pts - BASE_DEX) * 3
+        bow = self.equipment.get(SLOT_WEAPON)
+        bow_atk = bow.get_mod_total(MOD_ATK) if bow else 0.0
+        skill_mult = 1.0 + self.skill_tree.melee_damage_bonus()
+        return int((ARROW_BASE_DMG + dex_bonus + bow_atk + self.level) * skill_mult)
 
     # ─── Inventory ───────────────────────────────────────────────────────────────
 

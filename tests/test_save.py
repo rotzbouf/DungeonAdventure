@@ -59,10 +59,10 @@ def test_save_persists_dungeon_level(tmp_save):
     assert savesys.load_game()["dungeon_level"] == 3
 
 
-def test_save_persists_ng_plus(tmp_save):
+def test_save_ng_plus_defaults_to_zero(tmp_save):
     p = Player(0, 0)
-    savesys.save_game(p, dungeon_level=1, ng_plus=2)
-    assert savesys.load_game()["ng_plus"] == 2
+    savesys.save_game(p, dungeon_level=10)
+    assert savesys.load_game().get("ng_plus", 0) == 0
 
 
 def test_save_persists_gold(tmp_save):

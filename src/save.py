@@ -21,13 +21,15 @@ def item_to_dict(item) -> dict | None:
         return {"type": "potion", "heal": item.heal_amount}
     if isinstance(item, EquipItem):
         return {
-            "type":        "equip",
-            "base_name":   item.base_name,
-            "quality":     item.quality,
-            "unique_name": item.unique_name,
-            "flavor":      item.flavor,
-            "rare_name":   item.rare_name,
-            "base_stat":   item.base_stat,
+            "type":          "equip",
+            "base_name":     item.base_name,
+            "quality":       item.quality,
+            "unique_name":   item.unique_name,
+            "flavor":        item.flavor,
+            "rare_name":     item.rare_name,
+            "base_stat":     item.base_stat,
+            "enchant_slots": item.enchant_slots,
+            "enchantments":  list(item.enchantments),
             "mods": [
                 {
                     "kind":      m.kind,
@@ -65,8 +67,10 @@ def item_from_dict(data: dict | None):
             unique_name=data.get("unique_name", ""),
             flavor=data.get("flavor", ""),
         )
-        item.base_stat = data.get("base_stat", item.base_stat)
-        item.rare_name = data.get("rare_name", "")
+        item.base_stat     = data.get("base_stat", item.base_stat)
+        item.rare_name     = data.get("rare_name", "")
+        item.enchant_slots = data.get("enchant_slots", 0)
+        item.enchantments  = data.get("enchantments", [])
         return item
     return None
 
@@ -81,7 +85,7 @@ def delete_save():
     SAVE_PATH.unlink(missing_ok=True)
 
 
-def save_game(player, dungeon_level: int, ng_plus: int,
+def save_game(player, dungeon_level: int, ng_plus: int = 0,
               quest_log=None, skill_tree=None):
     """Persist the current game state to disk."""
     data = {

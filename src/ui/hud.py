@@ -8,56 +8,49 @@ from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT,
 from src.locale import t
 
 # ── HUD colours ──────────────────────────────────────────────────────────────
-_BG          = (0,   0,   0)
+_BG          = (4,   6,  14)
+_BG2         = (8,  12,  28)
 _BORDER      = (68, 100, 176)
-_HEART_FULL  = (204,   0,   0)
-_HEART_HI    = (252,  80,  80)
-_HEART_HALF  = (140,   0,   0)
-_HEART_HALF_HI = (180, 60,  60)
-_HEART_EMPTY = ( 52,   0,   0)
-_MAGIC_FILL  = (0,  168,   0)
-_MAGIC_BG    = (0,   40,   0)
-_RUPEE       = (0,  168,   0)
-_RUPEE_HI    = (0,  252,   0)
+_BORDER_LO   = (36,  52,  96)
+_HP_FULL     = (200,  30,  30)
+_HP_HI       = (255,  80,  60)
+_HP_LOW      = (220,  60,   0)
+_HP_CRIT     = (255,   0,   0)
+_MP_FULL     = (30,  130, 220)
+_MP_HI       = (80,  200, 255)
+_XP_FULL     = (60,  200,  60)
+_XP_HI       = (120, 255, 120)
+_BAR_BG      = (20,  20,  34)
 _TEXT_BRIGHT = (252, 252, 252)
-_TEXT_DIM    = (108, 108, 108)
-_ATK_READY   = (0,  220,   0)
-_ATK_WAIT    = (220, 92,   16)
+_TEXT_DIM    = (110, 110, 130)
+_ATK_READY   = (60,  220,  80)
+_ATK_WAIT    = (220,  92,  16)
+_GOLD_COL    = (220, 175,   0)
 _LVUP_COL    = (252, 188,   0)
 
 
-def _draw_heart(surface, x, y, state):
-    if state == 'full':
-        c1, c2 = _HEART_FULL, _HEART_HI
-    elif state == 'half':
-        c1, c2 = _HEART_HALF, _HEART_HALF_HI
-    else:
-        c1, c2 = _HEART_EMPTY, _HEART_EMPTY
-    pygame.draw.circle(surface, c1, (x + 3,  y + 3), 3)
-    pygame.draw.circle(surface, c1, (x + 9,  y + 3), 3)
-    pygame.draw.polygon(surface, c1, [(x, y+4), (x+12, y+4), (x+6, y+11)])
-    if state != 'empty':
-        pygame.draw.circle(surface, c2, (x+3, y+3), 2)
-        pygame.draw.circle(surface, c2, (x+9, y+3), 2)
-        pygame.draw.polygon(surface, c2, [(x+1, y+5), (x+11, y+5), (x+6, y+10)])
-
-
-def _draw_rupee(surface, x, y):
-    pts = [(x+4, y), (x+8, y+5), (x+4, y+12), (x, y+5)]
-    pygame.draw.polygon(surface, _RUPEE,    pts)
-    pygame.draw.polygon(surface, _RUPEE_HI, pts, 1)
-    surface.set_at((x+3, y+4), _RUPEE_HI)
-    surface.set_at((x+4, y+3), _RUPEE_HI)
+def _gradient_bar(surface, x, y, w, h, pct, col_fill, col_hi, col_bg, border):
+    pygame.draw.rect(surface, col_bg, (x, y, w, h))
+    fw = max(0, int(w * pct))
+    if fw > 0:
+        pygame.draw.rect(surface, col_fill, (x, y, fw, h))
+        hi_h = max(1, h // 3)
+        hi_col = tuple(min(255, c + 60) for c in col_fill)
+        pygame.draw.rect(surface, hi_col, (x, y, fw, hi_h))
+        sh_col = tuple(max(0, c - 30) for c in col_fill)
+        pygame.draw.rect(surface, sh_col, (x, y + h - hi_h, fw, hi_h))
+    pygame.draw.rect(surface, border, (x, y, w, h), 1)
 
 
 class HUD:
     def __init__(self):
-        self._font_lg = pygame.font.SysFont("monospace", 20, bold=True)
-        self._font_md = pygame.font.SysFont("monospace", 14, bold=True)
-        self._font_sm = pygame.font.SysFont("monospace", 12)
+        self._font_xl = pygame.font.SysFont("monospace", 22, bold=True)
+        self._font_lg = pygame.font.SysFont("monospace", 18, bold=True)
+        self._font_md = pygame.font.SysFont("monospace", 15, bold=True)
+        self._font_sm = pygame.font.SysFont("monospace", 13)
         self._lvup_timer  = 0.0
         self._shop_timer  = 0.0
-        self._quest_msgs: list[tuple[str, float]] = []   # (text, timer)
+        self._quest_msgs: list[tuple[str, float]] = []
 
     def notify_level_up(self):
         self._lvup_timer = 2.8
@@ -68,178 +61,174 @@ class HUD:
     def update(self, dt: float):
         self._lvup_timer = max(0.0, self._lvup_timer - dt)
         self._shop_timer = max(0.0, self._shop_timer - dt)
-        self._quest_msgs = [(t, timer - dt) for t, timer in self._quest_msgs if timer - dt > 0]
+        self._quest_msgs = [(txt, timer - dt) for txt, timer in self._quest_msgs if timer - dt > 0]
 
     def draw(self, surface: pygame.Surface, player, dungeon_level: int,
-             ng_plus: int = 0, battle_cry_active: bool = False,
+             battle_cry_active: bool = False,
              ice_nova_cd: float = 0.0, chain_cd: float = 0.0, blink_cd: float = 0.0):
         hud_y = SCREEN_HEIGHT - HUD_HEIGHT
-        pygame.draw.rect(surface, _BG, (0, hud_y, SCREEN_WIDTH, HUD_HEIGHT))
-        pygame.draw.line(surface, _BORDER, (0, hud_y), (SCREEN_WIDTH, hud_y), 2)
 
-        pad = 12
+        # ── Panel background with subtle gradient ────────────────────────────
+        panel = pygame.Surface((SCREEN_WIDTH, HUD_HEIGHT), pygame.SRCALPHA)
+        panel.fill((*_BG, 245))
+        for i in range(HUD_HEIGHT // 2):
+            alpha = int(20 * (1.0 - i / (HUD_HEIGHT // 2)))
+            pygame.draw.line(panel, (255, 255, 255, alpha), (0, i), (SCREEN_WIDTH, i))
+        surface.blit(panel, (0, hud_y))
+        pygame.draw.line(surface, _BORDER, (0, hud_y), (SCREEN_WIDTH, hud_y), 2)
+        pygame.draw.line(surface, _BORDER_LO, (0, hud_y + 2), (SCREEN_WIDTH, hud_y + 2), 1)
+
+        pad = 18
         cy  = hud_y + HUD_HEIGHT // 2
 
-        # ── HEARTS ───────────────────────────────────────────────────────────
-        hp_per_heart   = 10
-        total_hearts   = max(10, math.ceil(player.max_hp_total / hp_per_heart))
-        filled_hearts  = int(player.hp // hp_per_heart)
-        has_half       = int(player.hp) % hp_per_heart >= 5
-        hearts_per_row = 10
-        heart_w, heart_h = 14, 12
-        for i in range(total_hearts):
-            row = i // hearts_per_row
-            col = i  % hearts_per_row
-            hx  = pad + col * heart_w
-            hy  = hud_y + 6 + row * (heart_h + 2)
-            state = ('full' if i < filled_hearts else
-                     'half' if i == filled_hearts and has_half else 'empty')
-            _draw_heart(surface, hx, hy, state)
+        # ── LEFT SECTION: HP + MP bars ───────────────────────────────────────
+        bar_w = 300
+        bar_h = 20
 
-        # ── MP BAR ───────────────────────────────────────────────────────────
-        bar_x = pad
-        bar_y = hud_y + 6 + ((total_hearts - 1) // hearts_per_row + 1) * (heart_h + 2)
-        bar_w = hearts_per_row * heart_w
-        bar_h = 6
-        if bar_y + bar_h < SCREEN_HEIGHT - 4:
-            label = self._font_sm.render(t("hud.mp"), True, _TEXT_DIM)
-            surface.blit(label, (bar_x, bar_y - 1))
-            bx = bar_x + 18
-            pygame.draw.rect(surface, _MAGIC_BG, (bx, bar_y, bar_w - 18, bar_h))
-            fw = int((bar_w - 18) * max(0, player.mana) / player.max_mana_total) if player.max_mana_total else 0
-            if fw > 0:
-                pygame.draw.rect(surface, _MAGIC_FILL, (bx, bar_y, fw, bar_h))
-            pygame.draw.rect(surface, _BORDER, (bx, bar_y, bar_w - 18, bar_h), 1)
+        # HP bar
+        hp_pct = max(0.0, player.hp / player.max_hp_total)
+        hp_col = (_HP_CRIT if hp_pct < 0.25 else
+                  _HP_LOW  if hp_pct < 0.50 else _HP_FULL)
+        bx = pad
+        by = hud_y + 14
+        _gradient_bar(surface, bx, by, bar_w, bar_h, hp_pct, hp_col, _HP_HI, _BAR_BG, _BORDER_LO)
+        hp_txt = self._font_md.render(
+            f"HP  {int(player.hp)}/{player.max_hp_total}", True, _TEXT_BRIGHT)
+        surface.blit(hp_txt, (bx + bar_w // 2 - hp_txt.get_width() // 2, by + 2))
 
-        # ── STATS (centre) ────────────────────────────────────────────────────
-        sx = SCREEN_WIDTH // 2 - 160
+        # MP bar
+        mp_pct = max(0.0, player.mana / player.max_mana_total) if player.max_mana_total else 0.0
+        my_ = by + bar_h + 6
+        _gradient_bar(surface, bx, my_, bar_w, 14, mp_pct, _MP_FULL, _MP_HI, _BAR_BG, _BORDER_LO)
+        mp_txt = self._font_sm.render(
+            f"MP  {int(player.mana)}/{player.max_mana_total}", True, _TEXT_BRIGHT)
+        surface.blit(mp_txt, (bx + bar_w // 2 - mp_txt.get_width() // 2, my_ + 1))
 
-        lv_txt = self._font_lg.render(f"LV {player.level}", True, YELLOW)
-        surface.blit(lv_txt, (sx, hud_y + 5))
+        # XP bar (thin strip below MP)
+        xp_pct = min(1.0, player.xp / player.xp_to_next) if player.xp_to_next else 1.0
+        xy_ = my_ + 14 + 4
+        _gradient_bar(surface, bx, xy_, bar_w, 8, xp_pct, _XP_FULL, _XP_HI, _BAR_BG, _BORDER_LO)
+        xp_lbl = self._font_sm.render(f"XP", True, _TEXT_DIM)
+        surface.blit(xp_lbl, (bx - 2, xy_))
+
+        # Potion count
+        pot_col = (252, 100, 80) if player.potions else _TEXT_DIM
+        pot_txt = self._font_sm.render(
+            f"POT {len(player.potions)}", True, pot_col)
+        surface.blit(pot_txt, (bx + bar_w + 10, by + 2))
+
+        # ── CENTER-LEFT: Level + stats ────────────────────────────────────────
+        sx = pad + bar_w + 110
+
+        lv_txt = self._font_xl.render(f"LV {player.level}", True, YELLOW)
+        surface.blit(lv_txt, (sx, hud_y + 8))
 
         atk_col = _ATK_READY if player.attack_ready >= 1.0 else _ATK_WAIT
         atk_txt = self._font_md.render(f"ATK {player.attack}", True, atk_col)
         def_txt = self._font_md.render(f"DEF {player.defense}", True, LIGHT_GRAY)
-        surface.blit(atk_txt, (sx, hud_y + 28))
-        surface.blit(def_txt, (sx + 80, hud_y + 28))
-
-        pot_col = (252, 80, 80) if player.potions else _TEXT_DIM
-        pot_txt = self._font_md.render(f"POT {len(player.potions)}", True, pot_col)
-        surface.blit(pot_txt, (sx, hud_y + 46))
-
-        # ── GOLD ─────────────────────────────────────────────────────────────
-        rx = sx + 200
-        _draw_rupee(surface, rx, hud_y + 8)
-        gold_txt = self._font_md.render(f" x {player.gold}", True, _TEXT_BRIGHT)
-        surface.blit(gold_txt, (rx + 10, hud_y + 10))
-
-        # ── FLOOR / NG+ ───────────────────────────────────────────────────────
-        fx = SCREEN_WIDTH - 200
-        ng_label = f"NG+{ng_plus}" if ng_plus > 0 else ""
-        fl_str   = f"{t('hud.floor_prefix')}{dungeon_level}/5  {ng_label}".strip()
-        fl_col   = (180, 220, 255) if ng_plus > 0 else LIGHT_GRAY
-        fl_txt   = self._font_lg.render(fl_str, True, fl_col)
-        surface.blit(fl_txt, (fx, hud_y + 5))
+        surface.blit(atk_txt, (sx, hud_y + 34))
+        surface.blit(def_txt, (sx + 100, hud_y + 34))
 
         # ATK cooldown bar
-        rdy  = player.attack_ready
-        cd_w = 150
-        pygame.draw.rect(surface, (32, 32, 32), (fx, hud_y + 30, cd_w, 7))
-        fill = int(cd_w * rdy)
-        if fill > 0:
-            col = _ATK_READY if rdy >= 1.0 else _ATK_WAIT
-            pygame.draw.rect(surface, col, (fx, hud_y + 30, fill, 7))
-        pygame.draw.rect(surface, _BORDER, (fx, hud_y + 30, cd_w, 7), 1)
+        rdy = player.attack_ready
+        cd_w = 180
+        cd_y = hud_y + 56
+        _gradient_bar(surface, sx, cd_y, cd_w, 8, rdy,
+                      _ATK_READY if rdy >= 1.0 else _ATK_WAIT,
+                      _TEXT_BRIGHT, _BAR_BG, _BORDER_LO)
         lbl = t("hud.ready") if rdy >= 1.0 else t("hud.atk_lbl")
         surface.blit(self._font_sm.render(lbl, True, _TEXT_DIM),
-                     (fx + cd_w + 4, hud_y + 29))
+                     (sx + cd_w + 5, cd_y - 1))
 
-        # ── SPELL ICONS (row below ATK bar) ──────────────────────────────────
+        # ── CENTER: Gold + status effects ─────────────────────────────────────
+        gx = sx + 280
+        gold_icon = self._font_lg.render("♦", True, _GOLD_COL)
+        surface.blit(gold_icon, (gx, hud_y + 8))
+        gold_txt = self._font_lg.render(f" {player.gold}", True, _TEXT_BRIGHT)
+        surface.blit(gold_txt, (gx + gold_icon.get_width(), hud_y + 8))
+
+        # Status effects
+        _STATUS_DEFS = [
+            ('poison', (50, 220, 50),   t("hud.status.poison")),
+            ('burn',   (252, 120, 20),  t("hud.status.burn")),
+            ('slow',   (60, 120, 220),  t("hud.status.slow")),
+            ('freeze', (100, 220, 255), t("hud.status.freeze")),
+        ]
+        sx2 = gx
+        for sname, scol, slabel in _STATUS_DEFS:
+            if player.has_status(sname):
+                tl = player._status[sname]['timer']
+                stxt = self._font_sm.render(f"[{slabel} {tl:.1f}s]", True, scol)
+                bg_s = pygame.Surface((stxt.get_width() + 6, stxt.get_height() + 2), pygame.SRCALPHA)
+                bg_s.fill((*scol, 30))
+                surface.blit(bg_s, (sx2 - 3, hud_y + 54))
+                surface.blit(stxt, (sx2, hud_y + 55))
+                sx2 += stxt.get_width() + 10
+
+        if battle_cry_active:
+            msg = self._font_sm.render(t("hud.battle_cry"), True, (252, 180, 0))
+            surface.blit(msg, (sx2, hud_y + 55))
+
+        # ── RIGHT SECTION: Floor + spells ─────────────────────────────────────
+        fx = SCREEN_WIDTH - 380
+
+        fl_str = f"{t('hud.floor_prefix')}{dungeon_level}"
+        fl_txt = self._font_xl.render(fl_str, True, LIGHT_GRAY)
+        surface.blit(fl_txt, (fx, hud_y + 8))
+
+        # Spell icons
         st = player.skill_tree
         spells = [
-            ("Z",  t("spell.fireball"),   FIREBALL_MANA_COST,        0.0,         True),
-            ("X",  t("spell.ice_nova"),   ICE_NOVA_MANA_COST,         ice_nova_cd, st.has_ice_nova()),
-            ("R",  t("spell.chain_ltng"), CHAIN_LIGHTNING_MANA_COST,  chain_cd,    st.has_chain_lightning()),
-            ("V",  t("spell.blink"),      BLINK_MANA_COST,            blink_cd,    st.has_blink()),
-            ("B",  t("spell.battle_cry"), BATTLE_CRY_MANA_COST,       0.0,         st.level("battle_cry") > 0),
+            ("Z",  t("spell.fireball"),   FIREBALL_MANA_COST,       0.0,        True),
+            ("X",  t("spell.ice_nova"),   ICE_NOVA_MANA_COST,        ice_nova_cd, st.has_ice_nova()),
+            ("R",  t("spell.chain_ltng"), CHAIN_LIGHTNING_MANA_COST, chain_cd,   st.has_chain_lightning()),
+            ("V",  t("spell.blink"),      BLINK_MANA_COST,           blink_cd,   st.has_blink()),
+            ("B",  t("spell.battle_cry"), BATTLE_CRY_MANA_COST,      0.0,        st.level("battle_cry") > 0),
         ]
-        icon_x = fx - 60
-        icon_y = hud_y + 46
+        icon_x = fx
+        icon_y = hud_y + 42
         for key, name, cost, cd, unlocked in spells:
             if not unlocked:
                 continue
             can = player.mana >= cost and cd <= 0
-            kc  = (80, 200, 80) if can else (160, 50, 50)
+            kc  = (80, 210, 80) if can else (160, 50, 50)
             if name == "BattleCry" and battle_cry_active:
                 kc = (252, 180, 0)
-            ks = self._font_sm.render(key, True, kc)
-            ns = self._font_sm.render(f":{name}", True, _TEXT_DIM)
+            ks = self._font_sm.render(f"[{key}]", True, kc)
+            ns = self._font_sm.render(f" {name}", True, _TEXT_DIM)
             surface.blit(ks, (icon_x, icon_y))
             surface.blit(ns, (icon_x + ks.get_width(), icon_y))
-            icon_x += ks.get_width() + ns.get_width() + 6
+            icon_x += ks.get_width() + ns.get_width() + 8
 
-        # ── STATUS ICONS ─────────────────────────────────────────────────────
-        _STATUS_DEFS = [
-            ('poison', (30,  200,  30), t("hud.status.poison")),
-            ('burn',   (252, 120,  20), t("hud.status.burn")),
-            ('slow',   (60,  120, 220), t("hud.status.slow")),
-            ('freeze', (80,  200, 255), t("hud.status.freeze")),
-        ]
-        icon_x2 = sx + 148
-        for sname, scol, slabel in _STATUS_DEFS:
-            if player.has_status(sname):
-                t_left = player._status[sname]['timer']
-                stxt   = self._font_sm.render(f"[{slabel} {t_left:.1f}s]", True, scol)
-                bg_s = pygame.Surface((stxt.get_width() + 6, stxt.get_height() + 2), pygame.SRCALPHA)
-                bg_s.fill((*scol, 28))
-                surface.blit(bg_s, (icon_x2 - 3, hud_y + 45))
-                surface.blit(stxt, (icon_x2, hud_y + 46))
-                icon_x2 += stxt.get_width() + 8
+        # ── OVERLAY MESSAGES ──────────────────────────────────────────────────
+        play_cy = (SCREEN_HEIGHT - HUD_HEIGHT) // 2
 
-        # Battle-cry active glow
-        if battle_cry_active:
-            msg = self._font_sm.render(t("hud.battle_cry"), True, (252, 180, 0))
-            surface.blit(msg, (sx + 148, hud_y + 46))
-
-        # ── LEVEL-UP FLASH ────────────────────────────────────────────────────
         if self._lvup_timer > 0:
             alpha = min(255, int(self._lvup_timer * 130))
-            msg   = self._font_lg.render(
+            msg   = self._font_xl.render(
                 t("hud.level_up", n=player.level), True, _LVUP_COL)
             msg.set_alpha(alpha)
-            surface.blit(msg, msg.get_rect(
-                center=(SCREEN_WIDTH // 2, (SCREEN_HEIGHT - HUD_HEIGHT) // 2 - 60)))
+            surface.blit(msg, msg.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 60)))
 
-        # ── STAT POINTS AVAILABLE ─────────────────────────────────────────────
-        if player.stat_points > 0:
-            if int(pygame.time.get_ticks() / 500) % 2 == 0:
-                n = player.stat_points
-                sp_msg = self._font_md.render(
-                    t("hud.stat_pts", n=n,
-                      s="S" if n != 1 else "",
-                      e="E" if n != 1 else ""),
-                    True, (80, 255, 120))
-                surface.blit(sp_msg, sp_msg.get_rect(
-                    center=(SCREEN_WIDTH // 2, (SCREEN_HEIGHT - HUD_HEIGHT) // 2 - 38)))
+        if player.stat_points > 0 and int(pygame.time.get_ticks() / 500) % 2 == 0:
+            n = player.stat_points
+            sp_msg = self._font_lg.render(
+                t("hud.stat_pts", n=n, s="S" if n != 1 else "", e="E" if n != 1 else ""),
+                True, (80, 255, 120))
+            surface.blit(sp_msg, sp_msg.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 38)))
 
-        # Skill points available hint
-        if player.skill_tree.skill_points > 0:
-            if int(pygame.time.get_ticks() / 700) % 2 == 0:
-                n = player.skill_tree.skill_points
-                sp2 = self._font_md.render(
-                    t("hud.skill_pts", n=n,
-                      s="S" if n != 1 else "",
-                      e="E" if n != 1 else ""),
-                    True, (100, 160, 255))
-                surface.blit(sp2, sp2.get_rect(
-                    center=(SCREEN_WIDTH // 2, (SCREEN_HEIGHT - HUD_HEIGHT) // 2 - 18)))
+        if player.skill_tree.skill_points > 0 and int(pygame.time.get_ticks() / 700) % 2 == 0:
+            n = player.skill_tree.skill_points
+            sp2 = self._font_lg.render(
+                t("hud.skill_pts", n=n, s="S" if n != 1 else "", e="E" if n != 1 else ""),
+                True, (100, 160, 255))
+            surface.blit(sp2, sp2.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 18)))
 
-        # ── QUEST NOTIFICATIONS ───────────────────────────────────────────────
-        qy = (SCREEN_HEIGHT - HUD_HEIGHT) // 2 + 10
-        for text, timer in self._quest_msgs:
+        qy = play_cy + 10
+        for txt, timer in self._quest_msgs:
             fade = min(1.0, timer / 0.6)
             alpha = int(fade * 220)
-            qs = self._font_md.render(text, True, (120, 220, 120))
+            qs = self._font_lg.render(txt, True, (140, 230, 140))
             qs.set_alpha(alpha)
             surface.blit(qs, qs.get_rect(center=(SCREEN_WIDTH // 2, qy)))
-            qy += 24
+            qy += 28

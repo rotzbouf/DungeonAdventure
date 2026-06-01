@@ -204,6 +204,8 @@ _RARE_SECOND = ["Bane",  "Edge",  "Crest",  "Wail", "Brand","Gore",  "Fang",
 # ── Base item types ───────────────────────────────────────────────────────────
 # (slot, primary_stat_min, primary_stat_max, level_tier)
 
+BOW_BASES = frozenset({"Short Bow", "Long Bow", "Hunter's Bow", "War Bow", "Crossbow"})
+
 _BASES: dict[str, tuple] = {
     # Weapons — primary = ATK
     "Dagger":          (SLOT_WEAPON,  1,  3, 1),
@@ -212,6 +214,12 @@ _BASES: dict[str, tuple] = {
     "Battle Axe":      (SLOT_WEAPON, 10, 16, 3),
     "War Hammer":      (SLOT_WEAPON, 15, 22, 4),
     "Great Sword":     (SLOT_WEAPON, 20, 30, 5),
+    # Bows — primary = ATK (DEX-scaled via bow_attack property)
+    "Short Bow":       (SLOT_WEAPON,  3,  7, 1),
+    "Long Bow":        (SLOT_WEAPON,  7, 13, 2),
+    "Hunter's Bow":    (SLOT_WEAPON, 12, 20, 3),
+    "War Bow":         (SLOT_WEAPON, 18, 28, 4),
+    "Crossbow":        (SLOT_WEAPON, 24, 36, 5),
     # Shields — primary = DEF
     "Buckler":         (SLOT_SHIELD,  1,  2, 1),
     "Kite Shield":     (SLOT_SHIELD,  3,  5, 3),
@@ -242,11 +250,12 @@ _BASES: dict[str, tuple] = {
 }
 
 # Weapon/armour type available at each level (pick from this list)
-_LEVEL_WEAPONS = {1: ["Dagger", "Short Sword"],
-                  2: ["Short Sword", "Broad Sword"],
-                  3: ["Broad Sword", "Battle Axe"],
-                  4: ["Battle Axe", "War Hammer"],
-                  5: ["War Hammer", "Great Sword"]}
+# Melee and bows share the weapon slot; equipping a bow switches attack mode.
+_LEVEL_WEAPONS = {1: ["Dagger", "Short Sword", "Short Bow"],
+                  2: ["Short Sword", "Broad Sword", "Short Bow", "Long Bow"],
+                  3: ["Broad Sword", "Battle Axe", "Long Bow", "Hunter's Bow"],
+                  4: ["Battle Axe", "War Hammer", "Hunter's Bow", "War Bow"],
+                  5: ["War Hammer", "Great Sword", "War Bow", "Crossbow"]}
 
 _LEVEL_ARMOR: dict[str, dict[int, str]] = {
     SLOT_SHIELD: {1: "Buckler",        2: "Buckler",        3: "Kite Shield",
@@ -296,6 +305,22 @@ _UNIQUES: list[dict] = [
      "name": "Doom Bringer",
      "mods": [(MOD_ATK, 60), (MOD_ATK_PCT, 50), (MOD_CRIT, 20)],
      "flavor": "Its edge separates the living from the dead."},
+
+    # ── Bows ─────────────────────────────────────────────────────────────────
+    {"slot": SLOT_WEAPON, "base": "Short Bow",    "min_lvl": 1,
+     "name": "Windforce",
+     "mods": [(MOD_ATK, 18), (MOD_ATK_SPD, 20), (MOD_SPEED, 12), (MOD_CRIT, 8)],
+     "flavor": "The wind itself becomes your arrow."},
+
+    {"slot": SLOT_WEAPON, "base": "Long Bow",     "min_lvl": 2,
+     "name": "Widowmaker",
+     "mods": [(MOD_ATK, 26), (MOD_CRIT, 20), (MOD_ATK_PCT, 22)],
+     "flavor": "One shot. One widow."},
+
+    {"slot": SLOT_WEAPON, "base": "Crossbow",     "min_lvl": 5,
+     "name": "Buriza-Do Kyanon",
+     "mods": [(MOD_ATK, 48), (MOD_CRIT, 12), (MOD_DEF, 10), (MOD_LIFE_STEAL, 6)],
+     "flavor": "Strength beyond nature."},
 
     # ── Shields ───────────────────────────────────────────────────────────────
     {"slot": SLOT_SHIELD, "base": "Buckler",     "min_lvl": 1,
@@ -520,6 +545,10 @@ class EquipItem(Item):
         self.unique_name = unique_name
         self.flavor      = flavor
 
+        # Enchantment slots (rolled by random_equip; 0 = no slots)
+        self.enchant_slots: int  = 0
+        self.enchantments:  list = []   # list of enchantment ID strings
+
         # Rare items get a procedural two-part name
         if quality == QUALITY_RARE and not unique_name:
             self.rare_name = (random.choice(_RARE_FIRST) + " " +
@@ -548,7 +577,25 @@ class EquipItem(Item):
         return Q_COLOR[self.quality]
 
     def get_mod_total(self, kind: str) -> float:
-        return sum(m.value for m in self.mods if m.kind == kind)
+        total = sum(m.value for m in self.mods if m.kind == kind)
+        if self.enchantments:
+            from src.items.enchant import ENCHANTMENTS
+            for eid in self.enchantments:
+                enc = ENCHANTMENTS.get(eid)
+                if enc:
+                    total += enc.get_mod(kind)
+        return total
+
+    @property
+    def open_slots(self) -> int:
+        return max(0, self.enchant_slots - len(self.enchantments))
+
+    def add_enchantment(self, eid: str) -> bool:
+        """Apply enchantment eid to the next open slot. Returns True on success."""
+        if self.open_slots <= 0:
+            return False
+        self.enchantments.append(eid)
+        return True
 
     @property
     def primary_stat(self) -> int:
@@ -566,6 +613,19 @@ class EquipItem(Item):
         # Affix modifiers
         for m in self.mods:
             lines.append((m.describe(), (100, 220, 100)))
+        # Enchantments
+        if self.enchant_slots > 0 or self.enchantments:
+            from src.items.enchant import ENCHANTMENTS, RARITY_COLORS
+            lines.append(("", (0, 0, 0)))   # spacer
+            for eid in self.enchantments:
+                enc = ENCHANTMENTS.get(eid)
+                if enc:
+                    col = enc.color
+                    lines.append((f"✦ {enc.name}", col))
+                    for desc in enc.describe_lines():
+                        lines.append((f"  {desc}", tuple(max(0, c - 40) for c in col)))
+            for _ in range(self.open_slots):
+                lines.append(("  ◇ Open Enchantment Slot", (80, 80, 100)))
         # Flavor text
         if self.flavor:
             lines.append((f"\"{self.flavor}\"", (140, 120, 80)))
@@ -668,7 +728,7 @@ class EquipItem(Item):
 
 # ── Item generation ───────────────────────────────────────────────────────────
 
-def _pick_affixes(quality: int, ilvl: int) -> list[Modifier]:
+def _pick_affixes(quality: int, ilvl: int, depth_mult: float = 1.0) -> list[Modifier]:
     """Roll random affixes for the given quality tier and item level."""
     eligible_pre = [p for p in _PREFIXES if p[4] <= ilvl]
     eligible_suf = [s for s in _SUFFIXES if s[4] <= ilvl]
@@ -695,7 +755,7 @@ def _pick_affixes(quality: int, ilvl: int) -> list[Modifier]:
         if not picks and eligible_pre:
             picks.append(('pre', random.choice(eligible_pre)))
         for role, p in picks:
-            m = Modifier(p[1], round(random.uniform(p[2], p[3]), 1))
+            m = Modifier(p[1], round(random.uniform(p[2], p[3]) * depth_mult, 1))
             m.name       = p[0]                      # type: ignore[attr-defined]
             m.is_prefix  = (role == 'pre')            # type: ignore[attr-defined]
             m.is_suffix  = (role == 'suf')            # type: ignore[attr-defined]
@@ -714,7 +774,7 @@ def _pick_affixes(quality: int, ilvl: int) -> list[Modifier]:
             p = random.choice(remaining)
             used_pre.add(p[0])
             used_kinds.add(p[1])
-            m = Modifier(p[1], round(random.uniform(p[2], p[3]), 1))
+            m = Modifier(p[1], round(random.uniform(p[2], p[3]) * depth_mult, 1))
             m.is_prefix = True   # type: ignore[attr-defined]
             m.is_suffix = False  # type: ignore[attr-defined]
             m.name      = p[0]   # type: ignore[attr-defined]
@@ -727,7 +787,7 @@ def _pick_affixes(quality: int, ilvl: int) -> list[Modifier]:
             s = random.choice(remaining)
             used_suf.add(s[0])
             used_kinds.add(s[1])
-            m = Modifier(s[1], round(random.uniform(s[2], s[3]), 1))
+            m = Modifier(s[1], round(random.uniform(s[2], s[3]) * depth_mult, 1))
             m.is_prefix = False  # type: ignore[attr-defined]
             m.is_suffix = True   # type: ignore[attr-defined]
             m.name      = s[0]   # type: ignore[attr-defined]
@@ -740,13 +800,18 @@ def _pick_quality(ilvl: int, quality_bonus: int = 0) -> int:
     """Roll item quality based on dungeon level + optional bonus."""
     # Quality thresholds (cumulative %): [normal, magic, rare, unique]
     tables = {
-        1: (70, 25,  4,  1),
-        2: (55, 30, 12,  3),
-        3: (40, 35, 18,  7),
-        4: (25, 35, 28, 12),
-        5: (15, 30, 35, 20),
+        1:  (70, 25,  4,  1),
+        2:  (55, 30, 12,  3),
+        3:  (40, 35, 18,  7),
+        4:  (25, 35, 28, 12),
+        5:  (15, 30, 35, 20),
+        6:  (10, 28, 38, 24),
+        7:  ( 8, 25, 40, 27),
+        8:  ( 5, 22, 42, 31),
+        9:  ( 3, 18, 44, 35),
+        10: ( 2, 15, 45, 38),
     }
-    norm, mag, rare, uniq = tables.get(ilvl, (40, 35, 18, 7))
+    norm, mag, rare, uniq = tables.get(ilvl, (2, 15, 45, 38))
     # quality_bonus shifts mass from normal → up
     bonus = min(quality_bonus, 40)
     norm  = max(5, norm - bonus)
@@ -766,23 +831,28 @@ def _pick_quality(ilvl: int, quality_bonus: int = 0) -> int:
 
 def random_equip(tx: int, ty: int, ilvl: int,
                  quality: int | None = None,
-                 slot: str | None = None) -> EquipItem:
+                 slot: str | None = None,
+                 depth_mult: float = 1.0) -> EquipItem:
     """Generate a random equipment item for the given dungeon level."""
-    ilvl = max(1, min(5, ilvl))
+    q_ilvl = max(1, min(10, ilvl))   # quality/affix rolling extends to ilvl 10
+    b_ilvl = max(1, min(5,  ilvl))   # base type selection caps at tier 5
 
     if quality is None:
-        quality = _pick_quality(ilvl)
+        quality = _pick_quality(q_ilvl)
 
     # Try to spawn a unique
     if quality == QUALITY_UNIQUE:
         eligible = [u for u in _UNIQUES
-                    if u["min_lvl"] <= ilvl and
+                    if u["min_lvl"] <= b_ilvl and
                     (slot is None or u["slot"] == slot)]
         if eligible:
             u    = random.choice(eligible)
             mods = [Modifier(kind, val) for kind, val in u["mods"]]
-            return EquipItem(tx, ty, u["base"], QUALITY_UNIQUE, mods,
+            item = EquipItem(tx, ty, u["base"], QUALITY_UNIQUE, mods,
                              unique_name=u["name"], flavor=u["flavor"])
+            from src.items.enchant import roll_enchant_slots
+            item.enchant_slots = roll_enchant_slots(QUALITY_UNIQUE)
+            return item
         # Fall back to rare if no eligible uniques
         quality = QUALITY_RARE
 
@@ -795,16 +865,19 @@ def random_equip(tx: int, ty: int, ilvl: int,
 
     # Choose base type
     if slot == SLOT_WEAPON:
-        base = random.choice(_LEVEL_WEAPONS.get(ilvl, ["Short Sword"]))
+        base = random.choice(_LEVEL_WEAPONS.get(b_ilvl, ["Short Sword"]))
     elif slot in _LEVEL_ARMOR:
-        base = _LEVEL_ARMOR[slot].get(ilvl, list(_LEVEL_ARMOR[slot].values())[0])
+        base = _LEVEL_ARMOR[slot].get(b_ilvl, list(_LEVEL_ARMOR[slot].values())[0])
     elif slot == SLOT_RING:
         base = "Ring"
     else:
         base = "Amulet"
 
-    mods = _pick_affixes(quality, ilvl)
-    return EquipItem(tx, ty, base, quality, mods)
+    mods = _pick_affixes(quality, q_ilvl, depth_mult)
+    item = EquipItem(tx, ty, base, quality, mods)
+    from src.items.enchant import roll_enchant_slots
+    item.enchant_slots = roll_enchant_slots(quality)
+    return item
 
 
 class TreasureChest:
@@ -831,14 +904,17 @@ class TreasureChest:
             return
         self.opened      = True
         self._anim_timer = 0.55
+        ilvl, depth_mult = _ilvl_and_mult(level)
         scatter = [(-16, -16), (16, -16), (0, -22), (-20, 0), (20, 0)]
         random.shuffle(scatter)
         n_items = random.randint(2, 3)
         for ox, oy in scatter[:n_items]:
-            itm = random_equip(0, 0, level, quality=_pick_quality(level, quality_bonus=25))
+            itm = random_equip(0, 0, ilvl,
+                               quality=_pick_quality(ilvl, quality_bonus=25),
+                               depth_mult=depth_mult)
             itm._reposition(self.x + ox, self.y + oy)
             item_list.append(itm)
-        gold = GoldPile(0, 0, random.randint(20, 50) * level)
+        gold = GoldPile(0, 0, random.randint(20, 50) * max(1, level))
         gold._reposition(self.x, self.y + 10)
         item_list.append(gold)
 
@@ -908,16 +984,29 @@ class TreasureChest:
             surface.blit(gsurf, (ox - gw, oy - gw))
 
 
+def _ilvl_and_mult(floor: int) -> tuple[int, float]:
+    """Compute uncapped ilvl and depth multiplier from absolute floor number."""
+    if floor > 5:
+        ilvl = 5 + (floor - 5) // 5
+    else:
+        ilvl = max(1, floor)
+    depth_mult = 1.0 + max(0, ilvl - 5) * 0.20
+    return ilvl, depth_mult
+
+
 def random_item(tx: int, ty: int, level: int = 1,
-                quality_bonus: int = 0) -> Item:
+                quality_bonus: int = 0, floor: int = 0) -> Item:
     """
     Factory — returns one of: GoldPile, HealthPotion, or EquipItem.
     quality_bonus nudges item quality upward (higher for tougher enemies).
+    floor (when > 0) drives depth-scaled ilvl and affix multipliers.
     """
     roll = random.random()
     if roll < 0.28:
         return GoldPile(tx, ty)
     if roll < 0.46:
         return HealthPotion(tx, ty)
-    quality = _pick_quality(level, quality_bonus)
-    return random_equip(tx, ty, level, quality)
+    eff = floor if floor > 0 else level
+    ilvl, depth_mult = _ilvl_and_mult(eff)
+    quality = _pick_quality(min(10, ilvl), quality_bonus)
+    return random_equip(tx, ty, ilvl, quality, depth_mult=depth_mult)

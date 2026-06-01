@@ -1,6 +1,6 @@
 """Tests for dungeon generation."""
 from src.world.dungeon import Dungeon
-from src.settings import TILE_SIZE, FLOORS_PER_NG
+from src.settings import TILE_SIZE
 
 
 # ── Generation sanity ─────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ class TestMerchantRarity:
     def test_at_most_two_merchants(self):
         """Never more than 2 merchants on any floor."""
         for seed in range(50):
-            for level in range(1, FLOORS_PER_NG + 1):
+            for level in range(1, 6):
                 d = Dungeon(level=level, seed=seed)
                 assert len(d.merchant_spawns) <= 2, \
                     f"floor {level} seed {seed}: {len(d.merchant_spawns)} merchants"

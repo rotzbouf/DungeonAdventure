@@ -73,33 +73,20 @@ _THEME_CYCLE = ["dungeon", "crypt", "forge", "inferno", "abyss"]
 
 
 def set_theme(floor: int, ng_plus: int = 0):
-    """Select a tile palette for the given dungeon floor and invalidate the cache."""
+    """Select a tile palette based on floor depth (cycles every 5 floors)."""
     global _current_theme
-    if ng_plus > 0:
-        idx  = (floor - 1 + ng_plus) % len(_THEME_CYCLE)
-        name = _THEME_CYCLE[idx]
-    elif floor <= 2:
-        name = "dungeon"
-    elif floor == 3:
-        name = "crypt"
-    elif floor == 4:
-        name = "forge"
-    else:
-        name = "inferno"
-    _current_theme = _THEMES[name]
+    idx = (floor - 1) // 5 % len(_THEME_CYCLE)
+    _current_theme = _THEMES[_THEME_CYCLE[idx]]
     _cache.clear()
 
 
 # ─── Tile builders ────────────────────────────────────────────────────────────
 
 def _build_wall(surf: pygame.Surface, tx: int, ty: int):
-    """Stone blocks with dark mortar — colours from current theme."""
     t = _current_theme
     surf.fill(t['mortar'])
-
-    BLOCK_W = 14
+    BLOCK_W = 17
     BLOCK_H = 10
-
     for row in range(4):
         ry  = row * BLOCK_H
         off = (BLOCK_W // 2) if (ty + row) % 2 == 0 else 0
@@ -112,20 +99,24 @@ def _build_wall(surf: pygame.Surface, tx: int, ty: int):
             if x2 <= x1 + 1 or y2 <= y1 + 1:
                 continue
             pygame.draw.rect(surf, t['stone'],   (x1, y1, x2 - x1, y2 - y1))
-            pygame.draw.line(surf, t['stone_hi'], (x1,     y1), (x2 - 1, y1))
-            pygame.draw.line(surf, t['stone_hi'], (x1,     y1), (x1,     y2 - 1))
+            pygame.draw.line(surf, t['stone_hi'], (x1,     y1),     (x2 - 1, y1))
+            pygame.draw.line(surf, t['stone_hi'], (x1,     y1),     (x1,     y2 - 1))
             pygame.draw.line(surf, t['stone_sh'], (x1,     y2 - 1), (x2 - 1, y2 - 1))
             pygame.draw.line(surf, t['stone_sh'], (x2 - 1, y1),     (x2 - 1, y2 - 1))
 
 
 def _build_floor(surf: pygame.Surface, tx: int, ty: int):
-    """Dark dungeon floor with a faint dot grid — colours from current theme."""
     t = _current_theme
     surf.fill(t['floor'])
-    for dy in range(4, TILE_SIZE, 8):
-        for dx in range(4, TILE_SIZE, 8):
-            if (tx + ty + dx // 8 + dy // 8) % 3 != 0:
+    for dy in range(5, TILE_SIZE, 10):
+        for dx in range(5, TILE_SIZE, 10):
+            if (tx + ty + dx // 10 + dy // 10) % 3 != 0:
                 surf.set_at((dx, dy), t['floor_dot'])
+    # subtle variation — slightly lighter patches
+    if (tx * 3 + ty * 7) % 5 == 0:
+        shade = tuple(min(255, c + 6) for c in t['floor'])
+        pygame.draw.rect(surf, shade, (1, 1, TILE_SIZE - 2, TILE_SIZE - 2))
+        surf.set_at((TILE_SIZE//2, TILE_SIZE//2), t['floor_dot'])
 
 
 def _build_door(surf: pygame.Surface):
@@ -134,27 +125,26 @@ def _build_door(surf: pygame.Surface):
     dr = pygame.Rect(TILE_SIZE // 4, 0, TILE_SIZE // 2, TILE_SIZE)
     pygame.draw.rect(surf, _DOOR_WOOD, dr)
     pygame.draw.line(surf, _DOOR_HI, (dr.left, 0), (dr.left, TILE_SIZE - 1))
-    for y in range(5, TILE_SIZE, 7):
+    for y in range(6, TILE_SIZE, 9):
         pygame.draw.line(surf, _DOOR_BG, (dr.left + 2, y), (dr.right - 3, y))
     pygame.draw.rect(surf, (220, 188, 40),
-                     (dr.right - 7, TILE_SIZE // 2 - 2, 4, 4))
+                     (dr.right - 9, TILE_SIZE // 2 - 2, 4, 4))
 
 
 def _build_stairs(surf: pygame.Surface, going_down: bool):
-    """Three-step staircase with gold bevel."""
     surf.fill(_VOID)
     step_colors = [_STEP_1, _STEP_2, _STEP_3]
     for i, sc in enumerate(step_colors):
-        indent = i * 4
-        y = (4 + i * 7) if going_down else (TILE_SIZE - 11 - i * 7)
-        r = pygame.Rect(2 + indent, y, TILE_SIZE - 4 - indent * 2, 6)
+        indent = i * 5
+        y = (5 + i * 9) if going_down else (TILE_SIZE - 14 - i * 9)
+        r = pygame.Rect(2 + indent, y, TILE_SIZE - 4 - indent * 2, 7)
         pygame.draw.rect(surf, sc, r)
         pygame.draw.line(surf, _STEP_HI, (r.left, r.top), (r.right - 1, r.top))
     cx = TILE_SIZE // 2
     if going_down:
-        pts = [(cx, TILE_SIZE - 3), (cx - 5, TILE_SIZE - 10), (cx + 5, TILE_SIZE - 10)]
+        pts = [(cx, TILE_SIZE - 4), (cx - 6, TILE_SIZE - 12), (cx + 6, TILE_SIZE - 12)]
     else:
-        pts = [(cx, 3), (cx - 5, 10), (cx + 5, 10)]
+        pts = [(cx, 4), (cx - 6, 12), (cx + 6, 12)]
     pygame.draw.polygon(surf, _STEP_HI, pts)
 
 
