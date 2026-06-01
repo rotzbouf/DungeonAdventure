@@ -30,7 +30,7 @@ MERCHANT_SPECS: list[tuple[str, str, int, int]] = [
     ("Armourer",    "armor",    TOWN_W * 27 // 32, TOWN_H * 5 // 16),
     ("Jeweler",     "jewelry",  TOWN_W * 5 // 32,  TOWN_H * 47 // 64),
     ("Alchemist",   "potions",  TOWN_W * 27 // 32, TOWN_H * 47 // 64),
-    ("Enchanter",   "enchant",  TOWN_W // 2,        TOWN_H * 3 // 16),
+    ("Enchanter",   "enchant",  TOWN_W // 2,        TOWN_H * 5 // 6),
 ]
 
 TOWN_INTERACT_R = TILE_SIZE * 3.0   # bigger interact radius than dungeon
