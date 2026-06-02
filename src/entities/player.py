@@ -315,13 +315,14 @@ class Player(Entity):
             return 1.0
         return 1.0 - min(1.0, self._attack_timer / cd)
 
-    def try_attack(self, enemies: list, whirlwind: bool = False) -> list:
+    def try_attack(self, enemies: list, whirlwind: bool = False,
+                   net_keys=None) -> list:
         if self._attack_timer > 0:
             return []
         self._attack_timer = self.effective_cooldown
         self._attack_anim  = 0.22
 
-        keys = pygame.key.get_pressed()
+        keys = net_keys if net_keys is not None else pygame.key.get_pressed()
         dx = dy = 0.0
         if keys[pygame.K_w] or keys[pygame.K_UP]:    dy -= 1.0
         if keys[pygame.K_s] or keys[pygame.K_DOWN]:  dy += 1.0
@@ -348,7 +349,7 @@ class Player(Entity):
 
     # ─── Update ──────────────────────────────────────────────────────────────────
 
-    def update(self, dt: float, dungeon, camera):
+    def update(self, dt: float, dungeon, camera, net_keys=None):
         self._attack_timer     = max(0.0, self._attack_timer - dt)
         self._invincible_timer = max(0.0, self._invincible_timer - dt)
         self._attack_anim      = max(0.0, self._attack_anim - dt)
@@ -364,7 +365,7 @@ class Player(Entity):
         if dot > 0 and self._invincible_timer <= 0:
             self.hp = max(0.0, self.hp - dot)
 
-        keys = pygame.key.get_pressed()
+        keys = net_keys if net_keys is not None else pygame.key.get_pressed()
         dx = dy = 0.0
         if keys[pygame.K_w] or keys[pygame.K_UP]:    dy -= 1.0
         if keys[pygame.K_s] or keys[pygame.K_DOWN]:  dy += 1.0

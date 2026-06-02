@@ -57,7 +57,7 @@ from src.game_layers.renderer   import RendererLayer
 
 
 class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, ParticleLayer, TrapLayer, RendererLayer):
-    def __init__(self):
+    def __init__(self, net_client=None):
         self.screen = pygame.display.set_mode(
             (SCREEN_WIDTH, SCREEN_HEIGHT),
             pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF)
@@ -98,6 +98,10 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self.house_open      = False
         self._house_screen   = HouseScreen()
         self._active_merchant: Merchant | None = None
+
+        # ── Multiplayer ───────────────────────────────────────────────────────
+        self.net_client = net_client          # NetworkClient | None
+        self.remote_players: dict = {}        # pid → RemotePlayer proxies
 
         self._dmg_nums: list = []
         self.chests:    list = []
@@ -140,6 +144,25 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._fog      = pygame.Surface(
             (SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT), pygame.SRCALPHA)
         self._vignette = self._bake_vignette()
+
+        # If a net_client was provided, jump straight into the dungeon
+        if net_client:
+            self._start_net_game()
+
+    # ─── Net HUD ─────────────────────────────────────────────────────────────────
+
+    def _draw_net_badge(self):
+        """Small 'MULTIPLAYER' badge + player count in the top-right corner."""
+        n_players = 1 + len(self.remote_players)   # self + remotes
+        badge_txt = f"MULTIPLAYER  {n_players} players"
+        col       = (80, 220, 120)
+        s = self._font_sm.render(badge_txt, True, col)
+        bx = SCREEN_WIDTH - s.get_width() - 18
+        by = 8
+        bg = pygame.Surface((s.get_width() + 14, s.get_height() + 6), pygame.SRCALPHA)
+        bg.fill((0, 0, 0, 160))
+        self.screen.blit(bg, (bx - 7, by - 3))
+        self.screen.blit(s, (bx, by))
 
     # ─── Main loop ───────────────────────────────────────────────────────────────
 
@@ -302,6 +325,119 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
             if event.type == pygame.MOUSEWHEEL and self.craft_open:
                 self._craft_screen.handle_event(event, self.player)
 
+    # ─── Network mode ────────────────────────────────────────────────────────────
+
+    def _start_net_game(self):
+        """Called once at startup when net_client is provided."""
+        welcome = self.net_client.latest_state
+        if not welcome:
+            return
+        self.dungeon_level = welcome["floor"]
+        self.quest_log     = QuestLog()
+        self._battle_cry_timer = 0.0
+        self._ice_nova_cd = self._chain_cd = self._blink_cd = 0.0
+        sx = float(welcome.get("start_x", 0))
+        sy = float(welcome.get("start_y", 0))
+        self.player = Player(sx, sy)
+        self._load_level(self.dungeon_level, self.player,
+                         seed=welcome.get("seed"))
+        self.state = STATE_PLAYING
+
+    def _net_send_input(self):
+        """Capture current keyboard state and send it to the server."""
+        keys = pygame.key.get_pressed()
+        self.net_client.send_input({
+            "up":     bool(keys[pygame.K_w] or keys[pygame.K_UP]),
+            "down":   bool(keys[pygame.K_s] or keys[pygame.K_DOWN]),
+            "left":   bool(keys[pygame.K_a] or keys[pygame.K_LEFT]),
+            "right":  bool(keys[pygame.K_d] or keys[pygame.K_RIGHT]),
+            "attack": bool(keys[pygame.K_SPACE]),
+        })
+
+    def _net_update(self, dt: float):
+        """Update loop for network client mode — no local simulation."""
+        # Forward inputs every frame
+        self._net_send_input()
+
+        # Apply the latest server snapshot
+        state = self.net_client.latest_state
+        if state and state.get("type") == "state":
+            self._apply_net_state(state)
+
+        # Show server chat/events on the HUD
+        for line in self.net_client.pop_chat():
+            self.hud.notify_quest(line)
+
+        self.hud.update(dt)
+        if self.player and self.dungeon:
+            self.camera.update(self.player, self.dungeon)
+
+        # Detect disconnect
+        if not self.net_client.connected and self.net_client.error:
+            self.hud.notify_quest(f"Disconnected: {self.net_client.error}")
+            self.state = STATE_MENU
+
+    def _apply_net_state(self, state: dict):
+        """Overwrite local entity state with the authoritative server snapshot."""
+        from src.network.client import GhostEnemy, GhostItem, RemotePlayer
+        my_pid = self.net_client.pid
+
+        # ── Players ───────────────────────────────────────────────────────────
+        seen_pids: set[int] = set()
+        for pdata in state.get("players", []):
+            pid = pdata["pid"]
+            seen_pids.add(pid)
+            if pid == my_pid:
+                self.player.x    = float(pdata["x"])
+                self.player.y    = float(pdata["y"])
+                self.player.hp   = float(pdata["hp"])
+                self.player.mana = float(pdata["mana"])
+                self.player._sync_rect()
+                self.player.level = pdata.get("level", self.player.level)
+                self.player.gold  = pdata.get("gold",  self.player.gold)
+            else:
+                if pid not in self.remote_players:
+                    self.remote_players[pid] = RemotePlayer(pid,
+                                                            pdata.get("name", "???"))
+                self.remote_players[pid].update_from(pdata)
+        self.remote_players = {k: v for k, v in self.remote_players.items()
+                               if k in seen_pids}
+
+        # ── Enemies ───────────────────────────────────────────────────────────
+        existing = {e.net_id: e for e in self.enemies if hasattr(e, "net_id")}
+        new_enemies = []
+        for edata in state.get("enemies", []):
+            eid = edata["eid"]
+            if eid in existing:
+                ge    = existing[eid]
+                ge.x  = float(edata["x"])
+                ge.y  = float(edata["y"])
+                ge.hp = float(edata["hp"])
+                ge._sync_rect()
+                new_enemies.append(ge)
+            else:
+                new_enemies.append(GhostEnemy(
+                    eid, edata["kind"],
+                    edata["x"], edata["y"],
+                    edata["hp"], edata["max_hp"],
+                    is_boss=edata.get("boss", False),
+                    is_elite=edata.get("elite", False),
+                ))
+        self.enemies = new_enemies
+
+        # ── Items ─────────────────────────────────────────────────────────────
+        existing_items = {i.net_id: i for i in self.items
+                          if hasattr(i, "net_id")}
+        new_items = []
+        for idata in state.get("items", []):
+            iid = idata["iid"]
+            if iid in existing_items:
+                new_items.append(existing_items[iid])
+            else:
+                new_items.append(GhostItem(
+                    iid, idata["kind"], idata["x"], idata["y"]))
+        self.items = new_items
+
     # ─── Update ──────────────────────────────────────────────────────────────────
 
     def _update(self, dt: float):
@@ -315,6 +451,11 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
             self._update_town(dt)
             return
         if self.state != STATE_PLAYING:
+            return
+
+        # Network client mode — skip all local simulation
+        if self.net_client:
+            self._net_update(dt)
             return
 
         # Spell cooldowns
@@ -429,6 +570,12 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
             self._draw_town()
         elif self.state == STATE_PLAYING:
             self._draw_world()
+            # Remote players drawn on top of the world in network mode
+            if self.net_client:
+                for rp in self.remote_players.values():
+                    rp.draw(self.screen, self.camera)
+                # Multiplayer HUD badge (top-left corner)
+                self._draw_net_badge()
             if self.inv_open:
                 self.inventory.draw(self.screen, self.player)
             elif self.shop_open and self._active_merchant:

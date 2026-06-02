@@ -18,12 +18,13 @@ from src.world.town import PLAYER_SPAWN as TOWN_PLAYER_SPAWN
 class SessionLayer:
     """Level loading, new/continue game, descend, shop open, quest rewards."""
 
-    def _load_level(self, level: int, player: Player | None = None):
+    def _load_level(self, level: int, player: Player | None = None,
+                    seed=None):
         from src.world.tile import set_theme
         set_theme(level)
 
         self.dungeon_level = level
-        self.dungeon = Dungeon(level=level)
+        self.dungeon = Dungeon(level=level, seed=seed)
 
         sx, sy = self.dungeon.player_start
         if player is None:
