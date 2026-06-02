@@ -102,6 +102,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         # ── Multiplayer ───────────────────────────────────────────────────────
         self.net_client = net_client          # NetworkClient | None
         self.remote_players: dict = {}        # pid → RemotePlayer proxies
+        self._net_floor: int       = 1        # server's current floor
+        self._net_seed:  int | None = None    # server's current dungeon seed
 
         self._dmg_nums: list = []
         self.chests:    list = []
@@ -332,76 +334,139 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         welcome = self.net_client.latest_state
         if not welcome:
             return
-        self.dungeon_level = welcome["floor"]
+        self._net_floor    = welcome["floor"]
+        self._net_seed     = welcome.get("seed")
+        self.dungeon_level = self._net_floor
         self.quest_log     = QuestLog()
         self._battle_cry_timer = 0.0
         self._ice_nova_cd = self._chain_cd = self._blink_cd = 0.0
         sx = float(welcome.get("start_x", 0))
         sy = float(welcome.get("start_y", 0))
         self.player = Player(sx, sy)
-        self._load_level(self.dungeon_level, self.player,
-                         seed=welcome.get("seed"))
+        self._load_level(self._net_floor, self.player, seed=self._net_seed)
         self.state = STATE_PLAYING
 
-    def _net_send_input(self):
+    def _net_send_input(self, in_town: bool = False):
         """Capture current keyboard state and send it to the server."""
         keys = pygame.key.get_pressed()
+        if in_town:
+            self.net_client.send_input({"in_town": True})
+            return
+        # Aim angle from mouse
+        aim_angle = 0.0
+        if self.player:
+            mx, my = pygame.mouse.get_pos()
+            wx = mx + self.camera.x
+            wy = my + self.camera.y
+            aim_angle = math.atan2(wy - self.player.y, wx - self.player.x)
         self.net_client.send_input({
-            "up":     bool(keys[pygame.K_w] or keys[pygame.K_UP]),
-            "down":   bool(keys[pygame.K_s] or keys[pygame.K_DOWN]),
-            "left":   bool(keys[pygame.K_a] or keys[pygame.K_LEFT]),
-            "right":  bool(keys[pygame.K_d] or keys[pygame.K_RIGHT]),
-            "attack": bool(keys[pygame.K_SPACE]),
+            "up":              bool(keys[pygame.K_w] or keys[pygame.K_UP]),
+            "down":            bool(keys[pygame.K_s] or keys[pygame.K_DOWN]),
+            "left":            bool(keys[pygame.K_a] or keys[pygame.K_LEFT]),
+            "right":           bool(keys[pygame.K_d] or keys[pygame.K_RIGHT]),
+            "attack":          bool(keys[pygame.K_SPACE]),
+            "spell_fireball":  bool(keys[pygame.K_z]),
+            "spell_ice_nova":  bool(keys[pygame.K_x]),
+            "spell_chain":     bool(keys[pygame.K_r]),
+            "spell_blink":     bool(keys[pygame.K_v]),
+            "spell_battle_cry":bool(keys[pygame.K_b]),
+            "use_potion":      bool(keys[pygame.K_q]),
+            "descend":         bool(keys[pygame.K_e]),
+            "aim_angle":       aim_angle,
         })
 
     def _net_update(self, dt: float):
-        """Update loop for network client mode — no local simulation."""
-        # Forward inputs every frame
+        """Update loop for network client mode."""
+        # 1. Forward inputs
         self._net_send_input()
 
-        # Apply the latest server snapshot
+        # 2. Local player movement prediction — runs at render frame-rate
+        #    for smooth feel; server state is a soft correction below.
+        if self.player and self.dungeon:
+            self.player.update(dt, self.dungeon, self.camera)
+
+        # 3. Floor changes (must be applied before state snapshot)
+        for fc in self.net_client.pop_floor_changes():
+            self._net_floor    = fc["floor"]
+            self._net_seed     = fc["seed"]
+            self.dungeon_level = self._net_floor
+            self._load_level(self._net_floor, self.player, seed=self._net_seed)
+            self.enemies         = []
+            self.items           = []
+            self.remote_players  = {}
+
+        # 4. Apply latest server snapshot (reconciliation + remote entities)
         state = self.net_client.latest_state
         if state and state.get("type") == "state":
-            self._apply_net_state(state)
+            self._apply_net_state(state, dt)
 
-        # Show server chat/events on the HUD
+        # 5. Interpolate remote entities
+        for rp in self.remote_players.values():
+            rp.interpolate(dt)
+        for e in self.enemies:
+            if hasattr(e, "interpolate"):
+                e.interpolate(dt)
+
+        # 6. Process server events (damage numbers, XP, etc.) + particles
+        self._process_net_events(self.net_client.pop_events())
+        self._update_particles(dt)
+
+        # 7. Chat / notifications
         for line in self.net_client.pop_chat():
             self.hud.notify_quest(line)
+
+        # 8. Animate damage numbers
+        for dn in self._dmg_nums:
+            dn["y"]     -= 32 * dt
+            dn["x"]     += dn.get("vx", 0) * dt
+            dn["timer"] -= dt
+        self._dmg_nums = [d for d in self._dmg_nums if d["timer"] > 0]
 
         self.hud.update(dt)
         if self.player and self.dungeon:
             self.camera.update(self.player, self.dungeon)
 
-        # Detect disconnect
+        # 9. Detect disconnect
         if not self.net_client.connected and self.net_client.error:
             self.hud.notify_quest(f"Disconnected: {self.net_client.error}")
             self.state = STATE_MENU
 
-    def _apply_net_state(self, state: dict):
-        """Overwrite local entity state with the authoritative server snapshot."""
+    def _apply_net_state(self, state: dict, dt: float = 0.0):
+        """Reconcile local state with authoritative server snapshot."""
         from src.network.client import GhostEnemy, GhostItem, RemotePlayer
         my_pid = self.net_client.pid
 
         # ── Players ───────────────────────────────────────────────────────────
+        _SNAP_THRESHOLD = 96.0   # px: hard-snap if further than this
         seen_pids: set[int] = set()
         for pdata in state.get("players", []):
             pid = pdata["pid"]
             seen_pids.add(pid)
-            if pid == my_pid:
-                self.player.x    = float(pdata["x"])
-                self.player.y    = float(pdata["y"])
-                self.player.hp   = float(pdata["hp"])
-                self.player.mana = float(pdata["mana"])
+            if pid == my_pid and self.player:
+                # Soft correction — blend toward server position
+                sx_, sy_ = float(pdata["x"]), float(pdata["y"])
+                dx = sx_ - self.player.x
+                dy = sy_ - self.player.y
+                dist = math.hypot(dx, dy)
+                if dist > _SNAP_THRESHOLD:
+                    self.player.x = sx_
+                    self.player.y = sy_
+                elif dist > 1.0:
+                    self.player.x += dx * 0.25
+                    self.player.y += dy * 0.25
                 self.player._sync_rect()
+                # Always trust server for HP / mana / gold / level
+                self.player.hp    = float(pdata["hp"])
+                self.player.mana  = float(pdata["mana"])
                 self.player.level = pdata.get("level", self.player.level)
                 self.player.gold  = pdata.get("gold",  self.player.gold)
             else:
                 if pid not in self.remote_players:
-                    self.remote_players[pid] = RemotePlayer(pid,
-                                                            pdata.get("name", "???"))
+                    self.remote_players[pid] = RemotePlayer(
+                        pid, pdata.get("name", "???"))
                 self.remote_players[pid].update_from(pdata)
         self.remote_players = {k: v for k, v in self.remote_players.items()
-                               if k in seen_pids}
+                               if k in seen_pids and k != my_pid}
 
         # ── Enemies ───────────────────────────────────────────────────────────
         existing = {e.net_id: e for e in self.enemies if hasattr(e, "net_id")}
@@ -409,25 +474,21 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         for edata in state.get("enemies", []):
             eid = edata["eid"]
             if eid in existing:
-                ge    = existing[eid]
-                ge.x  = float(edata["x"])
-                ge.y  = float(edata["y"])
-                ge.hp = float(edata["hp"])
-                ge._sync_rect()
+                ge = existing[eid]
+                ge.update_target(float(edata["x"]), float(edata["y"]),
+                                 float(edata["hp"]))
                 new_enemies.append(ge)
             else:
-                new_enemies.append(GhostEnemy(
-                    eid, edata["kind"],
-                    edata["x"], edata["y"],
-                    edata["hp"], edata["max_hp"],
-                    is_boss=edata.get("boss", False),
-                    is_elite=edata.get("elite", False),
-                ))
+                ge = GhostEnemy(eid, edata["kind"],
+                                edata["x"], edata["y"],
+                                edata["hp"], edata["max_hp"],
+                                is_boss=edata.get("boss", False),
+                                is_elite=edata.get("elite", False))
+                new_enemies.append(ge)
         self.enemies = new_enemies
 
         # ── Items ─────────────────────────────────────────────────────────────
-        existing_items = {i.net_id: i for i in self.items
-                          if hasattr(i, "net_id")}
+        existing_items = {i.net_id: i for i in self.items if hasattr(i, "net_id")}
         new_items = []
         for idata in state.get("items", []):
             iid = idata["iid"]
@@ -437,6 +498,63 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 new_items.append(GhostItem(
                     iid, idata["kind"], idata["x"], idata["y"]))
         self.items = new_items
+
+    def _process_net_events(self, events: list[dict]):
+        """Translate server events into client-side feedback."""
+        import random as _rnd
+        from src.settings import YELLOW, WHITE
+        for evt in events:
+            k = evt.get("k")
+            if k == "hit":
+                eid = evt.get("eid")
+                enemy = next((e for e in self.enemies
+                              if hasattr(e, "net_id") and e.net_id == eid), None)
+                if enemy:
+                    col_name = evt.get("col", "")
+                    col = ((120, 210, 255) if col_name == "ice" else
+                           (180, 220, 255) if col_name == "lightning" else
+                           (252, 130,  20) if col_name == "fire" else
+                           (YELLOW if evt.get("crit") else WHITE))
+                    self._dmg_nums.append({
+                        "x": enemy.x, "y": enemy.y - 22,
+                        "vx": _rnd.uniform(-12, 12),
+                        "text": str(evt.get("dmg", 0)),
+                        "timer": 1.1, "max_timer": 1.1,
+                        "color": col, "big": bool(evt.get("crit")),
+                    })
+            elif k == "kill":
+                pid = evt.get("pid")
+                if pid == self.net_client.pid:
+                    if evt.get("leveled"):
+                        self.hud.notify_level_up()
+                    # Death particles at kill location
+                    ex = evt.get("x", 0); ey = evt.get("y", 0)
+                    self._spawn_death_particles_at(ex, ey)
+            elif k == "spell":
+                spell = evt.get("spell", "")
+                if spell == "ice_nova":
+                    self._spawn_ice_particles(
+                        evt.get("x", 0), evt.get("y", 0))
+                elif spell == "blink" and evt.get("pid") == self.net_client.pid:
+                    self._spawn_blink_particles(
+                        evt.get("ox", 0), evt.get("oy", 0))
+                    self._spawn_blink_particles(
+                        evt.get("x", 0), evt.get("y", 0))
+
+    def _spawn_death_particles_at(self, ex: float, ey: float):
+        """Spawn death particles at an arbitrary world position."""
+        import random as _rnd, math as _math
+        for _ in range(10):
+            angle = _rnd.uniform(0, _math.pi * 2)
+            spd   = _rnd.uniform(40, 140)
+            life  = _rnd.uniform(0.2, 0.5)
+            col   = _rnd.choice([(200, 50, 50), (240, 100, 20), (180, 30, 30)])
+            self._particles.append({
+                "x": ex, "y": ey,
+                "vx": _math.cos(angle) * spd, "vy": _math.sin(angle) * spd,
+                "life": life, "max_life": life,
+                "color": col, "sz": _rnd.randint(2, 5),
+            })
 
     # ─── Update ──────────────────────────────────────────────────────────────────
 
@@ -448,6 +566,9 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
             self._update_sparks(dt)
             return
         if self.state == STATE_TOWN:
+            # In multiplayer: keep sending in_town signal so server skips us
+            if self.net_client and self.net_client.connected:
+                self._net_send_input(in_town=True)
             self._update_town(dt)
             return
         if self.state != STATE_PLAYING:

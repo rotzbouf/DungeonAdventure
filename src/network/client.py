@@ -1,12 +1,10 @@
 """
 Thread-safe network client and client-side rendering proxies.
 
-NetworkClient runs asyncio in a background daemon thread.  The main
-Pygame thread calls send_input() and reads latest_state without blocking.
-
-GhostEnemy / GhostItem / RemotePlayer are minimal rendering proxies built
-from server state snapshots; they match the draw(surface, camera) interface
-of the real game entities so _draw_world() needs no changes.
+GhostEnemy / GhostItem / RemotePlayer are minimal rendering proxies that
+match the draw(surface, camera) interface of the real game entities.
+They also support position interpolation so remote entities glide smoothly
+between server-snapshot positions.
 """
 from __future__ import annotations
 
@@ -45,9 +43,12 @@ _REMOTE_PLAYER_COLORS = [
     (255, 100, 180),
 ]
 
+# Maximum interpolation speed (px/s) — keeps ghosts feeling responsive
+_INTERP_SPEED = 600.0
+
 
 class GhostEnemy:
-    """Client-side enemy proxy — state comes from server snapshots."""
+    """Client-side enemy proxy — position/state from server snapshots."""
 
     def __init__(self, eid: int, kind: str,
                  x: float, y: float, hp: float, max_hp: float,
@@ -56,6 +57,8 @@ class GhostEnemy:
         self.kind    = kind
         self.x       = x
         self.y       = y
+        self._tx     = x     # interpolation target
+        self._ty     = y
         self.hp      = hp
         self.max_hp  = max_hp
         self.alive   = True
@@ -66,11 +69,27 @@ class GhostEnemy:
         self._status: dict = {}
         self._sync_rect()
 
-        self._font = pygame.font.SysFont("monospace", 10)
-
     def _sync_rect(self):
         self.rect.centerx = round(self.x)
         self.rect.centery = round(self.y)
+
+    def update_target(self, x: float, y: float, hp: float):
+        self._tx = x
+        self._ty = y
+        self.hp  = hp
+
+    def interpolate(self, dt: float):
+        dx = self._tx - self.x
+        dy = self._ty - self.y
+        dist = math.hypot(dx, dy)
+        if dist < 1.0:
+            self.x = self._tx
+            self.y = self._ty
+        else:
+            step = min(dist, _INTERP_SPEED * dt)
+            self.x += (dx / dist) * step
+            self.y += (dy / dist) * step
+        self._sync_rect()
 
     def draw(self, surface: pygame.Surface, camera):
         sx = int(self.x - camera.x)
@@ -87,23 +106,21 @@ class GhostEnemy:
         sh.fill((0, 0, 0, 50))
         surface.blit(sh, (sx - hw - 3, sy + hw - 2))
 
-        # Body
         pygame.draw.rect(surface, col,
                          (sx - hw, sy - hw, self.size, self.size))
-        if self.is_elite:
-            pygame.draw.rect(surface, (255, 200, 0),
-                             (sx - hw, sy - hw, self.size, self.size), 2)
-        elif self.is_boss:
+        if self.is_boss:
             pygame.draw.rect(surface, (255, 80, 30),
                              (sx - hw, sy - hw, self.size, self.size), 3)
+        elif self.is_elite:
+            pygame.draw.rect(surface, (255, 200, 0),
+                             (sx - hw, sy - hw, self.size, self.size), 2)
         else:
             pygame.draw.rect(surface, (0, 0, 0),
                              (sx - hw, sy - hw, self.size, self.size), 1)
 
-        # HP bar
-        bar_w  = self.size + 8
-        bar_x  = sx - bar_w // 2
-        bar_y  = sy - hw - 10
+        bar_w   = self.size + 8
+        bar_x   = sx - bar_w // 2
+        bar_y   = sy - hw - 10
         hp_frac = max(0.0, self.hp / max(1.0, self.max_hp))
         pygame.draw.rect(surface, (50, 10, 10), (bar_x, bar_y, bar_w, 5))
         if hp_frac > 0:
@@ -114,7 +131,7 @@ class GhostEnemy:
 
 
 class GhostItem:
-    """Client-side item proxy — just a coloured dot with a subtle glow."""
+    """Client-side item proxy — a coloured glow dot."""
 
     def __init__(self, iid: int, kind: str, x: float, y: float):
         self.net_id   = iid
@@ -136,8 +153,7 @@ class GhostItem:
         if not (-20 < sx < SCREEN_WIDTH + 20 and -20 < sy < play_h + 20):
             return
         col = (255, 210, 30) if self.kind == "GoldPile" else (80, 200, 255)
-        # Glow
-        gs = pygame.Surface((20, 20), pygame.SRCALPHA)
+        gs  = pygame.Surface((20, 20), pygame.SRCALPHA)
         pygame.draw.circle(gs, (*col, 60), (10, 10), 10)
         surface.blit(gs, (sx - 10, sy - 10))
         pygame.draw.circle(surface, col, (sx, sy), 5)
@@ -145,13 +161,15 @@ class GhostItem:
 
 
 class RemotePlayer:
-    """Another player, received from server and rendered in the local world."""
+    """Another player, received from the server and rendered in the local world."""
 
     def __init__(self, pid: int, name: str):
         self.pid      = pid
         self.name     = name
         self.x        = 0.0
         self.y        = 0.0
+        self._tx      = 0.0
+        self._ty      = 0.0
         self.hp       = 100.0
         self.max_hp   = 100.0
         self.alive    = True
@@ -161,13 +179,25 @@ class RemotePlayer:
         self._font    = pygame.font.SysFont("monospace", 11)
 
     def update_from(self, data: dict):
-        self.x      = float(data["x"])
-        self.y      = float(data["y"])
+        self._tx    = float(data["x"])
+        self._ty    = float(data["y"])
         self.hp     = float(data["hp"])
         self.max_hp = float(data["max_hp"])
         self.alive  = data.get("alive", True)
         self.name   = data.get("name", self.name)
         self.level  = data.get("level", self.level)
+
+    def interpolate(self, dt: float):
+        dx = self._tx - self.x
+        dy = self._ty - self.y
+        dist = math.hypot(dx, dy)
+        if dist < 1.0:
+            self.x = self._tx
+            self.y = self._ty
+        else:
+            step = min(dist, _INTERP_SPEED * dt)
+            self.x += (dx / dist) * step
+            self.y += (dy / dist) * step
         self.rect.centerx = round(self.x)
         self.rect.centery = round(self.y)
 
@@ -183,17 +213,14 @@ class RemotePlayer:
         col = _REMOTE_PLAYER_COLORS[self.pid % len(_REMOTE_PLAYER_COLORS)]
         hw  = self.size // 2
 
-        # Shadow
         sh = pygame.Surface((self.size + 6, 6), pygame.SRCALPHA)
         sh.fill((0, 0, 0, 50))
         surface.blit(sh, (sx - hw - 3, sy + hw - 2))
 
-        # Body
         pygame.draw.rect(surface, col, (sx - hw, sy - hw, self.size, self.size))
         pygame.draw.rect(surface, (255, 255, 255),
                          (sx - hw, sy - hw, self.size, self.size), 2)
 
-        # HP bar
         bar_w   = self.size + 12
         bar_x   = sx - bar_w // 2
         bar_y   = sy - hw - 12
@@ -203,14 +230,11 @@ class RemotePlayer:
             pygame.draw.rect(surface, (80, 220, 80),
                              (bar_x, bar_y, int(bar_w * hp_frac), 5))
 
-        # Name + level label
-        label = self._font.render(
-            f"{self.name} Lv{self.level}", True, (220, 220, 220))
-        # Shadow
-        sh2 = label.copy()
+        label = self._font.render(f"{self.name} Lv{self.level}", True, (220, 220, 220))
+        sh2   = label.copy()
         sh2.fill((0, 0, 0, 160), special_flags=pygame.BLEND_RGBA_MULT)
         surface.blit(sh2, (sx - label.get_width() // 2 + 1,
-                           bar_y - label.get_height() - 1))
+                            bar_y - label.get_height() - 1))
         surface.blit(label, (sx - label.get_width() // 2,
                               bar_y - label.get_height() - 2))
 
@@ -219,25 +243,27 @@ class RemotePlayer:
 
 class NetworkClient:
     """
-    Connects to a GameServer.  asyncio runs in a background daemon thread;
-    the main Pygame thread communicates via thread-safe properties.
+    Connects to a GameServer.  asyncio runs in a background daemon thread.
+    The main Pygame thread communicates via thread-safe properties.
     """
 
     def __init__(self, host: str, port: int,
-                 player_name: str = "Adventurer"):
-        self.host  = host
-        self.port  = port
-        self.name  = player_name[:24]
-        self.pid:  int | None = None
-        self.connected = False
+                 player_name: str = "Adventurer",
+                 player_data: dict | None = None):
+        self.host        = host
+        self.port        = port
+        self.name        = player_name[:24]
+        self.player_data = player_data   # included in join message
+        self.pid: int | None = None
+        self.connected   = False
         self.error: str | None = None
 
-        # Shared state (all accesses protected by _lock)
-        self._lock    = threading.Lock()
-        self._latest: dict | None = None
-        self._pending: list[dict] = []   # inputs to send
-        self._events:  list[dict] = []   # unread events
-        self._chat:    list[str]  = []   # unread chat lines
+        self._lock          = threading.Lock()
+        self._latest:  dict | None  = None
+        self._pending: list[dict]   = []
+        self._events:  list[dict]   = []
+        self._chat:    list[str]    = []
+        self._floor_changes: list[dict] = []
 
         self._loop   = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._run, daemon=True,
@@ -247,11 +273,9 @@ class NetworkClient:
     # ── Main-thread API ───────────────────────────────────────────────────────
 
     def send_input(self, inp: dict):
-        """Queue an input packet for the next send window (non-blocking)."""
         inp["type"] = "input"
         with self._lock:
-            # Keep only the latest input; old ones are redundant
-            self._pending = [inp]
+            self._pending = [inp]   # keep only the latest
 
     @property
     def latest_state(self) -> dict | None:
@@ -268,6 +292,12 @@ class NetworkClient:
         with self._lock:
             out = self._chat[:]
             self._chat.clear()
+            return out
+
+    def pop_floor_changes(self) -> list[dict]:
+        with self._lock:
+            out = self._floor_changes[:]
+            self._floor_changes.clear()
             return out
 
     def close(self):
@@ -293,23 +323,24 @@ class NetworkClient:
                 self.error = f"Cannot connect to {self.host}:{self.port} — {exc}"
             return
 
-        # Send join handshake
-        writer.write(pack({"type": "join", "name": self.name}))
+        join_msg: dict = {"type": "join", "name": self.name}
+        if self.player_data:
+            join_msg["player_data"] = self.player_data
+        writer.write(pack(join_msg))
         await writer.drain()
 
         unpack = Unpacker()
 
-        # Wait for welcome
         while True:
-            raw = await asyncio.wait_for(reader.read(4096), timeout=8.0)
+            raw = await asyncio.wait_for(reader.read(65536), timeout=8.0)
             if not raw:
                 raise ConnectionError("Server closed connection before welcome")
             for msg in unpack.feed(raw):
                 if msg.get("type") == "welcome":
                     self.pid = msg["pid"]
                     with self._lock:
-                        self._latest  = msg
-                        self.connected = True   # set under lock so reader sees it
+                        self._latest   = msg
+                        self.connected = True
                     await asyncio.gather(
                         self._recv_loop(reader, unpack),
                         self._send_loop(writer),
@@ -322,7 +353,7 @@ class NetworkClient:
 
     async def _recv_loop(self, reader: asyncio.StreamReader, unpack: Unpacker):
         while True:
-            data = await reader.read(16384)
+            data = await reader.read(65536)
             if not data:
                 break
             for msg in unpack.feed(data):
@@ -332,6 +363,9 @@ class NetworkClient:
                         self._latest = msg
                         if msg.get("events"):
                             self._events.extend(msg["events"])
+                elif mtype == "floor_change":
+                    with self._lock:
+                        self._floor_changes.append(msg)
                 elif mtype == "chat":
                     with self._lock:
                         self._chat.append(msg.get("text", ""))
@@ -348,4 +382,4 @@ class NetworkClient:
                     await writer.drain()
                 except Exception:
                     return
-            await asyncio.sleep(1.0 / 60)   # 60 Hz send cadence
+            await asyncio.sleep(1.0 / 60)

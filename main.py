@@ -31,8 +31,13 @@ def main():
             sys.exit(1)
 
         from src.network.client import NetworkClient
+        from src import save as savesys
+        player_data = savesys.load_game()   # None if no save exists
+        if player_data:
+            print(f"Sending saved character (level {player_data.get('level', 1)}) to server.")
         print(f"Connecting to {host}:{port} as '{args.name}' …")
-        net_client = NetworkClient(host, port, args.name)
+        net_client = NetworkClient(host, port, args.name,
+                                   player_data=player_data)
 
         # Wait up to 8 s for the welcome handshake
         deadline = time.monotonic() + 8.0

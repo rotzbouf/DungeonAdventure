@@ -45,19 +45,28 @@ class TownLayer:
         self.state    = STATE_TOWN
 
     def _return_to_town(self):
-        """Save the game and send the player back to town to rest."""
+        """Send the player back to town to rest (save skipped in multiplayer)."""
         if self.state != STATE_PLAYING or self.player is None:
             return
-        savesys.save_game(self.player, self.dungeon_level,
-                          quest_log=self.quest_log,
-                          skill_tree=self.player.skill_tree)
+        if not getattr(self, "net_client", None):
+            savesys.save_game(self.player, self.dungeon_level,
+                              quest_log=self.quest_log,
+                              skill_tree=self.player.skill_tree)
         self._enter_town(rest=True)
 
     def _enter_dungeon_from_town(self):
-        """Leave town and enter the dungeon at the last-saved floor."""
+        """Leave town and enter the dungeon."""
         if self.player is None:
             return
-        self._load_level(self.dungeon_level, self.player)
+        nc = getattr(self, "net_client", None)
+        if nc and nc.connected:
+            # In multiplayer: rejoin the server's current floor
+            net_floor = getattr(self, "_net_floor", self.dungeon_level)
+            net_seed  = getattr(self, "_net_seed", None)
+            self._load_level(net_floor, self.player, seed=net_seed)
+            self.dungeon_level = net_floor
+        else:
+            self._load_level(self.dungeon_level, self.player)
         self.state = STATE_PLAYING
 
     def _try_open_town_shop(self):
