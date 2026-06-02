@@ -39,6 +39,7 @@ from src.ui.charscreen     import CharScreen
 from src.ui.questlog       import QuestLogScreen
 from src.ui.skillscreen    import SkillScreen
 from src.ui.enchant_screen import EnchantScreen
+from src.ui.craft_screen   import CraftScreen
 from src.quests            import QuestLog
 from src import save as savesys
 import src.locale as locale
@@ -91,6 +92,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self.skill_open      = False
         self.enchant_open    = False
         self._enchant_screen = EnchantScreen()
+        self.craft_open      = False
+        self._craft_screen   = CraftScreen()
         self._active_merchant: Merchant | None = None
 
         self._dmg_nums: list = []
@@ -155,7 +158,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 k = event.key
 
                 if k == pygame.K_ESCAPE:
-                    if self.enchant_open:self.enchant_open = False
+                    if self.enchant_open: self.enchant_open = False
+                    elif self.craft_open: self.craft_open  = False
                     elif self.inv_open:   self.inv_open   = False
                     elif self.shop_open:  self.shop_open  = False
                     elif self.char_open:  self.char_open  = False
@@ -169,7 +173,9 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                         pygame.quit(); sys.exit()
 
                 if k == pygame.K_RETURN:
-                    if self.state == STATE_MENU:
+                    if self.craft_open:
+                        self._craft_screen.handle_event(event, self.player)
+                    elif self.state == STATE_MENU:
                         self._new_game()
                     elif self.state == STATE_GAME_OVER:
                         self.state = STATE_MENU
@@ -188,7 +194,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
 
                 # ── Town keys ──────────────────────────────────────────────
                 if self.state == STATE_TOWN:
-                    any_town_overlay = (self.shop_open or self.enchant_open)
+                    any_town_overlay = (self.shop_open or self.enchant_open
+                                        or self.craft_open)
                     if k == pygame.K_f and not any_town_overlay:
                         self._try_open_town_shop()
                     elif k == pygame.K_f and self.shop_open:
@@ -196,6 +203,9 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                         self._active_merchant = None
                     elif k == pygame.K_f and self.enchant_open:
                         self.enchant_open = False
+                        self._active_merchant = None
+                    elif k == pygame.K_f and self.craft_open:
+                        self.craft_open = False
                         self._active_merchant = None
                     if k == pygame.K_e and not any_town_overlay:
                         if math.hypot(self.player.x - DUNGEON_ENTRANCE_POS[0],
@@ -267,6 +277,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
             if event.type == pygame.MOUSEBUTTONDOWN and self.state in (STATE_PLAYING, STATE_TOWN):
                 if self.enchant_open:
                     self._enchant_screen.handle_event(event, self.player)
+                elif self.craft_open:
+                    self._craft_screen.handle_event(event, self.player)
                 elif self.inv_open and event.button == 1:
                     self.inventory.handle_click(*event.pos, self.player)
                 elif self.shop_open and self._active_merchant:
@@ -279,6 +291,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
 
             if event.type == pygame.MOUSEWHEEL and self.enchant_open:
                 self._enchant_screen.handle_event(event, self.player)
+            if event.type == pygame.MOUSEWHEEL and self.craft_open:
+                self._craft_screen.handle_event(event, self.player)
 
     # ─── Update ──────────────────────────────────────────────────────────────────
 

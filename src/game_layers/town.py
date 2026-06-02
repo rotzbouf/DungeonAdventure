@@ -28,7 +28,7 @@ class TownLayer:
 
         # Close any open overlays
         self.inv_open = self.shop_open = self.char_open = False
-        self.quest_open = self.skill_open = self.enchant_open = False
+        self.quest_open = self.skill_open = self.enchant_open = self.craft_open = False
         self._active_merchant = None
 
         if rest:
@@ -65,6 +65,9 @@ class TownLayer:
                 if m.specialty == "enchant":
                     self._enchant_screen.open()
                     self.enchant_open = True
+                elif m.specialty == "craft":
+                    self._craft_screen.open()
+                    self.craft_open = True
                 else:
                     self.shop_open = True
                 return
@@ -80,6 +83,7 @@ class TownLayer:
         self.inventory.update(dt)
         self.charscreen.update(dt)
         self._enchant_screen.update(dt)
+        self._craft_screen.update(dt)
         self._town_notice_t = max(0.0, self._town_notice_t - dt)
         # Mana regen handled by player.update above
 
@@ -116,9 +120,11 @@ class TownLayer:
             # fade by adjusting alpha via a cover surface if needed
             _ = alpha  # alpha already baked into draw_return_notice
 
-        # Overlays (inventory, shop, enchant, char screen, skill tree)
+        # Overlays (inventory, shop, enchant, craft, char screen, skill tree)
         if self.enchant_open:
             self._enchant_screen.draw(self.screen, self.player)
+        elif self.craft_open:
+            self._craft_screen.draw(self.screen, self.player)
         elif self.inv_open:
             self.inventory.draw(self.screen, self.player)
         elif self.shop_open and self._active_merchant:

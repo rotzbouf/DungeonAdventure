@@ -31,6 +31,7 @@ MERCHANT_SPECS: list[tuple[str, str, int, int]] = [
     ("Jeweler",     "jewelry",  TOWN_W * 5 // 32,  TOWN_H * 47 // 64),
     ("Alchemist",   "potions",  TOWN_W * 27 // 32, TOWN_H * 47 // 64),
     ("Enchanter",   "enchant",  TOWN_W // 2,        TOWN_H * 5 // 6),
+    ("Craftsman",   "craft",    TOWN_W // 4,        TOWN_H // 2),
 ]
 
 TOWN_INTERACT_R = TILE_SIZE * 3.0   # bigger interact radius than dungeon
@@ -44,6 +45,7 @@ _STALL: dict[str, dict] = {
     "jewelry":  {"bg": (12,  64, 64),  "hi": ( 40, 200, 200), "awning": (20, 130, 130)},
     "potions":  {"bg": (20,  56, 20),  "hi": ( 60, 200,  60), "awning": (30, 120, 30)},
     "enchant":  {"bg": (36,   8, 72),  "hi": (160,  80, 255), "awning": (80, 20, 150)},
+    "craft":    {"bg": (48,  28,   8), "hi": (200, 130,  40), "awning": (140, 80, 20)},
 }
 
 

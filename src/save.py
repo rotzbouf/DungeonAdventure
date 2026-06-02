@@ -101,6 +101,7 @@ def save_game(player, dungeon_level: int, ng_plus: int = 0,
         "mana":          player.mana,
         "max_mana":      player.max_mana,    # grows +3 per level-up
         "gold":          player.gold,
+        "materials":     dict(getattr(player, "materials", {})),
         # ── D2 stats ──
         "str_pts":       player.str_pts,
         "dex_pts":       player.dex_pts,
@@ -142,6 +143,7 @@ def restore_player(player, data: dict):
     player.hp          = min(data["hp"],  float(player.max_hp))
     player.mana        = min(data["mana"], float(player.max_mana))
     player.gold        = data["gold"]
+    player.materials   = dict(data.get("materials", {}))
     player.str_pts     = data["str_pts"]
     player.dex_pts     = data["dex_pts"]
     player.vit_pts     = data["vit_pts"]

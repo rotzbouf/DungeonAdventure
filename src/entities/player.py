@@ -32,6 +32,7 @@ class Player(Entity):
         self.xp         = 0
         self.xp_to_next = XP_BASE
         self.gold       = 0
+        self.materials: dict[str, int] = {}   # crafting materials inventory
 
         # ── D2-style core attributes ─────────────────────────────────────────
         self.str_pts    = BASE_STR
