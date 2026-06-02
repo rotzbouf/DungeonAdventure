@@ -62,6 +62,8 @@ class Player(Entity):
         self._invincible_timer = 0.0
         self._attack_anim      = 0.0
         self.attack_angle      = 0.0
+        self._face_dir: int    = 1     # 1 = right, -1 = left
+        self._walk_t:   float  = 0.0  # walk animation accumulator
 
     # ─── Equipment stat accumulator ──────────────────────────────────────────────
 
@@ -375,6 +377,9 @@ class Player(Entity):
             dx *= 0.7071; dy *= 0.7071
         if dx != 0 or dy != 0:
             self.attack_angle = math.atan2(dy, dx)
+            if dx > 0:   self._face_dir = 1
+            elif dx < 0: self._face_dir = -1
+            self._walk_t += dt * 9.0
 
         half = self.size // 2
         mg   = 2
@@ -537,7 +542,40 @@ class Player(Entity):
         _GUARD  = vis["guard_col"]
         _HAT    = _TUNIC
 
-        half = self.size // 2
+        half     = self.size // 2
+        walk_t   = getattr(self, '_walk_t', 0.0)
+        cape_dir = fa + math.pi   # direction the cape hangs (behind player)
+
+        # ── Cape (drawn first — behind everything) ────────────────────────────
+        _CAPE = tuple(max(0, c - 58) for c in _TUNIC)
+        _CAPE_HI = tuple(max(0, c - 38) for c in _TUNIC)
+        cape_pts = [
+            (int(cx + math.cos(perp) * (half - 2)),
+             int(cy + math.sin(perp) * (half - 2))),
+            (int(cx - math.cos(perp) * (half - 2)),
+             int(cy - math.sin(perp) * (half - 2))),
+            (int(cx + math.cos(cape_dir) * (half + 13)),
+             int(cy + math.sin(cape_dir) * (half + 13))),
+        ]
+        pygame.draw.polygon(surface, _BLK,    [(x+1,y+1) for x,y in cape_pts])
+        pygame.draw.polygon(surface, _CAPE,   cape_pts)
+        pygame.draw.line(surface, _CAPE_HI,
+                         cape_pts[0], cape_pts[2], 1)
+
+        # ── Boots / legs (behind body) ────────────────────────────────────────
+        _BOOT  = (32, 18, 6)
+        _BOOT_H = (68, 44, 16)
+        for sign, ph in ((1, 0.0), (-1, math.pi)):
+            swing = math.sin(walk_t + ph) * 3.5
+            bx_ = int(cx + math.cos(perp)*sign*3.5
+                      - math.cos(fa)*(half - 4)
+                      + math.cos(fa)*swing*0.5)
+            by_ = int(cy + math.sin(perp)*sign*3.5
+                      - math.sin(fa)*(half - 4)
+                      + math.sin(fa)*swing*0.5)
+            pygame.draw.circle(surface, _BLK,   (bx_, by_), 4)
+            pygame.draw.circle(surface, _BOOT,  (bx_, by_), 3)
+            pygame.draw.circle(surface, _BOOT_H,(bx_-1, by_-1), 1)
 
         # ── Body ─────────────────────────────────────────────────────────────
         body = pygame.Rect(cx - half + 2, cy - half + 2, self.size - 4, self.size - 4)
@@ -546,6 +584,26 @@ class Player(Entity):
         pygame.draw.rect(surface, _TUNIC_D,
                          pygame.Rect(body.left, body.centery,
                                      body.width, body.height // 2))
+
+        # ── Pauldrons (shoulder armour circles) ───────────────────────────────
+        _PAUL   = tuple(min(255, c + 22) for c in _TUNIC)
+        _PAUL_H = tuple(min(255, c + 44) for c in _TUNIC)
+        for sign in (1, -1):
+            px_ = int(cx + math.cos(perp) * sign * (half - 1))
+            py_ = int(cy + math.sin(perp) * sign * (half - 1))
+            pygame.draw.circle(surface, _BLK,    (px_, py_), 4)
+            pygame.draw.circle(surface, _PAUL,   (px_, py_), 3)
+            pygame.draw.circle(surface, _PAUL_H, (px_-1, py_-1), 1)
+
+        # ── Belt ─────────────────────────────────────────────────────────────
+        _BELT   = (55, 36, 10)
+        _BUCKLE = (160, 128, 20)
+        bx1 = int(cx - math.cos(perp)*(half-2) - math.cos(fa))
+        by1 = int(cy - math.sin(perp)*(half-2) - math.sin(fa))
+        bx2 = int(cx + math.cos(perp)*(half-2) - math.cos(fa))
+        by2 = int(cy + math.sin(perp)*(half-2) - math.sin(fa))
+        pygame.draw.line(surface, _BELT, (bx1, by1), (bx2, by2), 2)
+        pygame.draw.rect(surface, _BUCKLE, (cx-2, cy-2, 4, 4))
 
         # ── Shield (conditional on equipment) ────────────────────────────────
         if vis["show_shield"]:

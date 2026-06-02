@@ -1,3 +1,4 @@
+import math
 import random
 import pygame
 from src.world.tile import (TILE_VOID, TILE_FLOOR, TILE_WALL, TILE_STAIRS_DOWN,
@@ -5,6 +6,115 @@ from src.world.tile import (TILE_VOID, TILE_FLOOR, TILE_WALL, TILE_STAIRS_DOWN,
 from src.settings import (TILE_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT,
                            DUNGEON_WIDTH, DUNGEON_HEIGHT, MIN_ROOM_SIZE,
                            MAX_ROOM_SIZE, MAX_ROOMS)
+
+# ── Ambient-occlusion strips (built lazily once pygame is ready) ──────────────
+_AO_STRIPS: dict | None = None
+
+def _ensure_ao_strips() -> dict:
+    global _AO_STRIPS
+    if _AO_STRIPS is not None:
+        return _AO_STRIPS
+    depth = 7
+    result = {}
+    dirs = {
+        'N': lambda i: ((0, i),              (TILE_SIZE - 1, i)),
+        'S': lambda i: ((0, TILE_SIZE-1-i),  (TILE_SIZE - 1, TILE_SIZE-1-i)),
+        'W': lambda i: ((i, 0),              (i, TILE_SIZE - 1)),
+        'E': lambda i: ((TILE_SIZE-1-i, 0),  (TILE_SIZE-1-i, TILE_SIZE - 1)),
+    }
+    for name, pts_fn in dirs.items():
+        s = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+        for i in range(depth):
+            a = int(105 * (1.0 - i / depth) ** 1.8)
+            p1, p2 = pts_fn(i)
+            pygame.draw.line(s, (0, 0, 0, a), p1, p2)
+        result[name] = s
+    _AO_STRIPS = result
+    return result
+
+
+# ── Prop drawing helpers (drawn into the baked surface) ───────────────────────
+
+_WD_D = (46, 30, 12);  _WD_M = (72, 50, 20);  _WD_L = (106, 76, 34)
+_IR_D = (28, 28, 30);  _IR_M = (52, 52, 56);  _IR_L = (82, 82, 88)
+_ST_D = (52, 46, 38);  _ST_M = (76, 68, 58)
+_BONE = (178, 168, 148);  _BONE_SH = (110, 104, 90)
+
+
+def _draw_sconce(surf: pygame.Surface, sx: int, sy: int):
+    """Iron wall-sconce bracket with torch body at (sx, sy)."""
+    # Horizontal arm
+    pygame.draw.rect(surf, _IR_D, (sx - 7, sy - 2, 14, 4))
+    pygame.draw.rect(surf, _IR_M, (sx - 6, sy - 1, 12, 2))
+    pygame.draw.line(surf, _IR_L, (sx - 6, sy - 1), (sx + 5, sy - 1))
+    # Wall anchor plate
+    pygame.draw.rect(surf, _IR_D, (sx - 9, sy - 5, 5, 9))
+    pygame.draw.rect(surf, _IR_M, (sx - 8, sy - 4, 3, 7))
+    # Torch body
+    pygame.draw.rect(surf, _WD_D, (sx - 2, sy - 9, 5, 10))
+    pygame.draw.rect(surf, _WD_M, (sx - 1, sy - 8, 3,  8))
+    pygame.draw.line(surf, _WD_L, (sx,     sy - 8), (sx, sy + 1))
+
+
+def _draw_rubble(surf: pygame.Surface, px: int, py: int, rng: random.Random):
+    """3-5 dark stone chips near a wall edge."""
+    cx = px + rng.randint(6, TILE_SIZE - 8)
+    cy = py + rng.randint(6, TILE_SIZE - 8)
+    for _ in range(rng.randint(3, 5)):
+        rx = cx + rng.randint(-7, 7)
+        ry = cy + rng.randint(-4, 4)
+        rw = rng.randint(3, 9);  rh = rng.randint(2, 5)
+        v  = rng.randint(-14, 5)
+        col = (max(0, _ST_D[0]+v), max(0, _ST_D[1]+v), max(0, _ST_D[2]+v))
+        pygame.draw.ellipse(surf, col, (rx - rw//2, ry - rh//2, rw, rh))
+
+
+def _draw_bones(surf: pygame.Surface, px: int, py: int, rng: random.Random):
+    """Scattered bone fragments."""
+    cx = px + rng.randint(8, TILE_SIZE - 8)
+    cy = py + rng.randint(8, TILE_SIZE - 8)
+    for _ in range(rng.randint(2, 3)):
+        ang = rng.uniform(0, math.pi)
+        L   = rng.randint(5, 10)
+        x1  = int(cx + math.cos(ang) * L);  y1 = int(cy + math.sin(ang) * L)
+        x2  = int(cx - math.cos(ang) * L);  y2 = int(cy - math.sin(ang) * L)
+        pygame.draw.line(surf, _BONE_SH, (x1+1, y1+1), (x2+1, y2+1), 2)
+        pygame.draw.line(surf, _BONE,    (x1,   y1),   (x2,   y2),   2)
+        pygame.draw.circle(surf, _BONE, (x1, y1), 2)
+        pygame.draw.circle(surf, _BONE, (x2, y2), 2)
+
+
+def _draw_barrel_or_crate(surf: pygame.Surface, px: int, py: int,
+                           rng: random.Random):
+    """Small decorative barrel or crate."""
+    cx = px + rng.randint(7, TILE_SIZE - 9)
+    cy = py + rng.randint(7, TILE_SIZE - 9)
+    sh = pygame.Surface((22, 5), pygame.SRCALPHA)
+    sh.fill((0, 0, 0, 50))
+
+    if rng.random() < 0.5:              # barrel
+        bw, bh = 14, 18
+        surf.blit(sh, (cx - bw//2 - 2, cy + bh//2 - 1))
+        for i in range(bh):
+            f  = abs(i - bh//2) / (bh//2)
+            col = tuple(int(_WD_D[j] + (_WD_M[j]-_WD_D[j])*(1-f*0.5)) for j in range(3))
+            pygame.draw.line(surf, col, (cx-bw//2, cy-bh//2+i), (cx+bw//2, cy-bh//2+i))
+        pygame.draw.ellipse(surf, _WD_L, (cx-bw//2, cy-bh//2-3, bw, 7))
+        pygame.draw.ellipse(surf, _WD_M, (cx-bw//2, cy-bh//2-2, bw, 5))
+        for hy in [cy - bh//4, cy + bh//4]:
+            pygame.draw.rect(surf, _IR_M, (cx-bw//2-1, hy-1, bw+2, 3))
+        pygame.draw.rect(surf, _WD_D, (cx-bw//2, cy-bh//2, bw, bh), 1)
+    else:                               # crate
+        bw, bh = 16, 14
+        surf.blit(sh, (cx - bw//2 - 2, cy + bh//2 - 1))
+        for i in range(bh):
+            f   = i / max(1, bh-1)
+            col = tuple(int(_WD_L[j]+(_WD_D[j]-_WD_L[j])*f) for j in range(3))
+            pygame.draw.line(surf, col, (cx-bw//2, cy-bh//2+i), (cx+bw//2-1, cy-bh//2+i))
+        pygame.draw.line(surf, _WD_D, (cx-bw//2, cy-bh//2), (cx+bw//2, cy+bh//2), 1)
+        pygame.draw.line(surf, _WD_D, (cx+bw//2, cy-bh//2), (cx-bw//2, cy+bh//2), 1)
+        pygame.draw.line(surf, _WD_L, (cx-bw//2, cy-bh//2), (cx+bw//2, cy-bh//2))
+        pygame.draw.rect(surf, _WD_D, (cx-bw//2, cy-bh//2, bw, bh), 1)
 
 
 class Room:
@@ -34,7 +144,8 @@ class Room:
 class Dungeon:
     def __init__(self, level: int = 1, seed=None):
         self.level = level
-        self.rng = random.Random(seed)
+        self.seed  = seed if seed is not None else random.randint(1, 2**30)
+        self.rng   = random.Random(self.seed)
         self.width  = DUNGEON_WIDTH
         self.height = DUNGEON_HEIGHT
         self.grid: list[list[int]] = [
@@ -48,6 +159,8 @@ class Dungeon:
         self.merchant_spawns: list[tuple[int, int]] = []  # tile coords (room centres)
         self.trap_positions:  list[tuple[int, int]] = []  # tile coords of spike traps
         self.chest_positions: list[tuple[int, int]] = []  # tile coords of treasure chests
+        self.sconce_positions: list[tuple[int, int]] = []  # world px (sconce flame)
+        self._baked: pygame.Surface | None = None           # pre-rendered level surface
         self._generate()
 
     # ─── Generation ──────────────────────────────────────────────────────────────
@@ -202,15 +315,88 @@ class Dungeon:
 
     # ─── Rendering ───────────────────────────────────────────────────────────────
 
-    def draw(self, surface: pygame.Surface, camera):
-        cx = int(camera.x // TILE_SIZE)
-        cy = int(camera.y // TILE_SIZE)
-        cols = SCREEN_WIDTH  // TILE_SIZE + 2
-        rows = (SCREEN_HEIGHT - HUD_HEIGHT) // TILE_SIZE + 2
+    def _bake(self):
+        """Build the full pre-rendered dungeon surface with AO and props."""
+        W = self.width  * TILE_SIZE
+        H = self.height * TILE_SIZE
+        surf = pygame.Surface((W, H))
+        surf.fill((0, 0, 0))
 
-        for ty in range(max(0, cy - 1), min(self.height, cy + rows + 1)):
-            for tx in range(max(0, cx - 1), min(self.width, cx + cols + 1)):
-                tile_type = self.grid[ty][tx]
-                surf = get_tile_surface(tile_type, tx, ty)
-                surface.blit(surf, (tx * TILE_SIZE - int(camera.x),
-                                    ty * TILE_SIZE - int(camera.y)))
+        # 1. All tiles
+        for ty in range(self.height):
+            for tx in range(self.width):
+                tt = self.grid[ty][tx]
+                if tt != TILE_VOID:
+                    surf.blit(get_tile_surface(tt, tx, ty),
+                              (tx * TILE_SIZE, ty * TILE_SIZE))
+
+        # 2. Ambient occlusion (floor tiles adjacent to walls get dark edge shadows)
+        ao = _ensure_ao_strips()
+        for ty in range(self.height):
+            for tx in range(self.width):
+                if self.grid[ty][tx] not in WALKABLE:
+                    continue
+                px_, py_ = tx * TILE_SIZE, ty * TILE_SIZE
+                if ty > 0             and self.grid[ty-1][tx] == TILE_WALL: surf.blit(ao['N'], (px_, py_))
+                if ty < self.height-1 and self.grid[ty+1][tx] == TILE_WALL: surf.blit(ao['S'], (px_, py_))
+                if tx > 0             and self.grid[ty][tx-1] == TILE_WALL: surf.blit(ao['W'], (px_, py_))
+                if tx < self.width-1  and self.grid[ty][tx+1] == TILE_WALL: surf.blit(ao['E'], (px_, py_))
+
+        # 3. Wall sconces on south-facing walls (wall tile with walkable tile below)
+        sc_rng = random.Random(self.seed + 1001)
+        self.sconce_positions = []
+        for ty in range(1, self.height - 1):
+            for tx in range(self.width):
+                if self.grid[ty][tx] != TILE_WALL:
+                    continue
+                if self.grid[ty + 1][tx] in WALKABLE and sc_rng.random() < 0.22:
+                    sx = tx * TILE_SIZE + TILE_SIZE // 2
+                    sy = ty * TILE_SIZE + TILE_SIZE - 6
+                    _draw_sconce(surf, sx, sy)
+                    self.sconce_positions.append((sx, sy - 5))  # flame pixel position
+
+        # 4. Decorative props
+        pr_rng = random.Random(self.seed + 2002)
+
+        # Rubble on floor tiles next to walls
+        for ty in range(1, self.height - 1):
+            for tx in range(1, self.width - 1):
+                if self.grid[ty][tx] not in WALKABLE:
+                    continue
+                near = any(self.grid[ty+dy][tx+dx] == TILE_WALL
+                           for dx, dy in ((-1,0),(1,0),(0,-1),(0,1)))
+                if near and pr_rng.random() < 0.065:
+                    _draw_rubble(surf, tx*TILE_SIZE, ty*TILE_SIZE, pr_rng)
+
+        # Bone clusters on room floor tiles
+        room_cells = {pos for room in self.rooms for pos in room.inner_positions()}
+        for tx, ty in room_cells:
+            if self.grid[ty][tx] in WALKABLE and pr_rng.random() < 0.045:
+                _draw_bones(surf, tx*TILE_SIZE, ty*TILE_SIZE, pr_rng)
+
+        # Barrel / crate group in ~55 % of rooms (one corner each)
+        for room in self.rooms[1:]:
+            if pr_rng.random() > 0.55:
+                continue
+            corners = [(room.x+1, room.y+1), (room.x+room.w-2, room.y+1),
+                       (room.x+1, room.y+room.h-2), (room.x+room.w-2, room.y+room.h-2)]
+            cx_, cy_ = pr_rng.choice(corners)
+            if (0 <= cy_ < self.height and 0 <= cx_ < self.width
+                    and self.grid[cy_][cx_] in WALKABLE):
+                _draw_barrel_or_crate(surf, cx_*TILE_SIZE, cy_*TILE_SIZE, pr_rng)
+
+        self._baked = surf.convert()  # hardware-format conversion for fast blitting
+
+    def draw(self, surface: pygame.Surface, camera):
+        if self._baked is None:
+            self._bake()
+        cam_x = int(camera.x)
+        cam_y = int(camera.y)
+        sw, sh = surface.get_size()
+        src = pygame.Rect(
+            max(0, cam_x), max(0, cam_y),
+            min(sw, self.width  * TILE_SIZE - max(0, cam_x)),
+            min(sh, self.height * TILE_SIZE - max(0, cam_y)),
+        )
+        if src.width > 0 and src.height > 0:
+            surface.blit(self._baked, (max(0, -cam_x), max(0, -cam_y)), src)

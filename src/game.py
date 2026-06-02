@@ -141,8 +141,12 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         # Lightning arc segments for Chain Lightning visual
         self._lightning_arcs: list = []
 
-        self._torch_masks = [(r, self._bake_light(r))
-                             for r in (475, 490, 503, 513, 522)]
+        self._torch_masks  = [(r, self._bake_light(r))
+                              for r in (475, 490, 503, 513, 522)]
+        self._sconce_masks = [(r, self._bake_light(r))
+                              for r in (108, 114, 120, 114)]
+        self._stair_masks  = [(r, self._bake_light(r))
+                              for r in (148, 156, 162, 156)]
         self._fog      = pygame.Surface(
             (SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT), pygame.SRCALPHA)
         self._vignette = self._bake_vignette()

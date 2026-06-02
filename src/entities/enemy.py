@@ -260,24 +260,63 @@ class Goblin(Enemy):
         self._draw_shadow(surface, dr)
         self._draw_hp_bar(surface, dr)
         cx, cy = dr.centerx, dr.centery
-        _BLK  = (0,    0,    0)
-        _BODY = self._hurt_color((220,  92,  16))
-        _DARK = (140,  48,   0)
-        _EYE  = (204,   0,   0)   # red eyes
+        _BLK  = (0,   0,   0)
+        _BODY = self._hurt_color((220, 92, 16))
+        _DARK = (120, 40,  0)
+        _SKIN = (180, 100, 40)
+        _EYE  = (220,  0,  0)
+        _FANG = (240, 220, 180)
 
+        # ── Hunched body ──────────────────────────────────────────────────────
         pygame.draw.rect(surface, _BLK,  dr.inflate(2, 2))
         pygame.draw.rect(surface, _DARK, dr)
-        inner = dr.inflate(-4, -4)
+        inner = dr.inflate(-4, -6)
+        inner.move_ip(0, 3)   # shift body down — hunched posture
         pygame.draw.rect(surface, _BODY, inner)
-        pygame.draw.polygon(surface, _BODY,
-                            [(cx - 4, dr.top + 2), (cx - 9, dr.top - 7), (cx - 1, dr.top)])
-        pygame.draw.polygon(surface, _BODY,
-                            [(cx + 4, dr.top + 2), (cx + 9, dr.top - 7), (cx + 1, dr.top)])
-        pygame.draw.rect(surface, _DARK, (cx - 3, cy + 1, 6, 4))
-        pygame.draw.rect(surface, _EYE,  (cx - 6, cy - 3, 4, 4))
-        pygame.draw.rect(surface, _EYE,  (cx + 2,  cy - 3, 4, 4))
-        pygame.draw.rect(surface, _BLK,  (cx - 5, cy - 2, 2, 2))
-        pygame.draw.rect(surface, _BLK,  (cx + 3,  cy - 2, 2, 2))
+        # Belly shading
+        pygame.draw.rect(surface, _DARK, (inner.left, inner.centery, inner.w, inner.h//2))
+        # Claw lines at lower body corners
+        for sign in (1, -1):
+            base_x = cx + sign * (dr.w//2 - 2)
+            for i in range(3):
+                pygame.draw.line(surface, _BLK,
+                                 (base_x, dr.bottom - 4),
+                                 (base_x + sign*(2+i), dr.bottom + 2 + i*2), 1)
+
+        # ── Oversized pointed ears ────────────────────────────────────────────
+        for sign in (1, -1):
+            ear = [
+                (cx + sign * 4, dr.top + 4),
+                (cx + sign * 13, dr.top - 12),
+                (cx + sign * 2,  dr.top),
+            ]
+            pygame.draw.polygon(surface, _BLK,  [(x+1,y+1) for x,y in ear])
+            pygame.draw.polygon(surface, _BODY, ear)
+            pygame.draw.polygon(surface, _DARK,
+                                [(cx+sign*4,dr.top+4),(cx+sign*10,dr.top-8),(cx+sign*3,dr.top+1)])
+
+        # ── Face ─────────────────────────────────────────────────────────────
+        face_y = dr.top + 5
+        pygame.draw.rect(surface, _BLK,  (cx - 6, face_y,     12, 10))
+        pygame.draw.rect(surface, _SKIN, (cx - 5, face_y + 1, 10,  8))
+        # Deep-set red eyes
+        pygame.draw.rect(surface, _BLK, (cx - 5, face_y + 1, 4, 3))
+        pygame.draw.rect(surface, _BLK, (cx + 1, face_y + 1, 4, 3))
+        pygame.draw.rect(surface, _EYE, (cx - 4, face_y + 2, 2, 2))
+        pygame.draw.rect(surface, _EYE, (cx + 2, face_y + 2, 2, 2))
+        # Fangs
+        for fxoff in (-3, 0, 3):
+            pygame.draw.line(surface, _FANG,
+                             (cx + fxoff, face_y + 8),
+                             (cx + fxoff, face_y + 11), 1)
+
+        # ── Crude bone club ───────────────────────────────────────────────────
+        club_x0 = cx + dr.w//2
+        club_y0 = cy + 2
+        pygame.draw.line(surface, _BLK, (club_x0,   club_y0), (club_x0+8, club_y0-8), 4)
+        pygame.draw.line(surface, (180,155,130), (club_x0, club_y0), (club_x0+8, club_y0-8), 2)
+        pygame.draw.circle(surface, _BLK,       (club_x0+9, club_y0-9), 5)
+        pygame.draw.circle(surface, (190,165,140),(club_x0+9, club_y0-9), 4)
 
 
 # ─── Skeleton / Stalfos-style ── bone white, hollow eye sockets, SLOWS on hit ─
@@ -304,20 +343,46 @@ class Skeleton(Enemy):
         _BONE  = self._hurt_color((204, 196, 176))
         _SHADE = (108,  100, 84)
 
-        body = pygame.Rect(cx - 5, cy - 4, 10, dr.height - 5)
+        # ── Ribcage / torso ───────────────────────────────────────────────────
+        body = pygame.Rect(cx - 5, cy - 2, 10, dr.height - 6)
         pygame.draw.rect(surface, _BLK,   body.inflate(2, 2))
         pygame.draw.rect(surface, _SHADE, body)
         pygame.draw.rect(surface, _BONE,  body.inflate(-2, 0))
-        for i in range(2):
+        # Visible ribs — 3 pairs
+        for i in range(3):
             ry = body.top + 3 + i * 5
-            pygame.draw.line(surface, _SHADE, (body.left + 1, ry), (body.right - 2, ry))
-        skull_y = dr.top + 6
-        pygame.draw.rect(surface, _BLK,   (cx - 7, skull_y - 6, 14, 12))
-        pygame.draw.rect(surface, _SHADE, (cx - 6, skull_y - 5, 12, 10))
-        pygame.draw.rect(surface, _BONE,  (cx - 5, skull_y - 4, 10,  8))
-        pygame.draw.rect(surface, _BLK,   (cx - 6, skull_y - 3,  4,  4))
-        pygame.draw.rect(surface, _BLK,   (cx + 2,  skull_y - 3,  4,  4))
-        pygame.draw.line(surface, _SHADE, (cx - 4, skull_y + 4), (cx + 4, skull_y + 4))
+            pygame.draw.line(surface, _SHADE, (body.left+1, ry), (body.right-2, ry))
+            pygame.draw.line(surface, _BONE,  (body.left+1, ry-1), (body.right-2, ry-1), 1)
+
+        # ── Arm bones ─────────────────────────────────────────────────────────
+        for side in (1, -1):
+            ax0 = cx + side * 5
+            pygame.draw.line(surface, _SHADE, (ax0, body.top+2), (ax0+side*6, body.top+10), 2)
+            pygame.draw.line(surface, _BONE,  (ax0-side, body.top+2), (ax0+side*5, body.top+10), 1)
+
+        # ── Skull ─────────────────────────────────────────────────────────────
+        skull_y = dr.top + 4
+        # Cranium (slightly rounded via stacked rects)
+        pygame.draw.rect(surface, _BLK,   (cx - 7, skull_y - 2, 14, 13))
+        pygame.draw.rect(surface, _SHADE, (cx - 6, skull_y - 1, 12, 11))
+        pygame.draw.rect(surface, _BONE,  (cx - 5, skull_y,     10,  9))
+        pygame.draw.rect(surface, _BONE,  (cx - 4, skull_y - 1,  8,  2))  # skull dome
+        # Eye sockets
+        pygame.draw.rect(surface, _BLK,   (cx - 6, skull_y + 1, 4, 4))
+        pygame.draw.rect(surface, _BLK,   (cx + 2, skull_y + 1, 4, 4))
+        # Jaw
+        pygame.draw.rect(surface, _SHADE, (cx - 4, skull_y + 8, 8, 3))
+        for tx2 in (-3, -1, 1, 3):
+            pygame.draw.line(surface, _BLK, (cx+tx2, skull_y+8), (cx+tx2, skull_y+11), 1)
+
+        # ── Sword ─────────────────────────────────────────────────────────────
+        sw_x0 = cx + dr.w//2 - 1
+        sw_y0 = cy + 2
+        pygame.draw.line(surface, _BLK,           (sw_x0, sw_y0), (sw_x0+9, sw_y0-12), 3)
+        pygame.draw.line(surface, (200, 195, 180), (sw_x0, sw_y0), (sw_x0+9, sw_y0-12), 2)
+        # Guard
+        pygame.draw.line(surface, (130, 110, 60),
+                         (sw_x0-3, sw_y0-3), (sw_x0+3, sw_y0+3), 2)
 
 
 # ─── Orc / Darknut-style ── armoured knight, blue plate mail ─────────────────
@@ -348,17 +413,50 @@ class Orc(Enemy):
         _HI    = (80,  140, 252)
         _SH    = (0,   24,  140)
 
+        # ── Cape behind body ──────────────────────────────────────────────────
+        cape_col = (0, 20, 100)
+        pygame.draw.polygon(surface, (0,0,0),
+                            [(cx-1, dr.bottom+1), (cx+1, dr.bottom+1),
+                             (cx+dr.w//2+4, dr.bottom+12), (cx-dr.w//2-4, dr.bottom+12)])
+        pygame.draw.polygon(surface, cape_col,
+                            [(cx-1, dr.bottom), (cx+1, dr.bottom),
+                             (cx+dr.w//2+3, dr.bottom+11), (cx-dr.w//2-3, dr.bottom+11)])
+        pygame.draw.line(surface, _HI,
+                         (cx-1, dr.bottom), (cx-dr.w//2-3, dr.bottom+11), 1)
+
+        # ── Armoured body ─────────────────────────────────────────────────────
         pygame.draw.rect(surface, _BLK,   dr.inflate(2, 2))
         pygame.draw.rect(surface, _SH,    dr)
         pygame.draw.rect(surface, _ARMOR, dr.inflate(-4, -4))
-        for sx in (dr.left - 2, dr.right - 4):
-            pygame.draw.rect(surface, _ARMOR, (sx, dr.top + 2, 6, 6))
-            pygame.draw.rect(surface, _HI,   (sx, dr.top + 2, 6, 2))
-        pygame.draw.rect(surface, _SH,   (cx - 7, cy - 5, 14, 5))
-        pygame.draw.rect(surface, (204, 0, 0), (cx - 5, cy - 4, 4, 3))
-        pygame.draw.rect(surface, (204, 0, 0), (cx + 1,  cy - 4, 4, 3))
-        pygame.draw.line(surface, _HI, (cx, cy + 1), (cx, cy + 7), 2)
-        pygame.draw.line(surface, _HI, (cx - 3, cy + 4), (cx + 3, cy + 4), 2)
+        # Chest plate highlight stripe
+        pygame.draw.line(surface, _HI,
+                         (dr.left+4, dr.top+4), (dr.left+4, dr.bottom-4), 1)
+        # Tabard (vertical strip down the front)
+        pygame.draw.rect(surface, (0, 30, 130), (cx-2, dr.top+6, 4, dr.h-10))
+
+        # ── Pauldrons ─────────────────────────────────────────────────────────
+        for sx_off in (dr.left - 5, dr.right + 1):
+            pygame.draw.rect(surface, _BLK,   (sx_off - 1, dr.top + 2, 8, 10))
+            pygame.draw.rect(surface, _ARMOR, (sx_off,     dr.top + 3, 7,  8))
+            pygame.draw.rect(surface, _HI,    (sx_off,     dr.top + 3, 7,  2))
+            # Pauldron spike
+            pygame.draw.line(surface, _SH,
+                             (sx_off+3, dr.top+3), (sx_off+3, dr.top-3), 2)
+
+        # ── Helmet with nose guard ────────────────────────────────────────────
+        hx, hy = cx, dr.top - 2
+        pygame.draw.rect(surface, _BLK,  (hx-8, hy-6, 16, 12))
+        pygame.draw.rect(surface, _SH,   (hx-7, hy-5, 14, 10))
+        pygame.draw.rect(surface, _ARMOR,(hx-6, hy-4, 12,  8))
+        pygame.draw.line(surface, _HI, (hx-6, hy-4), (hx+5, hy-4))   # brow ridge
+        # Eye slits
+        pygame.draw.rect(surface, _BLK, (hx-6, hy-1, 4, 2))
+        pygame.draw.rect(surface, _BLK, (hx+2, hy-1, 4, 2))
+        pygame.draw.rect(surface, (180, 0, 0), (hx-5, hy-1, 2, 1))
+        pygame.draw.rect(surface, (180, 0, 0), (hx+3, hy-1, 2, 1))
+        # Nose guard
+        pygame.draw.rect(surface, _SH,  (hx-1, hy-1, 2, 5))
+        pygame.draw.line(surface, _HI,  (hx-1, hy-1), (hx-1, hy+3))
 
 
 # ─── Demon / Wizzrobe-style ── hooded sorcerer, glowing eyes ─────────────────
@@ -383,39 +481,62 @@ class Demon(Enemy):
         _DARK  = (64,   0,  120)
         _GLOW  = (252, 188,   0)
 
-        robe_pts = [
-            (dr.left - 2, dr.bottom + 1),
-            (dr.right + 2, dr.bottom + 1),
-            (dr.right,     cy),
-            (cx + 5,       dr.top + 3),
-            (cx,           dr.top - 2),
-            (cx - 5,       dr.top + 3),
-            (dr.left,      cy),
+        # ── Animated wavy hem ─────────────────────────────────────────────────
+        t_anim = self._elite_aura_t
+        n_hem  = 7
+        hem_pts = []
+        for j in range(n_hem):
+            hx_ = dr.left - 2 + (dr.width + 4) * j // (n_hem - 1)
+            hy_ = dr.bottom + 2 + int(math.sin(t_anim * 4.2 + j * 1.1) * 5)
+            hem_pts.append((hx_, hy_))
+
+        robe_pts = list(hem_pts) + [
+            (dr.right,  cy),
+            (cx + 5,    dr.top + 3),
+            (cx,        dr.top - 2),
+            (cx - 5,    dr.top + 3),
+            (dr.left,   cy),
         ]
-        pygame.draw.polygon(surface, _BLK,  robe_pts)
-        inner = [
-            (dr.left,      dr.bottom),
-            (dr.right,     dr.bottom),
+        pygame.draw.polygon(surface, _BLK,  [(x+1,y+1) for x,y in robe_pts])
+        inner_pts = hem_pts[1:-1] + [
             (dr.right - 2, cy),
-            (cx + 4,       dr.top + 4),
-            (cx,           dr.top),
-            (cx - 4,       dr.top + 4),
-            (dr.left + 2,  cy),
+            (cx + 4,  dr.top + 4),
+            (cx,      dr.top),
+            (cx - 4,  dr.top + 4),
+            (dr.left + 2, cy),
         ]
-        pygame.draw.polygon(surface, _DARK,  inner)
-        pygame.draw.line(surface, _ROBE,
-                         (dr.left,     cy),
-                         (dr.left + 2, dr.bottom), 2)
-        pygame.draw.line(surface, _ROBE,
-                         (dr.left + 2, cy),
-                         (cx - 4,      dr.top + 4), 2)
-        pygame.draw.rect(surface, _GLOW, (cx - 5, cy - 3, 4, 3))
-        pygame.draw.rect(surface, _GLOW, (cx + 1,  cy - 3, 4, 3))
-        surface.set_at((cx - 3, cy - 2), (252, 252, 252))
-        surface.set_at((cx + 3,  cy - 2), (252, 252, 252))
-        pygame.draw.line(surface, _ROBE, (cx - 3, cy + 2), (cx + 3, cy + 8), 1)
-        pygame.draw.line(surface, _ROBE, (cx + 3, cy + 2), (cx - 3, cy + 8), 1)
-        pygame.draw.line(surface, _ROBE, (cx - 4, cy + 5), (cx + 4, cy + 5), 1)
+        pygame.draw.polygon(surface, _DARK, robe_pts)
+        pygame.draw.polygon(surface, _ROBE, inner_pts)
+
+        # Robe highlight folds
+        pygame.draw.line(surface, _ROBE, (dr.left,    cy), (dr.left+2,  dr.bottom), 2)
+        pygame.draw.line(surface, _ROBE, (dr.left+2,  cy), (cx-4,  dr.top+4), 2)
+        pygame.draw.line(surface, tuple(min(255,c+30) for c in _ROBE),
+                         (cx, dr.top+4), (cx, cy), 1)
+
+        # ── Clawed hands at robe sides ────────────────────────────────────────
+        for side, sign in (('left', -1), ('right', 1)):
+            hand_x = dr.left - 3 if sign < 0 else dr.right + 3
+            hand_y = cy + 4
+            # Palm
+            pygame.draw.ellipse(surface, _DARK, (hand_x - 3, hand_y - 3, 7, 6))
+            # Claws
+            for ci in range(3):
+                cx2 = hand_x + sign * (ci * 2)
+                pygame.draw.line(surface, _DARK,
+                                 (cx2, hand_y - 3),
+                                 (cx2 + sign * 3, hand_y - 8), 1)
+
+        # ── Glowing eyes ─────────────────────────────────────────────────────
+        eye_y = dr.top + dr.h // 3
+        pygame.draw.rect(surface, _GLOW, (cx - 6, eye_y, 4, 3))
+        pygame.draw.rect(surface, _GLOW, (cx + 2, eye_y, 4, 3))
+        surface.set_at((cx - 4, eye_y + 1), (252, 252, 252))
+        surface.set_at((cx + 4, eye_y + 1), (252, 252, 252))
+
+        # ── Hood rim ──────────────────────────────────────────────────────────
+        pygame.draw.arc(surface, _ROBE,
+                        pygame.Rect(cx-8, dr.top-4, 16, 10), 0, math.pi, 2)
 
 
 # ─── Boss enemies ─────────────────────────────────────────────────────────────

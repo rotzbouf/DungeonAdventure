@@ -89,6 +89,7 @@ class RendererLayer:
         self._draw_projectiles()
         self._draw_lightning_arcs()
         self._draw_particles()
+        self._draw_sconce_flames()
         self._draw_fog()
         self.screen.blit(self._vignette, (0, 0))
         self._draw_item_labels()
@@ -155,19 +156,93 @@ class RendererLayer:
         lbl = self._font_boss.render(f"⚔ {boss_name.upper()} ⚔", True, (220, 175, 0))
         self.screen.blit(lbl, (SCREEN_WIDTH // 2 - lbl.get_width() // 2, bar_y + bar_h + 5))
 
+    # Per-theme ambient darkness colour (slightly tinted, not pure black)
+    _THEME_AMBIENT = {
+        "dungeon": (2,  0, 12, 206), "crypt":   (0,  2,  8, 210),
+        "forge":   (12, 4,  0, 203), "inferno": (16, 0,  0, 200),
+        "abyss":   (0,  8, 16, 210),
+    }
+
+    def _fog_ambient(self) -> tuple:
+        from src.world.tile import _THEME_CYCLE
+        idx  = ((getattr(self, 'dungeon_level', 1) - 1) // 5) % len(_THEME_CYCLE)
+        return self._THEME_AMBIENT.get(_THEME_CYCLE[idx], (0, 0, 0, 208))
+
     def _draw_fog(self):
-        self._fog.fill((0, 0, 0, 210))
+        play_h = SCREEN_HEIGHT - HUD_HEIGHT
+
+        # Fill with per-theme tinted ambient darkness
+        self._fog.fill(self._fog_ambient())
+
         px = int(self.player.x - self.camera.x)
         py = int(self.player.y - self.camera.y)
-        raw = (math.sin(self._time*5.3)*1.4 + math.sin(self._time*3.1)*0.6+2.0)/4.0
+
+        # ── Player torch (large, warm flicker) ───────────────────────────────
+        raw = (math.sin(self._time*5.3)*1.4 + math.sin(self._time*3.1)*0.6 + 2.0) / 4.0
         idx = int(raw * len(self._torch_masks)) % len(self._torch_masks)
         r, mask = self._torch_masks[idx]
-        self._fog.blit(mask, (px-r, py-r), special_flags=pygame.BLEND_RGBA_SUB)
+        self._fog.blit(mask, (px - r, py - r), special_flags=pygame.BLEND_RGBA_SUB)
+
+        # ── Sconce lights (smaller, independently flickering) ─────────────────
+        sconces = getattr(getattr(self, 'dungeon', None), 'sconce_positions', [])
+        for sx_, sy_ in sconces:
+            scx = int(sx_ - self.camera.x)
+            scy = int(sy_ - self.camera.y)
+            if not (-140 < scx < SCREEN_WIDTH + 140 and -140 < scy < play_h + 140):
+                continue
+            phase = ((int(sx_) * 7 + int(sy_) * 13) % 100) * 0.0628
+            fi = (math.sin(self._time * 8.7 + phase) * 0.8 +
+                  math.sin(self._time * 11.3 + phase * 1.3) * 0.2 + 1.0) / 2.0
+            si = int(fi * len(self._sconce_masks)) % len(self._sconce_masks)
+            sr, smask = self._sconce_masks[si]
+            self._fog.blit(smask, (scx - sr, scy - sr), special_flags=pygame.BLEND_RGBA_SUB)
+
+        # ── Stairs portal glow ────────────────────────────────────────────────
+        if self.dungeon:
+            stx_, sty_ = self.dungeon.stairs_pos
+            ssx = int(stx_ - self.camera.x)
+            ssy = int(sty_ - self.camera.y)
+            if -200 < ssx < SCREEN_WIDTH + 200 and -200 < ssy < play_h + 200:
+                pulse_i = int(((math.sin(self._time*2.8)+1)/2) * len(self._stair_masks)) % len(self._stair_masks)
+                ssr, stmask = self._stair_masks[pulse_i]
+                self._fog.blit(stmask, (ssx - ssr, ssy - ssr), special_flags=pygame.BLEND_RGBA_SUB)
+
         self.screen.blit(self._fog, (0, 0))
-        gw   = int(r*0.30 + math.sin(self._time*7.1)*4)
+
+        # ── Warm colour tint over player torch area ───────────────────────────
+        gw   = int(r * 0.32 + math.sin(self._time*7.1)*3)
         warm = pygame.Surface((gw*2, gw*2), pygame.SRCALPHA)
-        pygame.draw.circle(warm, (48,20,0,22), (gw,gw), gw)
-        self.screen.blit(warm, (px-gw, py-gw))
+        pygame.draw.circle(warm, (60, 24, 0, 26), (gw, gw), gw)
+        self.screen.blit(warm, (px - gw, py - gw))
+
+        # ── Warm tint over each visible sconce ────────────────────────────────
+        for sx_, sy_ in sconces:
+            scx = int(sx_ - self.camera.x)
+            scy = int(sy_ - self.camera.y)
+            if not (-60 < scx < SCREEN_WIDTH + 60 and -60 < scy < play_h + 60):
+                continue
+            sw2 = 28
+            ws = pygame.Surface((sw2*2, sw2*2), pygame.SRCALPHA)
+            pygame.draw.circle(ws, (62, 28, 0, 18), (sw2, sw2), sw2)
+            self.screen.blit(ws, (scx - sw2, scy - sw2))
+
+    def _draw_sconce_flames(self):
+        """Animated torch flames at dungeon sconce positions."""
+        play_h  = SCREEN_HEIGHT - HUD_HEIGHT
+        sconces = getattr(getattr(self, 'dungeon', None), 'sconce_positions', [])
+        for sx_, sy_ in sconces:
+            fx = int(sx_ - self.camera.x)
+            fy = int(sy_ - self.camera.y)
+            if not (-20 < fx < SCREEN_WIDTH + 20 and -20 < fy < play_h + 20):
+                continue
+            phase   = ((int(sx_)*7 + int(sy_)*13) % 100) * 0.0628
+            flicker = 0.65 + 0.35 * math.sin(self._time * 9.2 + phase)
+            rf      = int(5 + 3 * flicker)
+            gs = pygame.Surface((rf*4+2, rf*4+2), pygame.SRCALPHA)
+            pygame.draw.circle(gs, (255, 110, 20, int(38*flicker)), (rf*2+1, rf*2+1), rf*2)
+            self.screen.blit(gs, (fx - rf*2 - 1, fy - rf*2 - 1))
+            pygame.draw.circle(self.screen, (255, int(155+80*flicker), 20), (fx, fy), rf)
+            pygame.draw.circle(self.screen, (255, 220, 80), (fx, fy), max(1, rf//2))
 
     @staticmethod
     def _bake_light(radius: int) -> pygame.Surface:

@@ -85,9 +85,8 @@ def set_theme(floor: int, ng_plus: int = 0):
 def _build_wall(surf: pygame.Surface, tx: int, ty: int):
     t = _current_theme
     surf.fill(t['mortar'])
-    BLOCK_W = 17
+    BLOCK_W = 18
     BLOCK_H = 10
-    # mid-tone between stone and stone_hi for smoother block shading
     stone_md = tuple((a + b) // 2 for a, b in zip(t['stone'], t['stone_hi']))
     for row in range(4):
         ry  = row * BLOCK_H
@@ -100,59 +99,84 @@ def _build_wall(surf: pygame.Surface, tx: int, ty: int):
             y2 = min(TILE_SIZE, ry + BLOCK_H - 1)
             if x2 <= x1 + 1 or y2 <= y1 + 1:
                 continue
-            # vary shade per block for natural stone variation
-            shade_sel = (tx * 3 + ty * 5 + col + row) % 3
-            base_col = t['stone'] if shade_sel == 0 else (
-                stone_md if shade_sel == 1 else t['stone']
-            )
+            shade_sel = (tx * 3 + ty * 5 + col * 2 + row) % 4
+            base_col = (t['stone_sh'] if shade_sel == 0 else
+                        stone_md     if shade_sel == 1 else
+                        t['stone'])
             pygame.draw.rect(surf, base_col, (x1, y1, x2 - x1, y2 - y1))
-            # bevel: top and left edges lighter (highlight)
             pygame.draw.line(surf, t['stone_hi'], (x1,     y1),     (x2 - 1, y1))
             pygame.draw.line(surf, t['stone_hi'], (x1,     y1),     (x1,     y2 - 1))
-            # mid bevel (second pixel inset on top/left)
             if x2 - x1 > 4 and y2 - y1 > 4:
                 pygame.draw.line(surf, stone_md, (x1 + 1, y1 + 1), (x2 - 2, y1 + 1))
                 pygame.draw.line(surf, stone_md, (x1 + 1, y1 + 1), (x1 + 1, y2 - 2))
-            # bevel: bottom and right edges darker (shadow)
             pygame.draw.line(surf, t['stone_sh'], (x1,     y2 - 1), (x2 - 1, y2 - 1))
             pygame.draw.line(surf, t['stone_sh'], (x2 - 1, y1),     (x2 - 1, y2 - 1))
-            # second shadow pixel on bottom/right for deeper bevel
             if x2 - x1 > 4 and y2 - y1 > 4:
                 pygame.draw.line(surf, t['mortar'], (x1 + 1, y2 - 2), (x2 - 2, y2 - 2))
                 pygame.draw.line(surf, t['mortar'], (x2 - 2, y1 + 1), (x2 - 2, y2 - 2))
+    # Top-face cap: lighter top 3 px suggests depth viewed from above
+    cap  = tuple(min(255, c + 55) for c in t['stone_hi'])
+    cap2 = tuple(min(255, c + 28) for c in t['stone_hi'])
+    pygame.draw.line(surf, cap,        (0, 0), (TILE_SIZE - 1, 0))
+    pygame.draw.line(surf, cap2,       (0, 1), (TILE_SIZE - 1, 1))
+    pygame.draw.line(surf, t['stone_hi'], (0, 2), (TILE_SIZE - 1, 2))
 
 
 def _build_floor(surf: pygame.Surface, tx: int, ty: int):
+    """Flagstone slab: mortar border + gradient-shaded stone face with grain."""
     t = _current_theme
-    surf.fill(t['floor'])
-    # 4-pattern dot scatter for more visual variety
-    pattern = (tx * 7 + ty * 11) % 4
-    for dy in range(5, TILE_SIZE, 10):
-        for dx in range(5, TILE_SIZE, 10):
-            dot_seed = (tx + ty + dx // 10 + dy // 10)
-            # patterns: sparse, denser, diagonal, cross-offset
-            show = (
-                dot_seed % 3 != 0 if pattern == 0 else
-                dot_seed % 2 != 0 if pattern == 1 else
-                (dx // 10 + dy // 10) % 2 == 0 if pattern == 2 else
-                dot_seed % 3 == 1
-            )
-            if show:
-                surf.set_at((dx, dy), t['floor_dot'])
-    # subtle variation — slightly lighter patches
-    if (tx * 3 + ty * 7) % 5 == 0:
-        shade = tuple(min(255, c + 6) for c in t['floor'])
-        pygame.draw.rect(surf, shade, (1, 1, TILE_SIZE - 2, TILE_SIZE - 2))
-        surf.set_at((TILE_SIZE//2, TILE_SIZE//2), t['floor_dot'])
-    # occasional crack line in random tiles for worn look
-    if (tx * 7 + ty * 13) % 11 == 0:
-        crack_col = t['stone_sh']
-        # diagonal crack from roughly centre
-        mid = TILE_SIZE // 2
-        pygame.draw.line(surf, crack_col,
-                         (mid - 4, mid - 6), (mid + 6, mid + 4), 1)
-        pygame.draw.line(surf, crack_col,
-                         (mid + 6, mid + 4), (mid + 8, mid + 8), 1)
+    surf.fill(t['mortar'])
+
+    M = 2  # mortar border width
+    slab = pygame.Rect(M, M, TILE_SIZE - 2 * M, TILE_SIZE - 2 * M)
+
+    # Per-tile colour variation (deterministic, ±8 brightness)
+    v    = (-8, -4, 0, 4, 8, 4, 0, -4)[(tx * 17 + ty * 11) % 8]
+    base = tuple(max(0, min(255, c + v)) for c in t['floor'])
+    top  = tuple(min(255, c + 20) for c in base)   # lighter top edge — light from above
+    bot  = tuple(max(0,   c - 12) for c in base)   # darker bottom
+
+    # Vertical gradient across the slab face
+    h = slab.height
+    for i in range(h):
+        f = i / max(1, h - 1)
+        c = (int(top[0] + (bot[0] - top[0]) * f),
+             int(top[1] + (bot[1] - top[1]) * f),
+             int(top[2] + (bot[2] - top[2]) * f))
+        pygame.draw.line(surf, c,
+                         (slab.left, slab.top + i),
+                         (slab.right - 1, slab.top + i))
+
+    # Bevel highlights (left + top edges of slab face)
+    hi  = tuple(min(255, c + 26) for c in base)
+    hi2 = tuple(min(255, c + 12) for c in base)
+    pygame.draw.line(surf, hi,  (slab.left, slab.top), (slab.right - 1, slab.top))
+    pygame.draw.line(surf, hi2, (slab.left, slab.top + 1), (slab.right - 1, slab.top + 1))
+    pygame.draw.line(surf, hi,  (slab.left, slab.top), (slab.left, slab.bottom - 1))
+    pygame.draw.line(surf, hi2, (slab.left + 1, slab.top), (slab.left + 1, slab.bottom - 1))
+
+    # Shadow edges (right + bottom)
+    sh = tuple(max(0, c - 6) for c in t['mortar'])
+    pygame.draw.line(surf, sh, (slab.left, slab.bottom - 1), (slab.right - 1, slab.bottom - 1))
+    pygame.draw.line(surf, sh, (slab.right - 1, slab.top),   (slab.right - 1, slab.bottom - 1))
+
+    # Subtle grain line (~40 % of tiles)
+    rv = tx * 13 + ty * 7
+    if rv % 5 < 2:
+        grain = tuple(max(0, c - 18) for c in base)
+        x0 = slab.left + 3 + (rv * 3) % 20
+        y0 = slab.top  + 4 + (rv * 5) % 12
+        x1 = min(slab.right - 3,  x0 + 8  + (rv * 7)  % 14)
+        y1 = min(slab.bottom - 3, y0 + 2  + (rv * 11) % 6)
+        pygame.draw.line(surf, grain, (x0, y0), (x1, y1), 1)
+
+    # Rare crack (~9 % of tiles)
+    if rv % 11 == 0:
+        grain = tuple(max(0, c - 22) for c in base)
+        cx_ = slab.left + 8 + (rv * 3) % max(1, slab.width  - 16)
+        cy_ = slab.top  + 5 + (rv * 7) % max(1, slab.height - 10)
+        pygame.draw.line(surf, grain, (cx_, cy_), (cx_ + 5, cy_ + 3), 1)
+        pygame.draw.line(surf, grain, (cx_ + 5, cy_ + 3), (cx_ + 7, cy_ + 7), 1)
 
 
 def _build_door(surf: pygame.Surface):
