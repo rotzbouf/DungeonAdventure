@@ -111,6 +111,7 @@ def save_game(player, dungeon_level: int, ng_plus: int = 0,
         # ── Inventory ──
         "potions":  [{"heal": p.heal_amount} for p in player.potions],
         "backpack":  [d for d in (item_to_dict(i) for i in player.backpack) if d],
+        "stash":     [d for d in (item_to_dict(i) for i in getattr(player, "stash", [])) if d],
         "equipment": {
             slot: item_to_dict(it)
             for slot, it in player.equipment.items()
@@ -155,6 +156,9 @@ def restore_player(player, data: dict):
 
     player.backpack = [it for it in
                        (item_from_dict(d) for d in data.get("backpack", []))
+                       if it is not None]
+    player.stash    = [it for it in
+                       (item_from_dict(d) for d in data.get("stash", []))
                        if it is not None]
 
     for slot, idata in data.get("equipment", {}).items():

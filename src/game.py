@@ -40,6 +40,7 @@ from src.ui.questlog       import QuestLogScreen
 from src.ui.skillscreen    import SkillScreen
 from src.ui.enchant_screen import EnchantScreen
 from src.ui.craft_screen   import CraftScreen
+from src.ui.house_screen   import HouseScreen
 from src.quests            import QuestLog
 from src import save as savesys
 import src.locale as locale
@@ -94,6 +95,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._enchant_screen = EnchantScreen()
         self.craft_open      = False
         self._craft_screen   = CraftScreen()
+        self.house_open      = False
+        self._house_screen   = HouseScreen()
         self._active_merchant: Merchant | None = None
 
         self._dmg_nums: list = []
@@ -158,7 +161,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 k = event.key
 
                 if k == pygame.K_ESCAPE:
-                    if self.enchant_open: self.enchant_open = False
+                    if self.house_open:   self.house_open   = False
+                    elif self.enchant_open: self.enchant_open = False
                     elif self.craft_open: self.craft_open  = False
                     elif self.inv_open:   self.inv_open   = False
                     elif self.shop_open:  self.shop_open  = False
@@ -195,7 +199,7 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 # ── Town keys ──────────────────────────────────────────────
                 if self.state == STATE_TOWN:
                     any_town_overlay = (self.shop_open or self.enchant_open
-                                        or self.craft_open)
+                                        or self.craft_open or self.house_open)
                     if k == pygame.K_f and not any_town_overlay:
                         self._try_open_town_shop()
                     elif k == pygame.K_f and self.shop_open:
@@ -275,7 +279,9 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                             break
 
             if event.type == pygame.MOUSEBUTTONDOWN and self.state in (STATE_PLAYING, STATE_TOWN):
-                if self.enchant_open:
+                if self.house_open:
+                    self._house_screen.handle_event(event, self.player)
+                elif self.enchant_open:
                     self._enchant_screen.handle_event(event, self.player)
                 elif self.craft_open:
                     self._craft_screen.handle_event(event, self.player)
@@ -289,6 +295,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 elif self.skill_open and event.button == 1:
                     self.skillscreen.handle_click(*event.pos, self.player)
 
+            if event.type == pygame.MOUSEWHEEL and self.house_open:
+                self._house_screen.handle_event(event, self.player)
             if event.type == pygame.MOUSEWHEEL and self.enchant_open:
                 self._enchant_screen.handle_event(event, self.player)
             if event.type == pygame.MOUSEWHEEL and self.craft_open:

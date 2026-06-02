@@ -55,6 +55,7 @@ class Player(Entity):
             SLOT_AMULET: None,
         }
         self.backpack: list = []
+        self.stash:    list = []   # house chest — persistent storage
         self.potions:  list = []
 
         self._attack_timer     = 0.0

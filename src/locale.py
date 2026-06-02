@@ -336,6 +336,8 @@ _T: dict[str, dict[str, str]] = {
     # ── Town ──────────────────────────────────────────────────────────────────
     "town.dungeon_sign":  {"en": "DUNGEON",           "de": "DUNGEON"},
     "town.enter_dungeon": {"en": "E  —  Enter Dungeon","de": "E  —  Dungeon betreten"},
+    "town.your_home":     {"en": "YOUR HOME",          "de": "DEIN ZUHAUSE"},
+    "town.enter_house":   {"en": "F  —  Enter Your Home", "de": "F  —  Dein Haus betreten"},
     "town.shop_hint":     {"en": "F — Shop",           "de": "F — Laden"},
     "town.rested":        {"en": "Rested at the inn — HP and MP fully restored",
                            "de": "Gerastet — LP und Mana vollständig aufgefüllt"},

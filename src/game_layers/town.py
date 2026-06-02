@@ -4,6 +4,7 @@ from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, LIGHT_GRAY,
                            STATE_TOWN, STATE_PLAYING)
 from src.world.town import (PLAYER_SPAWN as TOWN_PLAYER_SPAWN,
                               DUNGEON_ENTRANCE_POS, DUNGEON_INTERACT_R,
+                              HOUSE_POS, HOUSE_INTERACT_R,
                               TOWN_BOUNDS, MERCHANT_SPECS)
 from src.entities.merchant import TownMerchant
 from src import save as savesys
@@ -28,7 +29,8 @@ class TownLayer:
 
         # Close any open overlays
         self.inv_open = self.shop_open = self.char_open = False
-        self.quest_open = self.skill_open = self.enchant_open = self.craft_open = False
+        self.quest_open = self.skill_open = self.enchant_open = False
+        self.craft_open = self.house_open = False
         self._active_merchant = None
 
         if rest:
@@ -59,6 +61,19 @@ class TownLayer:
         self.state = STATE_PLAYING
 
     def _try_open_town_shop(self):
+        # House takes priority — open house screen if player is near
+        if math.hypot(self.player.x - HOUSE_POS[0],
+                      self.player.y - HOUSE_POS[1]) < HOUSE_INTERACT_R:
+            self._house_screen.open(
+                save_fn=lambda: savesys.save_game(
+                    self.player, self.dungeon_level,
+                    quest_log=self.quest_log,
+                    skill_tree=self.player.skill_tree),
+                load_fn=self._load_from_house,
+            )
+            self.house_open = True
+            return
+
         for m in self.town_merchants:
             if m.near_player(self.player):
                 self._active_merchant = m
@@ -72,6 +87,11 @@ class TownLayer:
                     self.shop_open = True
                 return
 
+    def _load_from_house(self):
+        """Close the house screen then reload the last save."""
+        self.house_open = False
+        self._continue_game()
+
     def _update_town(self, dt: float):
         if self.player is None:
             return
@@ -84,6 +104,7 @@ class TownLayer:
         self.charscreen.update(dt)
         self._enchant_screen.update(dt)
         self._craft_screen.update(dt)
+        self._house_screen.update(dt)
         self._town_notice_t = max(0.0, self._town_notice_t - dt)
         # Mana regen handled by player.update above
 
@@ -94,8 +115,13 @@ class TownLayer:
             math.hypot(self.player.x - DUNGEON_ENTRANCE_POS[0],
                        self.player.y - DUNGEON_ENTRANCE_POS[1]) < DUNGEON_INTERACT_R
         )
-        # Background + entrance + stall names
-        self.town_renderer.draw(self.screen, self._time, near_entrance)
+        near_house = (
+            self.player is not None and
+            math.hypot(self.player.x - HOUSE_POS[0],
+                       self.player.y - HOUSE_POS[1]) < HOUSE_INTERACT_R
+        )
+        # Background + entrance + house + stall names
+        self.town_renderer.draw(self.screen, self._time, near_entrance, near_house)
 
         # Merchant sprites and interaction hints
         for m in self.town_merchants:
@@ -120,8 +146,10 @@ class TownLayer:
             # fade by adjusting alpha via a cover surface if needed
             _ = alpha  # alpha already baked into draw_return_notice
 
-        # Overlays (inventory, shop, enchant, craft, char screen, skill tree)
-        if self.enchant_open:
+        # Overlays (house, inventory, shop, enchant, craft, char screen, skill tree)
+        if self.house_open:
+            self._house_screen.draw(self.screen, self.player)
+        elif self.enchant_open:
             self._enchant_screen.draw(self.screen, self.player)
         elif self.craft_open:
             self._craft_screen.draw(self.screen, self.player)

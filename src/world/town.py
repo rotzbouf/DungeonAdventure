@@ -24,6 +24,10 @@ PLAYER_SPAWN = (TOWN_W // 2, TOWN_H // 2 + 55)
 DUNGEON_ENTRANCE_POS = (TOWN_W // 2, 82)
 DUNGEON_INTERACT_R   = TILE_SIZE * 2.8   # px, enter-dungeon prompt radius
 
+# Player-owned house — right-side mid, symmetric with Craftsman
+HOUSE_POS      = (TOWN_W * 3 // 4, TOWN_H // 2)
+HOUSE_INTERACT_R = TILE_SIZE * 2.8
+
 # (display_title, specialty_key, px, py)
 MERCHANT_SPECS: list[tuple[str, str, int, int]] = [
     ("Blacksmith",  "weapons",  TOWN_W * 5 // 32,  TOWN_H * 5 // 16),
@@ -468,6 +472,147 @@ def _draw_tower(surf, cx, cy, radius, n_sides=10):
     pygame.draw.circle(surf, _MORTAR, (cx, cy), radius, 2)
 
 
+def _draw_house(surf, px, py):
+    """Draw the player's cozy timber-frame cottage — door, windows, chimney, fence."""
+    BW, BH = 180, 128
+    bx = px - BW // 2
+    by = py - BH // 2 - 15   # shift up so player stands in front
+
+    # ── Drop shadow ───────────────────────────────────────────────────────────
+    sh = pygame.Surface((BW + 16, BH + 20), pygame.SRCALPHA)
+    sh.fill((0, 0, 0, 90))
+    surf.blit(sh, (bx + 7, by + 7))
+
+    # ── Stone base (lower 32px) ───────────────────────────────────────────────
+    base_r = pygame.Rect(bx, by + BH - 32, BW, 32)
+    _draw_stone_blocks(surf, base_r, 24, 12, seed=9001)
+    pygame.draw.rect(surf, _MORTAR, base_r, 1)
+
+    # ── Warm plaster wall (upper portion) ─────────────────────────────────────
+    _PL_WARM     = (172, 156, 124)
+    _PL_WARM_SHD = (148, 132, 104)
+    wall_r = pygame.Rect(bx, by, BW, BH - 32)
+    pygame.draw.rect(surf, _PL_WARM, wall_r)
+    _grad_rect(surf, wall_r, _PL_WARM_SHD, _PL_WARM)
+
+    # Timber beams — thirds
+    for beam_x in [bx, bx + BW // 3, bx + 2 * BW // 3, bx + BW]:
+        pygame.draw.rect(surf, _WD_DARK, (beam_x - 3, by, 6, BH - 32))
+        pygame.draw.line(surf, _WD_MID,
+                         (beam_x - 2, by), (beam_x - 2, by + BH - 32))
+    for beam_y in [by, by + (BH - 32) // 2, by + BH - 32]:
+        pygame.draw.rect(surf, _WD_DARK, (bx, beam_y - 3, BW, 6))
+        pygame.draw.line(surf, _WD_MID, (bx, beam_y - 2), (bx + BW, beam_y - 2))
+
+    # ── Windows — left and right of door, upper half ─────────────────────────
+    win_w = BW // 5
+    win_h = (BH - 32) // 3
+    win_y = by + 10
+    for wx in [bx + 14, bx + BW - 14 - win_w]:
+        # Warm interior glow
+        glow_s = pygame.Surface((win_w, win_h), pygame.SRCALPHA)
+        glow_s.fill((255, 200, 80, 130))
+        surf.blit(glow_s, (wx, win_y))
+        # Frame + cross panes
+        pygame.draw.rect(surf, _WD_DARK, (wx, win_y, win_w, win_h), 3)
+        pygame.draw.line(surf, _WD_DARK,
+                         (wx + win_w // 2, win_y), (wx + win_w // 2, win_y + win_h), 2)
+        pygame.draw.line(surf, _WD_DARK,
+                         (wx, win_y + win_h // 2), (wx + win_w, win_y + win_h // 2), 2)
+
+    # ── Front door (bottom-centre of plaster wall) ────────────────────────────
+    door_w = 36
+    door_h = 64
+    door_x = px - door_w // 2
+    door_y = by + (BH - 32) - door_h
+    # Door body — warm wood gradient
+    _grad_rect(surf, pygame.Rect(door_x, door_y, door_w, door_h),
+               (60, 36, 12), (44, 26, 8))
+    # Arched top
+    pygame.draw.ellipse(surf, (52, 30, 10), (door_x, door_y - 8, door_w, 20))
+    pygame.draw.ellipse(surf, _WD_DARK,    (door_x, door_y - 8, door_w, 20), 2)
+    # Vertical centre divide
+    pygame.draw.line(surf, _WD_DARK, (px, door_y), (px, door_y + door_h), 1)
+    # Four recessed panels
+    panel_w = door_w // 2 - 6
+    for pdx in [door_x + 4, door_x + door_w // 2 + 2]:
+        for pdy in [door_y + 4, door_y + 34]:
+            pygame.draw.rect(surf, (48, 28, 8), (pdx, pdy, panel_w, 26))
+    # Brass knob
+    pygame.draw.circle(surf, (190, 150, 30),
+                       (door_x + door_w - 6, door_y + door_h // 2), 3)
+    # Iron hinges
+    for hy_ in [door_y + 10, door_y + door_h - 14]:
+        pygame.draw.rect(surf, _IR_MID, (door_x + 2, hy_ - 3, 8, 5))
+    pygame.draw.rect(surf, _WD_DARK, (door_x, door_y, door_w, door_h), 2)
+
+    # ── Door-side torch brackets ──────────────────────────────────────────────
+    for tx_ in [door_x - 14, door_x + door_w + 8]:
+        pygame.draw.rect(surf, _IR_DARK, (tx_ - 2, door_y - 14, 4, 14))
+        pygame.draw.rect(surf, _IR_MID,  (tx_ - 4, door_y - 6, 8, 6))
+        pygame.draw.rect(surf, _WD_DARK, (tx_ - 2, door_y - 4, 4, 8))
+
+    # ── Chimney (drawn BEFORE roof so roof polygon overlaps its base) ─────────
+    ch_w = 20
+    ch_x = bx + int(BW * 0.70) - ch_w // 2
+    ch_top = by - 58
+    ch_h   = 50
+    ch_r   = pygame.Rect(ch_x, ch_top, ch_w, ch_h)
+    _draw_stone_blocks(surf, ch_r, 10, 8, seed=5678)
+    pygame.draw.rect(surf, _MORTAR, ch_r, 1)
+
+    # ── Pitched roof (covers lower chimney) ───────────────────────────────────
+    roof_pts = [
+        (bx - 10,      by),
+        (bx + BW + 10, by),
+        (bx + BW + 14, by - 8),
+        (bx + BW // 2, by - 44),
+        (bx - 14,      by - 8),
+    ]
+    pygame.draw.polygon(surf, _RF_MID, roof_pts)
+    pygame.draw.polygon(surf, _RF_DARK, roof_pts, 3)
+    pygame.draw.line(surf, _RF_LGT, (bx - 14,      by - 8), (bx + BW // 2, by - 44))
+    pygame.draw.line(surf, _RF_LGT, (bx + BW // 2, by - 44), (bx + BW + 14, by - 8))
+    for ry in range(by - 6, by, 4):
+        t_ = (by - ry) / 44.0
+        tile_w = int((BW + 28) * (1.0 - t_ * 0.5))
+        pygame.draw.line(surf, _RF_DARK,
+                         (bx + BW // 2 - tile_w // 2, ry),
+                         (bx + BW // 2 + tile_w // 2, ry))
+
+    # ── Chimney cap on top of roof ────────────────────────────────────────────
+    pygame.draw.rect(surf, _ST_HI, (ch_x - 3, ch_top - 4, ch_w + 6, 6))
+
+    # ── Hanging sign board ────────────────────────────────────────────────────
+    post_x = px
+    post_y = by - 14
+    pygame.draw.line(surf, _WD_DARK, (post_x, post_y), (post_x, post_y - 22), 3)
+    sign_r = pygame.Rect(post_x - 36, post_y - 42, 72, 20)
+    pygame.draw.rect(surf, _WD_MID, sign_r)
+    pygame.draw.rect(surf, _WD_DARK, sign_r, 2)
+    pygame.draw.line(surf, _WD_LGT, (sign_r.left, sign_r.top), (sign_r.right, sign_r.top))
+    pygame.draw.line(surf, _WD_DARK,
+                     (sign_r.left + 6, sign_r.top), (post_x - 8, post_y - 22), 1)
+    pygame.draw.line(surf, _WD_DARK,
+                     (sign_r.right - 6, sign_r.top), (post_x + 8, post_y - 22), 1)
+
+    # ── Picket fence ──────────────────────────────────────────────────────────
+    fence_y = by + BH + 6
+    for fx in range(bx - 14, bx + BW + 18, 18):
+        # Pointed picket
+        pts = [(fx + 1, fence_y - 5), (fx - 2, fence_y), (fx + 4, fence_y)]
+        pygame.draw.polygon(surf, _WD_LGT, pts)
+        pygame.draw.rect(surf, _WD_MID, (fx - 2, fence_y, 5, 18))
+        pygame.draw.line(surf, _WD_LGT, (fx - 1, fence_y), (fx - 1, fence_y + 15))
+    pygame.draw.line(surf, _WD_DARK,
+                     (bx - 14, fence_y + 8), (bx + BW + 14, fence_y + 8), 2)
+    pygame.draw.line(surf, _WD_DARK,
+                     (bx - 14, fence_y + 15), (bx + BW + 14, fence_y + 15), 1)
+
+    # ── Building outline ──────────────────────────────────────────────────────
+    pygame.draw.rect(surf, _WD_DARK, (bx, by, BW, BH), 2)
+
+
 def _draw_outer_walls(surf):
     """Draw irregular stone outer walls: thin bands with large corner towers
     and mid-wall towers that break up every straight run."""
@@ -650,6 +795,9 @@ class TownRenderer:
             pal = _STALL[specialty]
             _draw_building(surf, px, py, pal, seed=hash(title))
 
+        # ── 5b. Player house ──────────────────────────────────────────────────
+        _draw_house(surf, HOUSE_POS[0], HOUSE_POS[1])
+
         # ── 6. Barrels and crates near buildings ─────────────────────────────
         rng = random.Random(77)
         for title, specialty, px, py in MERCHANT_SPECS:
@@ -701,6 +849,15 @@ class TownRenderer:
             by = py - 140 // 2 - 20
             for side_x in [bx - 10, bx + BW + 10]:
                 self._torch_positions.append((side_x, by + 20))
+        # House door torches
+        _h_bw, _h_bh = 180, 128
+        _h_door_w = 36
+        _h_bx = HOUSE_POS[0] - _h_bw // 2
+        _h_by = HOUSE_POS[1] - _h_bh // 2 - 15
+        _h_door_y = _h_by + (_h_bh - 32) - 64
+        _h_door_x = HOUSE_POS[0] - _h_door_w // 2
+        for _tx in [_h_door_x - 14, _h_door_x + _h_door_w + 8]:
+            self._torch_positions.append((_tx, _h_door_y - 4))
         self._torch_phases = [
             torch_rng.uniform(0, math.pi * 2)
             for _ in self._torch_positions
@@ -712,7 +869,7 @@ class TownRenderer:
     # ── Public draw ───────────────────────────────────────────────────────────
 
     def draw(self, surface: pygame.Surface, time: float,
-             near_entrance: bool):
+             near_entrance: bool, near_house: bool = False):
         """Draw background + animated dungeon entrance portal and torches."""
         self._ensure_fonts()
         if self._bg is None:
@@ -747,6 +904,19 @@ class TownRenderer:
             gs = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
             pygame.draw.circle(gs, (*glow, a), (r, r), r)
             surface.blit(gs, (ex - r, ey + 12 - r))
+
+        # ── House label and interaction hint ──────────────────────────────────
+        hpx, hpy = HOUSE_POS
+        _h_bh = 128
+        _h_by = hpy - _h_bh // 2 - 15
+        home_col = (220, 185, 80) if near_house else (160, 130, 55)
+        home_lbl = self._font.render(t("town.your_home"), True, home_col)
+        _blit_shadowed(surface, home_lbl,
+                       home_lbl.get_rect(centerx=hpx, centery=_h_by - 70).topleft)
+        if near_house:
+            hint = self._font_sm.render(t("town.enter_house"), True, (240, 200, 120))
+            _blit_shadowed(surface, hint,
+                           hint.get_rect(centerx=hpx, centery=hpy + 80).topleft)
 
         # ── Stall names with drop shadows ─────────────────────────────────────
         for title, specialty, px, py in MERCHANT_SPECS:

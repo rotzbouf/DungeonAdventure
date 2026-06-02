@@ -85,7 +85,8 @@ class SessionLayer:
         self._dmg_nums      = []
         self._particles     = []
         self.inv_open = self.shop_open = self.char_open = False
-        self.quest_open = self.skill_open = self.enchant_open = self.craft_open = False
+        self.quest_open = self.skill_open = self.enchant_open = False
+        self.craft_open = self.house_open = False
         self._active_merchant = None
 
         # Floor quests
