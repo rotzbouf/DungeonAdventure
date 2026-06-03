@@ -18,18 +18,16 @@ import pygame
 pygame.init()
 
 from src.entities.player import Player
-from src.entities.enemy import (
-    get_enemy_types,
-    Lich, DemonLord, StoneGolem, VampireLord, ElderDragon, IronColossus,
-)
+from src.entities.enemy import get_enemy_types
 from src.items.item import (
     random_item, GoldPile, TreasureChest, _ilvl_and_mult,
     random_equip, QUALITY_RARE, QUALITY_UNIQUE,
 )
 from src.world.dungeon import Dungeon
 from src.world.tile import set_theme
+from src.boss_pool import pick_boss
 from src.settings import (
-    TILE_SIZE, BOSS_FLOOR_INTERVAL,
+    TILE_SIZE,
     ARROW_SPEED, ARROW_MAX_RANGE,
     FIREBALL_MANA_COST, FIREBALL_SPEED, FIREBALL_MAX_RANGE,
     FIREBALL_DAMAGE, FIREBALL_RADIUS, STATUS_BURN,
@@ -88,9 +86,10 @@ class ServerGame:
         self._tick_n = 0
         self._floor_changing = False   # debounce stair trigger
 
-        self.players:     dict[int, Player] = {}
-        self._inputs:     dict[int, dict]   = {}
-        self._spell_state: dict[int, dict]  = {}
+        self.players:          dict[int, Player] = {}
+        self._inputs:          dict[int, dict]   = {}
+        self._spell_state:     dict[int, dict]   = {}
+        self._defeated_bosses: set[str]           = set()
         self.enemies:     list = []
         self.items:       list = []
         self.chests:      list = []
@@ -122,16 +121,21 @@ class ServerGame:
                 e.make_elite()
             self.enemies.append(e)
 
-        if floor > 0 and floor % BOSS_FLOOR_INTERVAL == 0 and self.dungeon.rooms:
-            _BOSSES = [Lich, DemonLord, StoneGolem,
-                       VampireLord, ElderDragon, IronColossus]
-            bidx = (floor // BOSS_FLOOR_INTERVAL - 1) % len(_BOSSES)
-            room = self.dungeon.rooms[-1]
-            bx   = room.center[0] * TILE_SIZE + TILE_SIZE // 2
-            by   = room.center[1] * TILE_SIZE + TILE_SIZE // 2
-            boss = _BOSSES[bidx](float(bx), float(by))
-            boss.scale_to_level(floor)
-            self.enemies.append(boss)
+        # Power-gated boss: use strongest player's CR as the gate
+        if self.dungeon.rooms and self.players:
+            strongest = max(self.players.values(), key=lambda p: p.level)
+            BossClass = pick_boss(
+                strongest, floor,
+                self._defeated_bosses,
+                self.dungeon.rng,
+            )
+            if BossClass:
+                room = self.dungeon.rooms[-1]
+                bx   = room.center[0] * TILE_SIZE + TILE_SIZE // 2
+                by   = room.center[1] * TILE_SIZE + TILE_SIZE // 2
+                boss = BossClass(float(bx), float(by))
+                boss.scale_to_level(floor)
+                self.enemies.append(boss)
 
         self.items  = [random_item(tx, ty, floor, floor=floor)
                        for tx, ty in self.dungeon.item_spawns]
@@ -581,11 +585,25 @@ class ServerGame:
 
     def _kill_enemy(self, enemy, player: Player, pid, events: list):
         leveled = player.gain_xp(enemy.XP_REWARD)
-        new_items = self._drop_loot(enemy, player)
-        self.items.extend(new_items)
+        if getattr(enemy, "is_boss", False):
+            # Boss-specific loot: extra uniques
+            from src.items.item import _ilvl_and_mult, random_equip, QUALITY_UNIQUE, QUALITY_RARE
+            ilvl, dm = _ilvl_and_mult(self.floor)
+            for _ in range(3):
+                it = random_equip(0, 0, ilvl, quality=QUALITY_UNIQUE if _ == 0 else QUALITY_RARE,
+                                  depth_mult=dm)
+                if it:
+                    it._reposition(enemy.x + random.uniform(-24, 24),
+                                   enemy.y + random.uniform(-24, 24))
+                    self.items.append(it)
+            self._defeated_bosses.add(type(enemy).__name__)
+        else:
+            new_items = self._drop_loot(enemy, player)
+            self.items.extend(new_items)
         events.append({"k": "kill", "eid": id(enemy),
                         "xp": enemy.XP_REWARD, "leveled": leveled,
-                        "pid": pid, "x": enemy.x, "y": enemy.y})
+                        "pid": pid, "x": enemy.x, "y": enemy.y,
+                        "boss": getattr(enemy, "is_boss", False)})
 
     def _drop_loot(self, enemy, player: Player) -> list:
         from src.entities.enemy import Skeleton, Orc, Demon

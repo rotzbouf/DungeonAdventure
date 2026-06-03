@@ -1,12 +1,12 @@
 import math
 import random
 import pygame
-from src.settings import TILE_SIZE, BOSS_FLOOR_INTERVAL
+from src.settings import TILE_SIZE
 from src.world.tile import set_theme
 from src.world.dungeon import Dungeon
 from src.entities.player import Player
-from src.entities.enemy import (get_enemy_types, Lich, DemonLord, StoneGolem,
-                                  VampireLord, ElderDragon, IronColossus)
+from src.entities.enemy import get_enemy_types
+from src.boss_pool import pick_boss, boss_cr_hint
 from src.entities.merchant import Merchant
 from src.items.item import random_item, TreasureChest
 from src.quests import QuestLog
@@ -49,19 +49,26 @@ class SessionLayer:
                 enemy.make_elite()
             self.enemies.append(enemy)
 
-        # Boss floor: spawn a named boss every BOSS_FLOOR_INTERVAL floors
-        if level > 0 and level % BOSS_FLOOR_INTERVAL == 0 and self.dungeon.rooms:
-            _BOSS_ROTATION = [Lich, DemonLord, StoneGolem,
-                              VampireLord, ElderDragon, IronColossus]
-            bidx  = (level // BOSS_FLOOR_INTERVAL - 1) % len(_BOSS_ROTATION)
-            BType = _BOSS_ROTATION[bidx]
-            room  = self.dungeon.rooms[-1]
-            bx    = room.center[0] * TILE_SIZE + TILE_SIZE // 2
-            by    = room.center[1] * TILE_SIZE + TILE_SIZE // 2
-            boss  = BType(float(bx), float(by))
-            boss.scale_to_level(level)
-            self.enemies.append(boss)
-            self.hud.notify_quest(t("game.boss_incoming"))
+        # Power-gated boss: check if any boss is eligible given the player's CR
+        if self.player is not None and self.dungeon.rooms:
+            BossClass = pick_boss(
+                self.player, level,
+                self.player.defeated_bosses,
+                self.dungeon.rng,
+            )
+            if BossClass:
+                room = self.dungeon.rooms[-1]
+                bx   = room.center[0] * TILE_SIZE + TILE_SIZE // 2
+                by   = room.center[1] * TILE_SIZE + TILE_SIZE // 2
+                boss = BossClass(float(bx), float(by))
+                boss.scale_to_level(level)
+                self.enemies.append(boss)
+                self.hud.notify_quest(t("game.boss_incoming"))
+            else:
+                # Tease: hint if a boss is just around the corner
+                hint_name = boss_cr_hint(self.player, level)
+                if hint_name:
+                    self.hud.notify_quest(t("game.boss_stirs"))
 
         self.items = [random_item(tx, ty, level, floor=level)
                       for tx, ty in self.dungeon.item_spawns]

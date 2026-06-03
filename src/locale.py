@@ -366,6 +366,8 @@ _T: dict[str, dict[str, str]] = {
                             "de": "Quest: {name}  +{xp} EP"},
     "game.used_potion":    {"en": "Used potion  (Remaining: {n})",
                             "de": "Trank benutzt  (Verbleibend: {n})"},
+    "game.boss_stirs":     {"en": "A great evil stirs in the darkness…",
+                            "de": "Ein großes Böses regt sich in der Dunkelheit…"},
     "game.boss_incoming":  {"en": "⚠  BOSS INCOMING  ⚠",
                             "de": "⚠  BOSS NAHT  ⚠"},
     "game.boss_defeated":  {"en": "{name} defeated!",

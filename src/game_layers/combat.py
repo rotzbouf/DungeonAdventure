@@ -102,6 +102,7 @@ class CombatLayer:
         self._spawn_death_particles(enemy)
         if getattr(enemy, 'is_boss', False):
             self._drop_boss_loot(enemy)
+            self.player.defeated_bosses.add(type(enemy).__name__)
         else:
             self._drop_loot(enemy)
 

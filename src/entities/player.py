@@ -54,9 +54,10 @@ class Player(Entity):
             SLOT_BELT:   None, SLOT_RING:   None, "ring2":     None,
             SLOT_AMULET: None,
         }
-        self.backpack: list = []
-        self.stash:    list = []   # house chest — persistent storage
-        self.potions:  list = []
+        self.backpack:        list      = []
+        self.stash:           list      = []   # house chest — persistent storage
+        self.potions:         list      = []
+        self.defeated_bosses: set[str]  = set()  # boss class names beaten this run
 
         self._attack_timer     = 0.0
         self._invincible_timer = 0.0
