@@ -517,6 +517,43 @@ class Player(Entity):
 
     # ─── Draw ────────────────────────────────────────────────────────────────────
 
+    def _draw_attack_fx(self, surface: pygame.Surface,
+                        cx: int, cy: int, fa: float, perp: float):
+        """Attack-ready ring and arc flash — drawn on top of any sprite."""
+        half   = self.size // 2
+        ring_r = half + 9
+        if self._attack_timer > 0:
+            t   = 1.0 - self._attack_timer / self.attack_cooldown
+            col = (int(200 * t), int(200 * t), 0)
+            pygame.draw.arc(surface, col,
+                            pygame.Rect(cx - ring_r, cy - ring_r, ring_r*2, ring_r*2),
+                            -math.pi/2, -math.pi/2 + math.pi*2*t, 2)
+        else:
+            pygame.draw.circle(surface, (0, 200, 0), (cx, cy), ring_r, 1)
+        if self._attack_anim > 0:
+            r    = self.attack_range
+            fade = self._attack_anim / 0.22
+            arc_surf = pygame.Surface((r*2+10, r*2+10), pygame.SRCALPHA)
+            pts2 = [(r+5, r+5)]
+            for i in range(13):
+                ang = fa - _ATTACK_HALF_ARC + 2 * _ATTACK_HALF_ARC * i / 12
+                pts2.append((r+5 + math.cos(ang)*r, r+5 + math.sin(ang)*r))
+            pygame.draw.polygon(arc_surf, (252, 248, 100, int(50*fade)), pts2)
+            pygame.draw.arc(arc_surf, (252, 252, 200, int(240*fade)),
+                            pygame.Rect(5, 5, r*2, r*2),
+                            fa - _ATTACK_HALF_ARC, fa + _ATTACK_HALF_ARC, 3)
+            surface.blit(arc_surf, (cx - r - 5, cy - r - 5))
+
+    def _facing_direction(self) -> str:
+        """Map attack_angle to the closest cardinal sprite direction."""
+        a = self.attack_angle % (2 * math.pi)
+        if a < 0:
+            a += 2 * math.pi
+        if a < math.pi / 4 or a >= 7 * math.pi / 4:   return "east"
+        if a < 3 * math.pi / 4:                         return "south"
+        if a < 5 * math.pi / 4:                         return "west"
+        return "north"
+
     def draw(self, surface: pygame.Surface, camera):
         if self._invincible_timer > 0 and int(self._invincible_timer * 14) % 2:
             return
@@ -525,6 +562,24 @@ class Player(Entity):
         cx, cy = dr.centerx, dr.centery
         fa     = self.attack_angle
         perp   = fa + math.pi / 2
+
+        # ── PNG sprite override ───────────────────────────────────────────────
+        try:
+            from src.assets import assets
+            spr = assets.player(self._facing_direction(),
+                                 size=(self.size + 8, self.size + 8))
+            if spr is not None:
+                tint = self.status_tint()
+                if tint:
+                    tinted = spr.copy()
+                    tinted.fill((*tint, 80), special_flags=pygame.BLEND_RGBA_ADD)
+                    spr = tinted
+                surface.blit(spr, spr.get_rect(center=(cx, cy)))
+                # Still draw the attack arc + ring on top of the sprite
+                self._draw_attack_fx(surface, cx, cy, fa, perp)
+                return
+        except Exception:
+            pass
 
         vis = self._equip_visuals()
 
@@ -681,28 +736,5 @@ class Player(Entity):
                          (int(gx + math.cos(perp) * 5), int(gy + math.sin(perp) * 5)),
                          (int(gx - math.cos(perp) * 5), int(gy - math.sin(perp) * 5)), 2)
 
-        # ── Attack-ready ring ────────────────────────────────────────────────
-        ring_r = half + 9
-        if self._attack_timer > 0:
-            t = 1.0 - self._attack_timer / self.attack_cooldown
-            col = (int(200 * t), int(200 * t), 0)
-            pygame.draw.arc(surface, col,
-                            pygame.Rect(cx - ring_r, cy - ring_r, ring_r*2, ring_r*2),
-                            -math.pi/2, -math.pi/2 + math.pi*2*t, 2)
-        else:
-            pygame.draw.circle(surface, (0, 200, 0), (cx, cy), ring_r, 1)
-
-        # ── Attack arc flash ─────────────────────────────────────────────────
-        if self._attack_anim > 0:
-            r    = self.attack_range
-            fade = self._attack_anim / 0.22
-            arc_surf = pygame.Surface((r*2+10, r*2+10), pygame.SRCALPHA)
-            pts2 = [(r+5, r+5)]
-            for i in range(13):
-                ang = fa - _ATTACK_HALF_ARC + 2 * _ATTACK_HALF_ARC * i / 12
-                pts2.append((r+5 + math.cos(ang)*r, r+5 + math.sin(ang)*r))
-            pygame.draw.polygon(arc_surf, (252, 248, 100, int(50*fade)), pts2)
-            pygame.draw.arc(arc_surf, (252, 252, 200, int(240*fade)),
-                            pygame.Rect(5, 5, r*2, r*2),
-                            fa - _ATTACK_HALF_ARC, fa + _ATTACK_HALF_ARC, 3)
-            surface.blit(arc_surf, (cx - r - 5, cy - r - 5))
+        # ── Attack-ready ring + arc flash ─────────────────────────────────────
+        self._draw_attack_fx(surface, cx, cy, fa, perp)

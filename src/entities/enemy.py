@@ -242,10 +242,39 @@ class Enemy(Entity):
         pygame.draw.circle(surface, YELLOW, (cx - 3, cy - 2), 2)
         pygame.draw.circle(surface, YELLOW, (cx + 3, cy - 2), 2)
 
+    def _try_sprite_asset(self, surface: pygame.Surface,
+                          camera, kind: str) -> bool:
+        """Try PNG asset first. Returns True if drawn (caller should return)."""
+        try:
+            from src.assets import assets
+            dr  = camera.apply(self.rect)
+            if not self._is_on_screen(dr):
+                return True
+            spr = assets.enemy(kind, size=(self.size + 4, self.size + 4))
+            if spr is None:
+                return False
+            if getattr(self, 'is_elite', False):
+                self._draw_elite_aura(surface, dr)
+            if getattr(self, 'is_boss', False):
+                self._draw_boss_aura(surface, dr)
+            self._draw_shadow(surface, dr)
+            self._draw_hp_bar(surface, dr)
+            tint = self.status_tint()
+            if tint or self._hurt_timer > 0:
+                tinted = spr.copy()
+                tc = tint if tint else (255, 80, 80)
+                tinted.fill((*tc, 90), special_flags=pygame.BLEND_RGBA_ADD)
+                spr = tinted
+            surface.blit(spr, spr.get_rect(center=(dr.centerx, dr.centery)))
+            return True
+        except Exception:
+            return False
+
 
 # ─── Goblin / Octorok-style ── fast, squat, red eyes ─────────────────────────
 
 class Goblin(Enemy):
+    ASSET_KEY = "goblin"
     COLOR = (220,  92,  16)
     MAX_HP      = 25;        ATTACK = 7;    DEFENSE = 0
     SPEED       = 144.0;     DETECT = 275.0; ATK_RANGE = 32.0; ATK_CD = 0.9
@@ -259,6 +288,7 @@ class Goblin(Enemy):
             self._draw_elite_aura(surface, dr)
         self._draw_shadow(surface, dr)
         self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
         cx, cy = dr.centerx, dr.centery
         _BLK  = (0,   0,   0)
         _BODY = self._hurt_color((220, 92, 16))
@@ -322,6 +352,7 @@ class Goblin(Enemy):
 # ─── Skeleton / Stalfos-style ── bone white, hollow eye sockets, SLOWS on hit ─
 
 class Skeleton(Enemy):
+    ASSET_KEY = "skeleton"
     COLOR = (204, 196, 176)   # bone white
     MAX_HP      = 38;         ATTACK = 11;   DEFENSE = 2
     SPEED       = 94.0;       DETECT = 312.0; ATK_RANGE = 35.0; ATK_CD = 1.1
@@ -338,6 +369,7 @@ class Skeleton(Enemy):
             self._draw_elite_aura(surface, dr)
         self._draw_shadow(surface, dr)
         self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
         cx, cy = dr.centerx, dr.centery
         _BLK   = (0,   0,  0)
         _BONE  = self._hurt_color((204, 196, 176))
@@ -388,6 +420,7 @@ class Skeleton(Enemy):
 # ─── Orc / Darknut-style ── armoured knight, blue plate mail ─────────────────
 
 class Orc(Enemy):
+    ASSET_KEY = "orc"
     COLOR = (0,  52, 216)   # blue armour
     MAX_HP      = 70;     ATTACK = 20;   DEFENSE = 4
     SPEED       = 75.0;   DETECT = 225.0; ATK_RANGE = 40.0; ATK_CD = 1.5
@@ -408,6 +441,7 @@ class Orc(Enemy):
         self._draw_shadow(surface, dr)
         self._draw_hp_bar(surface, dr)
         cx, cy = dr.centerx, dr.centery
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
         _BLK   = (0,    0,   0)
         _ARMOR = self._hurt_color((0,  52, 216))
         _HI    = (80,  140, 252)
@@ -462,6 +496,7 @@ class Orc(Enemy):
 # ─── Demon / Wizzrobe-style ── hooded sorcerer, glowing eyes ─────────────────
 
 class Demon(Enemy):
+    ASSET_KEY = "demon"
     COLOR = (148,  0, 216)   # purple
     MAX_HP      = 130;     ATTACK = 27;   DEFENSE = 6
     SPEED       = 115.0;   DETECT = 375.0; ATK_RANGE = 44.0; ATK_CD = 0.95
@@ -475,6 +510,7 @@ class Demon(Enemy):
             self._draw_elite_aura(surface, dr)
         self._draw_shadow(surface, dr)
         self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
         cx, cy = dr.centerx, dr.centery
         _BLK   = (0,    0,    0)
         _ROBE  = self._hurt_color((148,  0, 216))

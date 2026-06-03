@@ -57,6 +57,7 @@ _THEMES: dict[str, dict] = {
 }
 
 _current_theme: dict = _THEMES["dungeon"]
+_current_theme_str: str = "dungeon"
 
 # Stairs/door colours remain fixed across themes
 _VOID      = (0,   0,   0)
@@ -74,9 +75,10 @@ _THEME_CYCLE = ["dungeon", "crypt", "forge", "inferno", "abyss"]
 
 def set_theme(floor: int, ng_plus: int = 0):
     """Select a tile palette based on floor depth (cycles every 5 floors)."""
-    global _current_theme
+    global _current_theme, _current_theme_str
     idx = (floor - 1) // 5 % len(_THEME_CYCLE)
-    _current_theme = _THEMES[_THEME_CYCLE[idx]]
+    _current_theme_str = _THEME_CYCLE[idx]
+    _current_theme = _THEMES[_current_theme_str]
     _cache.clear()
 
 
@@ -211,9 +213,22 @@ def _build_stairs(surf: pygame.Surface, going_down: bool):
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 def get_tile_surface(tile_type: int, tx: int, ty: int) -> pygame.Surface:
-    key = (tile_type, (tx * 11 + ty * 7) % 16)
+    variant = (tx * 11 + ty * 7) % 4
+    key = (tile_type, variant)
     if key in _cache:
         return _cache[key]
+
+    # Try PNG asset first (floor and wall only)
+    if tile_type in (TILE_FLOOR, TILE_WALL):
+        try:
+            from src.assets import assets
+            kind = "floor" if tile_type == TILE_FLOOR else "wall"
+            tex  = assets.tile(kind, _current_theme_str, variant)
+            if tex is not None:
+                _cache[key] = tex
+                return tex
+        except Exception:
+            pass   # fall through to procedural
 
     surf = pygame.Surface((TILE_SIZE, TILE_SIZE))
 
@@ -232,3 +247,5 @@ def get_tile_surface(tile_type: int, tx: int, ty: int) -> pygame.Surface:
 
     _cache[key] = surf
     return surf
+
+
