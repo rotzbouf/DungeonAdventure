@@ -631,6 +631,7 @@ class BossEnemy(Enemy):
 
 class Lich(BossEnemy):
     """The Lich — undead sorcerer, slow but hits hard, floaty movement."""
+    ASSET_KEY      = "lich"
     BOSS_NAME      = "The Lich"
     COLOR          = (80, 0, 140)
     MAX_HP         = 450;   ATTACK = 32;   DEFENSE = 6
@@ -645,6 +646,7 @@ class Lich(BossEnemy):
         self._draw_boss_aura(surface, dr)
         self._draw_shadow(surface, dr)
         self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
         cx, cy = dr.centerx, dr.centery
 
         _BLK  = (0, 0, 0)
@@ -692,6 +694,7 @@ class Lich(BossEnemy):
 
 class DemonLord(BossEnemy):
     """The Demon Lord — charging brute with massive horns."""
+    ASSET_KEY      = "demonlord"
     BOSS_NAME      = "Demon Lord"
     COLOR          = (160, 10, 20)
     MAX_HP         = 650;   ATTACK = 42;   DEFENSE = 8
@@ -706,6 +709,7 @@ class DemonLord(BossEnemy):
         self._draw_boss_aura(surface, dr)
         self._draw_shadow(surface, dr)
         self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
         cx, cy = dr.centerx, dr.centery
 
         _BLK  = (0, 0, 0)
@@ -760,6 +764,7 @@ class DemonLord(BossEnemy):
 
 class StoneGolem(BossEnemy):
     """The Stone Golem — massive tank with crystal eyes."""
+    ASSET_KEY      = "stonegolem"
     BOSS_NAME      = "Stone Golem"
     COLOR          = (100, 95, 88)
     MAX_HP         = 950;   ATTACK = 58;   DEFENSE = 20
@@ -774,6 +779,7 @@ class StoneGolem(BossEnemy):
         self._draw_boss_aura(surface, dr)
         self._draw_shadow(surface, dr)
         self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
         cx, cy = dr.centerx, dr.centery
 
         _BLK   = (0, 0, 0)
@@ -818,6 +824,7 @@ class StoneGolem(BossEnemy):
 
 class VampireLord(BossEnemy):
     """The Vampire Lord — lightning-fast predator with life steal."""
+    ASSET_KEY      = "vampirelord"
     BOSS_NAME      = "Vampire Lord"
     COLOR          = (100, 0, 60)
     MAX_HP         = 900;   ATTACK = 55;   DEFENSE = 12
@@ -839,6 +846,7 @@ class VampireLord(BossEnemy):
         self._draw_boss_aura(surface, dr)
         self._draw_shadow(surface, dr)
         self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
         cx, cy = dr.centerx, dr.centery
 
         _BLK  = (0, 0, 0)
@@ -896,6 +904,7 @@ class VampireLord(BossEnemy):
 
 class ElderDragon(BossEnemy):
     """The Elder Dragon — ancient wyrm, most dangerous beast in the deep."""
+    ASSET_KEY      = "elderdragon"
     BOSS_NAME      = "Elder Dragon"
     COLOR          = (30, 100, 20)
     MAX_HP         = 1400;  ATTACK = 80;   DEFENSE = 22
@@ -910,6 +919,7 @@ class ElderDragon(BossEnemy):
         self._draw_boss_aura(surface, dr)
         self._draw_shadow(surface, dr)
         self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
         cx, cy = dr.centerx, dr.centery
 
         _BLK   = (0, 0, 0)
@@ -985,6 +995,7 @@ class ElderDragon(BossEnemy):
 
 class IronColossus(BossEnemy):
     """The Iron Colossus — mechanical titan forged in the deepest abyss."""
+    ASSET_KEY      = "ironcolossus"
     BOSS_NAME      = "Iron Colossus"
     COLOR          = (80, 80, 90)
     MAX_HP         = 1800;  ATTACK = 95;   DEFENSE = 35
@@ -999,6 +1010,7 @@ class IronColossus(BossEnemy):
         self._draw_boss_aura(surface, dr)
         self._draw_shadow(surface, dr)
         self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
         cx, cy = dr.centerx, dr.centery
 
         _BLK   = (0, 0, 0)

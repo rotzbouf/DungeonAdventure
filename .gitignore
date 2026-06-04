@@ -42,6 +42,10 @@ env/
 .env/
 ENV/
 
+# ── External asset packs (large, not committed — run tools/install_crawl_assets.py) ──
+"assets/Dungeon Crawl Stone Soup Full/"
+"assets/crawl-tiles Oct-5-2010/"
+
 # ── Testing & coverage ────────────────────────────────────────────────────────
 tests/
 .pytest_cache/

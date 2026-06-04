@@ -70,6 +70,14 @@ class AssetManager:
         path = _ASSETS / "town" / f"facade_{specialty}.png"
         return self._load(path, size)
 
+    # ── Item sprites ──────────────────────────────────────────────────────────
+
+    def item(self, kind: str,
+             size: tuple | None = None) -> pygame.Surface | None:
+        """kind: 'gold_pile' | 'health_potion' | 'weapon_sword' | 'ring' etc."""
+        path = _ASSETS / "items" / f"{kind}.png"
+        return self._load(path, size)
+
     def clear_cache(self):
         self._cache.clear()
 
