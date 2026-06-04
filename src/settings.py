@@ -25,12 +25,12 @@ VOID_COLOR      = (0,   0,   0)    # pure black — used by tile.py for void til
 # Player
 PLAYER_COLOR           = (110, 160, 255)
 PLAYER_SPEED           = 225
-PLAYER_SIZE            = 28
+PLAYER_SIZE            = 40        # was 28 — ~40% bigger for 1080p visibility
 PLAYER_MAX_HP          = 100
 PLAYER_MAX_MANA        = 50
 PLAYER_BASE_ATTACK     = 10
 PLAYER_BASE_DEFENSE    = 2
-PLAYER_ATTACK_RANGE    = 72
+PLAYER_ATTACK_RANGE    = 96        # was 72 — scaled with player size
 PLAYER_ATTACK_COOLDOWN = 0.45
 
 XP_BASE = 80
@@ -44,10 +44,10 @@ BASE_ENE = 5      # each point above floor: +5 max mana
 STAT_POINTS_PER_LEVEL = 5
 
 # Enemies
-ENEMY_SIZE = 25
+ENEMY_SIZE = 34        # was 25 — ~36% bigger
 
 # Items
-ITEM_SIZE = 22
+ITEM_SIZE = 28         # was 22
 
 # Dungeon
 DUNGEON_WIDTH      = 100

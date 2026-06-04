@@ -566,7 +566,7 @@ class Player(Entity):
         try:
             from src.assets import assets
             spr = assets.player(self._facing_direction(),
-                                 size=(self.size + 8, self.size + 8))
+                                 size=(self.size + 6, self.size + 6))
             if spr is not None:
                 tint = self.status_tint()
                 if tint:

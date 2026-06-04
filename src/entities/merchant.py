@@ -61,7 +61,7 @@ class Merchant:
     def __init__(self, px: float, py: float, dungeon_level: int,
                  elite: bool = True):
         self.x, self.y   = px, py
-        self.size        = 28
+        self.size        = 38        # was 28
         self.rect        = pygame.Rect(0, 0, self.size, self.size)
         self.rect.center = (int(px), int(py))
         self._bob        = random.uniform(0, math.pi * 2)
@@ -217,7 +217,7 @@ class TownMerchant(Merchant):
                  title: str, specialty: str, player_level: int = 1):
         # Bypass Merchant.__init__ so we can set everything ourselves
         self.x, self.y   = px, py
-        self.size        = 32   # slightly larger than dungeon merchants
+        self.size        = 44        # was 32 — town merchants are prominent
         self.rect        = pygame.Rect(0, 0, self.size, self.size)
         self.rect.center = (int(px), int(py))
         self._bob        = random.uniform(0, math.pi * 2)

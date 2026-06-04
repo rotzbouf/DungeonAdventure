@@ -64,7 +64,7 @@ class GhostEnemy:
         self.alive   = True
         self.is_boss  = is_boss
         self.is_elite = is_elite
-        self.size    = 36 if is_boss else 28
+        self.size    = 52 if is_boss else 38
         self.rect    = pygame.Rect(0, 0, self.size, self.size)
         self._status: dict = {}
         self._sync_rect()
@@ -138,7 +138,7 @@ class GhostItem:
         self.kind     = kind
         self.x        = x
         self.y        = y
-        self.size     = 14
+        self.size     = 20
         self.rect     = pygame.Rect(0, 0, self.size, self.size)
         self.rect.center = (round(x), round(y))
         self.collected = False
@@ -173,7 +173,7 @@ class RemotePlayer:
         self.hp       = 100.0
         self.max_hp   = 100.0
         self.alive    = True
-        self.size     = 24
+        self.size     = 34
         self.level    = 1
         self.rect     = pygame.Rect(0, 0, self.size, self.size)
         self._font    = pygame.font.SysFont("monospace", 28)
