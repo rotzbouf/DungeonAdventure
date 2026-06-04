@@ -58,13 +58,17 @@ class RendererLayer:
         self._draw_traps()
 
         for item in self.items:
-            item.draw(self.screen, self.camera)
+            if self._is_visible(item.x, item.y):
+                item.draw(self.screen, self.camera)
         for chest in self.chests:
-            chest.draw(self.screen, self.camera)
+            if self._is_visible(chest.rect.centerx, chest.rect.centery):
+                chest.draw(self.screen, self.camera)
         for enemy in self.enemies:
-            enemy.draw(self.screen, self.camera)
+            if self._is_visible(enemy.x, enemy.y):
+                enemy.draw(self.screen, self.camera)
         for merchant in self.merchants:
-            merchant.draw(self.screen, self.camera)
+            if self._is_visible(merchant.x, merchant.y):
+                merchant.draw(self.screen, self.camera)
             if merchant.near_player(self.player):
                 mx_s = int(merchant.x - self.camera.x)
                 my_s = int(merchant.y - self.camera.y)
@@ -155,6 +159,23 @@ class RendererLayer:
         boss_name = getattr(boss, 'BOSS_NAME', type(boss).__name__)
         lbl = self._font_boss.render(f"⚔ {boss_name.upper()} ⚔", True, (220, 175, 0))
         self.screen.blit(lbl, (SCREEN_WIDTH // 2 - lbl.get_width() // 2, bar_y + bar_h + 5))
+
+    def _is_visible(self, wx: float, wy: float) -> bool:
+        """
+        Return True if world-pixel position (wx, wy) should be drawn:
+        it must be within the player torch radius AND have an unobstructed
+        line of sight to the player (no walls in between).
+        """
+        if self.player is None or self.dungeon is None:
+            return True   # fallback: always draw when no state available
+        dx = wx - self.player.x
+        dy = wy - self.player.y
+        vis_r = getattr(self, '_torch_vis_r', 360)
+        # Quick squared-distance cull (avoids sqrt for most entities)
+        if dx * dx + dy * dy > (vis_r + 20) ** 2:
+            return False
+        # Line-of-sight ray-march through dungeon grid
+        return self.dungeon.has_los(self.player.x, self.player.y, wx, wy)
 
     # Per-theme ambient darkness colour (slightly tinted, not pure black)
     _THEME_AMBIENT = {

@@ -143,8 +143,11 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         # Lightning arc segments for Chain Lightning visual
         self._lightning_arcs: list = []
 
-        self._torch_masks  = [(r, self._bake_light(r))
-                              for r in (475, 490, 503, 513, 522)]
+        # Torch radii reduced (~340 px ≈ 8.5 tiles) for tighter fog of war.
+        # _torch_vis_r is the maximum radius used for the LoS distance cull.
+        _torch_r = (325, 336, 346, 336, 326)
+        self._torch_masks  = [(r, self._bake_light(r)) for r in _torch_r]
+        self._torch_vis_r  = max(_torch_r)
         self._sconce_masks = [(r, self._bake_light(r))
                               for r in (108, 114, 120, 114)]
         self._stair_masks  = [(r, self._bake_light(r))

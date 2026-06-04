@@ -313,6 +313,31 @@ class Dungeon:
             return self.grid[ty][tx] in WALKABLE
         return False
 
+    def has_los(self, x1: float, y1: float,
+                x2: float, y2: float) -> bool:
+        """
+        Return True if the straight line from pixel (x1,y1) to (x2,y2)
+        passes through no wall or void tile.
+        Uses a ray-march at half-tile resolution — cheap enough to call
+        for every on-screen entity each frame.
+        """
+        dx = x2 - x1
+        dy = y2 - y1
+        dist = math.hypot(dx, dy)
+        if dist < 1:
+            return True
+        # One sample per half-tile; cap to avoid per-frame spikes
+        steps = min(48, max(3, int(dist / (TILE_SIZE * 0.5))))
+        for i in range(1, steps):
+            t   = i / steps
+            tx_ = int((x1 + dx * t) / TILE_SIZE)
+            ty_ = int((y1 + dy * t) / TILE_SIZE)
+            if not (0 <= tx_ < self.width and 0 <= ty_ < self.height):
+                return False   # out of dungeon bounds = blocked
+            if self.grid[ty_][tx_] not in WALKABLE:
+                return False   # wall or void blocks sight
+        return True
+
     # ─── Rendering ───────────────────────────────────────────────────────────────
 
     def _bake(self):
