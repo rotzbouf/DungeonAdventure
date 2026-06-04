@@ -33,15 +33,18 @@ PLAYER_BASE_DEFENSE    = 2
 PLAYER_ATTACK_RANGE    = 96        # was 72 — scaled with player size
 PLAYER_ATTACK_COOLDOWN = 0.45
 
-XP_BASE = 80
-MAX_PLAYER_LEVEL = 20
+XP_BASE = 120              # was 80 — slightly slower early leveling
+MAX_PLAYER_LEVEL = 40      # was 20 — more runway for gradual growth
 
 # D2-style core stats (starting floor values — investment above floor gives bonuses)
-BASE_STR = 10     # each point above floor: +2 attack
-BASE_DEX = 5      # each point above floor: +1 defense, +0.5% crit
-BASE_VIT = 10     # each point above floor: +10 max HP
-BASE_ENE = 5      # each point above floor: +5 max mana
-STAT_POINTS_PER_LEVEL = 5
+# Gains halved vs. original to flatten the power spike at low levels.
+BASE_STR = 10     # each point above floor: +1 attack    (was +2)
+BASE_DEX = 5      # each point above floor: +0.5 def, +0.35% crit  (was +1/+0.5%)
+BASE_VIT = 10     # each point above floor: +8 max HP    (was +10)
+BASE_ENE = 5      # each point above floor: +4 max mana  (was +5)
+STAT_POINTS_PER_LEVEL = 4  # was 5 — 160 total at cap vs 100 before
+
+PERK_MILESTONE = 5         # offer a perk pick every N levels
 
 # Enemies
 ENEMY_SIZE = 34        # was 25 — ~36% bigger

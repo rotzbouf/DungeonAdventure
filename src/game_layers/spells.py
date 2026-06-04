@@ -16,9 +16,25 @@ from src.settings import (
 class SpellLayer:
     """All player spells: fireball, ice nova, chain lightning, blink, battle cry."""
 
+    def _spell_mana_mult(self) -> float:
+        """Mana cost multiplier from perks (< 1.0 = cheaper)."""
+        m = 1.0
+        if self.player.has_perk("spell_surge"):    m *= 0.80
+        if self.player.has_perk("arcane_reserve"): m *= 0.90
+        return m
+
+    def _spell_dmg_mult(self) -> float:
+        """Damage multiplier from perks (> 1.0 = stronger)."""
+        m = 1.0
+        if self.player.has_perk("arcane_mastery"): m *= 1.30
+        if self.player.has_perk("arcane_overflow") and \
+                self.player.mana >= self.player.max_mana_total:
+            m *= 1.50
+        return m
+
     def _cast_fireball(self):
         discount = self.player.skill_tree.fireball_mana_discount()
-        cost     = max(5, FIREBALL_MANA_COST - discount)
+        cost     = max(5, int((FIREBALL_MANA_COST - discount) * self._spell_mana_mult()))
         if self.player.mana < cost:
             return
         self.player.mana -= cost
@@ -51,9 +67,10 @@ class SpellLayer:
     def _cast_ice_nova(self):
         if not self.player.skill_tree.has_ice_nova():
             return
-        if self.player.mana < ICE_NOVA_MANA_COST or self._ice_nova_cd > 0:
+        ice_cost = max(5, int(ICE_NOVA_MANA_COST * self._spell_mana_mult()))
+        if self.player.mana < ice_cost or self._ice_nova_cd > 0:
             return
-        self.player.mana -= ICE_NOVA_MANA_COST
+        self.player.mana -= ice_cost
         self._ice_nova_cd = ICE_NOVA_COOLDOWN
 
         px, py = self.player.x, self.player.y
@@ -63,7 +80,7 @@ class SpellLayer:
                 continue
             d = math.hypot(enemy.x - px, enemy.y - py)
             if d < ICE_NOVA_RADIUS:
-                raw = ICE_NOVA_DAMAGE + random.randint(-3, 5)
+                raw = int((ICE_NOVA_DAMAGE + random.randint(-3, 5)) * self._spell_dmg_mult())
                 dmg = enemy.take_damage(raw)
                 enemy.apply_status(STATUS_FREEZE, ICE_NOVA_SLOW_DUR)
                 self._dmg_nums.append({
@@ -86,9 +103,10 @@ class SpellLayer:
     def _cast_chain_lightning(self):
         if not self.player.skill_tree.has_chain_lightning():
             return
-        if self.player.mana < CHAIN_LIGHTNING_MANA_COST or self._chain_cd > 0:
+        chain_cost = max(5, int(CHAIN_LIGHTNING_MANA_COST * self._spell_mana_mult()))
+        if self.player.mana < chain_cost or self._chain_cd > 0:
             return
-        self.player.mana -= CHAIN_LIGHTNING_MANA_COST
+        self.player.mana -= chain_cost
         self._chain_cd = CHAIN_LIGHTNING_COOLDOWN
 
         alive = [e for e in self.enemies if e.alive]
@@ -96,7 +114,7 @@ class SpellLayer:
             return
 
         cur_x, cur_y = self.player.x, self.player.y
-        dmg_base     = float(CHAIN_LIGHTNING_DAMAGE)
+        dmg_base = float(CHAIN_LIGHTNING_DAMAGE) * self._spell_dmg_mult()
         hit_set      = set()
         self._lightning_arcs.clear()
 

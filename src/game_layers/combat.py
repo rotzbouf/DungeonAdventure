@@ -64,9 +64,14 @@ class CombatLayer:
 
         for enemy in hit_list:
             raw = int((self.player.attack + random.randint(-2, 4)) * dmg_mult)
+            # Perk: Execute — bonus damage to enemies below 25% HP
+            if self.player.has_perk("execute") and enemy.hp < enemy.max_hp * 0.25:
+                raw = int(raw * 1.60)
             is_crit = random.uniform(0, 100) < self.player.crit_chance
             if is_crit:
-                raw = int(raw * 2)
+                # Perk: Precision — crits deal 3× (base is 2×)
+                crit_mult = 3.0 if self.player.has_perk("precision") else 2.0
+                raw = int(raw * crit_mult)
             dmg = enemy.take_damage(raw)
 
             self._dmg_nums.append({
@@ -105,6 +110,12 @@ class CombatLayer:
             self.player.defeated_bosses.add(type(enemy).__name__)
         else:
             self._drop_loot(enemy)
+        # Perk: Bloodlust — restore HP on kill
+        if self.player.has_perk("bloodlust"):
+            self.player.heal(8)
+        # Perk: Momentum — brief speed boost after kill
+        if self.player.has_perk("momentum"):
+            self.player.apply_status("haste", 3.0, 25.0)   # 3s, 25% speed bonus
 
         # Quest notifications
         done = self.quest_log.notify("kill", type(enemy).__name__)

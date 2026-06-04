@@ -41,6 +41,7 @@ from src.ui.enchant_screen  import EnchantScreen
 from src.ui.craft_screen    import CraftScreen
 from src.ui.house_screen    import HouseScreen
 from src.ui.settings_screen import SettingsScreen
+from src.ui.perk_screen     import PerkScreen
 from src.settings_manager   import game_settings
 from src.quests            import QuestLog
 from src import save as savesys
@@ -98,6 +99,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._house_screen      = HouseScreen()
         self.settings_open      = False
         self._settings_screen   = SettingsScreen()
+        self.perk_open          = False
+        self._perk_screen       = PerkScreen()
         self._active_merchant: Merchant | None = None
 
         # ── Multiplayer ───────────────────────────────────────────────────────
@@ -160,6 +163,19 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         if net_client:
             self._start_net_game()
 
+    # ─── Perk system ─────────────────────────────────────────────────────────────
+
+    def _open_next_perk_pick(self):
+        """Build perk choices and show the pick screen."""
+        import random
+        from src.perks import roll_perk_choices
+        level   = self.player.level
+        choices = roll_perk_choices(level, self.player.perks,
+                                    rng=random.Random(level + len(self.player.perks)))
+        if choices:
+            self._perk_screen.open(choices, level)
+            self.perk_open = True
+
     # ─── Display settings ────────────────────────────────────────────────────────
 
     def _apply_display_settings(self):
@@ -203,6 +219,18 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
 
             if event.type == pygame.KEYDOWN:
                 k = event.key
+
+                # Perk screen blocks ALL other input until player picks
+                if self.perk_open:
+                    chosen_id = self._perk_screen.handle_event(event)
+                    if chosen_id:
+                        self.player.perks.append(chosen_id)
+                        self.player._perk_picks_pending -= 1
+                        if self.player._perk_picks_pending <= 0:
+                            self.perk_open = False
+                        else:
+                            self._open_next_perk_pick()
+                    continue   # block all other key handling while open
 
                 if k == pygame.K_ESCAPE:
                     if self.settings_open and self._settings_screen.is_listening:
@@ -330,6 +358,16 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                             self._try_open_shop()
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if self.perk_open:
+                    chosen_id = self._perk_screen.handle_event(event)
+                    if chosen_id:
+                        self.player.perks.append(chosen_id)
+                        self.player._perk_picks_pending -= 1
+                        if self.player._perk_picks_pending <= 0:
+                            self.perk_open = False
+                        else:
+                            self._open_next_perk_pick()
+                    continue
                 if self.settings_open:
                     self._settings_screen.handle_event(event)
                     continue
@@ -358,6 +396,9 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     self.charscreen.handle_click(*event.pos, self.player)
                 elif self.skill_open and event.button == 1:
                     self.skillscreen.handle_click(*event.pos, self.player)
+
+            if event.type == pygame.MOUSEMOTION and self.perk_open:
+                self._perk_screen.handle_event(event)
 
             if event.type == pygame.MOUSEWHEEL and self.settings_open:
                 self._settings_screen.handle_event(event)
@@ -608,6 +649,11 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
             if self.settings_open:
                 self._settings_screen.update(dt)
             return
+
+        # Open perk screen if a milestone level-up just happened
+        if (not self.perk_open and self.player is not None
+                and self.player._perk_picks_pending > 0):
+            self._open_next_perk_pick()
         if self.state == STATE_TOWN:
             # In multiplayer: keep sending in_town signal so server skips us
             if self.net_client and self.net_client.connected:
@@ -615,6 +661,11 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
             self._update_town(dt)
             return
         if self.state != STATE_PLAYING:
+            return
+
+        # Perk screen pauses all simulation while a choice is pending
+        if self.perk_open:
+            self._perk_screen.update(dt)
             return
 
         # Network client mode — skip all local simulation
@@ -736,6 +787,9 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
             self._draw_town()
         elif self.state == STATE_PLAYING:
             self._draw_world()
+            # Perk pick screen (drawn on top of the world, blocks all input)
+            if self.perk_open:
+                self._perk_screen.draw(self.screen)
             # Remote players drawn on top of the world in network mode
             if self.net_client:
                 for rp in self.remote_players.values():

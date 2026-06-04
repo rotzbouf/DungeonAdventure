@@ -7,7 +7,8 @@ from src.settings import (TILE_SIZE, PLAYER_COLOR, PLAYER_SPEED, PLAYER_SIZE,
                            PLAYER_BASE_DEFENSE, PLAYER_ATTACK_RANGE,
                            PLAYER_ATTACK_COOLDOWN, XP_BASE,
                            MAX_PLAYER_LEVEL, STAT_POINTS_PER_LEVEL,
-                           BASE_STR, BASE_DEX, BASE_VIT, BASE_ENE)
+                           BASE_STR, BASE_DEX, BASE_VIT, BASE_ENE,
+                           PERK_MILESTONE)
 from src.skills import SkillTree
 
 _ATTACK_HALF_ARC = math.pi * 0.4   # ±72° — visual and hit detection
@@ -58,6 +59,9 @@ class Player(Entity):
         self.stash:           list      = []   # house chest — persistent storage
         self.potions:         list      = []
         self.defeated_bosses: set[str]  = set()  # boss class names beaten this run
+        self.perks:           list[str] = []      # owned perk IDs
+        self._perk_picks_pending: int   = 0       # how many perk picks are queued
+        self._second_wind_ready:  bool  = False   # reset each floor if perk owned
 
         self._attack_timer     = 0.0
         self._invincible_timer = 0.0
@@ -110,45 +114,75 @@ class Player(Entity):
 
     # ─── Derived stats ───────────────────────────────────────────────────────────
 
+    def has_perk(self, perk_id: str) -> bool:
+        return perk_id in self.perks
+
     @property
     def attack(self) -> int:
         from src.items.item import MOD_ATK, MOD_ATK_PCT
-        base = self.base_attack + self.level * 2 + (self.str_pts - BASE_STR) * 2
+        # Flattened: level*1 (was *2), str*1 (was *2)
+        base = self.base_attack + self.level * 1 + (self.str_pts - BASE_STR) * 1
         flat = self._equip_total(MOD_ATK)
         pct  = self._equip_total(MOD_ATK_PCT)
         raw  = int(base + flat + base * pct / 100)
-        # Skill: Power Strike passive bonus
+        # Perk bonuses
+        if self.has_perk("keen_eye"):    raw += 5
+        if self.has_perk("warlord"):     raw += 12
+        if self.has_perk("avatar_of_war"): raw = int(raw * 1.25)
+        if self.has_perk("berserker"):
+            raw += max(0, int((self.max_hp_total - self.hp) / 5))
+        if self.has_perk("eternal_warrior"):
+            raw += max(0, (self.level - 30)) * 3
         return int(raw * (1.0 + self.skill_tree.melee_damage_bonus()))
 
     @property
     def defense(self) -> int:
         from src.items.item import MOD_DEF
-        base = self.base_defense + self.level // 2 + (self.dex_pts - BASE_DEX)
-        return int(base + self._equip_total(MOD_DEF))
+        # Flattened: level//3 (was //2), dex*0.5 (was *1)
+        base = self.base_defense + self.level // 3 + int((self.dex_pts - BASE_DEX) * 0.5)
+        base += self._equip_total(MOD_DEF)
+        # Perk bonuses
+        if self.has_perk("eternal_warrior"):
+            base += max(0, (self.level - 30)) * 3
+        if self.has_perk("battle_hardened"):
+            base += max(0, self.vit_pts - BASE_VIT) // 2
+        return int(base)
 
     @property
     def max_hp_total(self) -> int:
         from src.items.item import MOD_MAX_HP
-        vit_bonus  = (self.vit_pts - BASE_VIT) * 10
+        # Flattened: vit*8 (was *10)
+        vit_bonus  = (self.vit_pts - BASE_VIT) * 8
         equip_hp   = int(self._equip_total(MOD_MAX_HP))
         skill_mult = 1.0 + self.skill_tree.max_hp_bonus()
-        return int((self.max_hp + vit_bonus + equip_hp) * skill_mult)
+        base = int((self.max_hp + vit_bonus + equip_hp) * skill_mult)
+        # Perk bonuses (flat, not multiplied by skill)
+        if self.has_perk("fortitude"):  base += 40
+        if self.has_perk("fortified"):  base += 60
+        if self.has_perk("undying"):    base += 80
+        return base
 
     @property
     def max_mana_total(self) -> int:
         from src.items.item import MOD_MAX_MANA
-        ene_bonus   = (self.ene_pts - BASE_ENE) * 5
+        # Flattened: ene*4 (was *5)
+        ene_bonus   = (self.ene_pts - BASE_ENE) * 4
         equip_mana  = int(self._equip_total(MOD_MAX_MANA))
         skill_mult  = 1.0 + self.skill_tree.max_mana_bonus()
-        return int((self.max_mana + ene_bonus + equip_mana) * skill_mult)
+        base = int((self.max_mana + ene_bonus + equip_mana) * skill_mult)
+        if self.has_perk("arcane_reserve"): base += 50
+        return base
 
     @property
     def crit_chance(self) -> float:
         from src.items.item import MOD_CRIT
-        dex_crit   = (self.dex_pts - BASE_DEX) * 0.5
+        # Flattened: dex*0.35% (was *0.5%)
+        dex_crit   = (self.dex_pts - BASE_DEX) * 0.35
         equip_crit = self._equip_total(MOD_CRIT)
         skill_crit = self.skill_tree.crit_bonus()
-        return dex_crit + equip_crit + skill_crit
+        perk_crit  = (10.0 if self.has_perk("battle_focus") else 0.0) + \
+                     ( 8.0 if self.has_perk("warlord")      else 0.0)
+        return dex_crit + equip_crit + skill_crit + perk_crit
 
     @property
     def dodge_chance(self) -> float:
@@ -157,17 +191,31 @@ class Player(Entity):
     @property
     def life_steal(self) -> float:
         from src.items.item import MOD_LIFE_STEAL
-        return self._equip_total(MOD_LIFE_STEAL)
+        base = self._equip_total(MOD_LIFE_STEAL)
+        if self.has_perk("vampiric"): base += 4.0
+        return base
 
     @property
     def hp_regen_rate(self) -> float:
         from src.items.item import MOD_HP_REGEN
-        return self._equip_total(MOD_HP_REGEN)
+        base = self._equip_total(MOD_HP_REGEN)
+        if self.has_perk("undying"): base += 2.0
+        return base
 
     @property
     def thorns_damage(self) -> float:
         from src.items.item import MOD_THORNS
-        return self._equip_total(MOD_THORNS)
+        base = self._equip_total(MOD_THORNS)
+        if self.has_perk("thorned"): base += 12.0
+        return base
+
+    def damage_reduction(self) -> float:
+        """Multiplicative incoming damage reduction from perks (0.0 = none)."""
+        mult = 1.0
+        if self.has_perk("iron_skin"):   mult -= 0.0   # handled as flat in take_damage
+        if self.has_perk("fortified"):   mult *= 0.90
+        if self.has_perk("avatar_of_war"):mult *= 1.10
+        return mult
 
     @property
     def move_speed(self) -> float:
@@ -176,6 +224,8 @@ class Player(Entity):
         base_spd = PLAYER_SPEED * (1.0 + bonus / 100)
         if self.has_status('slow') or self.has_status('freeze'):
             base_spd *= 0.55
+        if self.has_status('haste'):
+            base_spd *= 1.25
         return base_spd
 
     @property
@@ -261,13 +311,22 @@ class Player(Entity):
         while self.xp >= self.xp_to_next and self.level < MAX_PLAYER_LEVEL:
             self.xp -= self.xp_to_next
             self.level += 1
-            self.xp_to_next = int(XP_BASE * (self.level ** 1.4))
-            self.max_hp   += 5
-            self.hp        = min(self.hp + 5, self.max_hp_total)
-            self.max_mana += 3
-            self.mana      = min(self.mana + 3, self.max_mana_total)
+            # Steeper XP curve (1.45 exponent, higher base)
+            self.xp_to_next = int(XP_BASE * (self.level ** 1.45))
+            # Flattened per-level gains: +4 HP (was 5), +2 mana (was 3)
+            self.max_hp   += 4
+            self.hp        = min(self.hp + 4, self.max_hp_total)
+            self.max_mana += 2
+            self.mana      = min(self.mana + 2, self.max_mana_total)
             self.stat_points            += STAT_POINTS_PER_LEVEL
             self.skill_tree.skill_points += 1
+            # Eternal Warrior: level-ups restore full HP/mana
+            if self.has_perk("eternal_warrior"):
+                self.hp   = float(self.max_hp_total)
+                self.mana = float(self.max_mana_total)
+            # Queue a perk pick at every milestone level
+            if self.level % PERK_MILESTONE == 0:
+                self._perk_picks_pending += 1
             leveled = True
         if self.level >= MAX_PLAYER_LEVEL:
             self.xp = self.xp_to_next
@@ -298,9 +357,20 @@ class Player(Entity):
             return 0
         # Dodge check (Evasion skill)
         if self.dodge_chance > 0 and random.uniform(0, 100) < self.dodge_chance:
-            self._invincible_timer = 0.15   # brief iframes after dodge
+            self._invincible_timer = 0.15
             return 0
+        # Perk: Iron Skin — flat damage reduction
+        if self.has_perk("iron_skin"):
+            amount = max(1, amount - 2)
         actual = max(1, amount - self.defense)
+        # Perk: Fortified — 10% reduction; Avatar of War — 10% more damage
+        actual = int(actual * self.damage_reduction())
+        # Perk: Second Wind — survive a killing blow once per floor
+        if actual >= self.hp and self._second_wind_ready:
+            self._second_wind_ready = False
+            self.hp = 1
+            self._invincible_timer = 1.0   # brief invincibility after miracle
+            return actual
         self.hp -= actual
         self._invincible_timer = 0.4
         return actual

@@ -87,6 +87,9 @@ class SessionLayer:
 
         self.projectiles    = []
         self._lightning_arcs = []
+        # Reset per-floor perk flags on the player
+        if self.player is not None:
+            self.player._second_wind_ready = self.player.has_perk("second_wind")
         self._spike_phase   = "idle"
         self._spike_timer   = 2.5
         self._trap_dmg_cd   = 0.0
