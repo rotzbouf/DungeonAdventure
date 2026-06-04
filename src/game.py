@@ -37,9 +37,11 @@ from src.ui.shop           import ShopScreen
 from src.ui.charscreen     import CharScreen
 from src.ui.questlog       import QuestLogScreen
 from src.ui.skillscreen    import SkillScreen
-from src.ui.enchant_screen import EnchantScreen
-from src.ui.craft_screen   import CraftScreen
-from src.ui.house_screen   import HouseScreen
+from src.ui.enchant_screen  import EnchantScreen
+from src.ui.craft_screen    import CraftScreen
+from src.ui.house_screen    import HouseScreen
+from src.ui.settings_screen import SettingsScreen
+from src.settings_manager   import game_settings
 from src.quests            import QuestLog
 from src import save as savesys
 import src.locale as locale
@@ -57,9 +59,7 @@ from src.game_layers.renderer   import RendererLayer
 
 class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, ParticleLayer, TrapLayer, RendererLayer):
     def __init__(self, net_client=None):
-        self.screen = pygame.display.set_mode(
-            (SCREEN_WIDTH, SCREEN_HEIGHT),
-            pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF)
+        self.screen = game_settings.apply_display()
         pygame.display.set_caption(TITLE)
         self.clock = pygame.time.Clock()
 
@@ -94,8 +94,10 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._enchant_screen = EnchantScreen()
         self.craft_open      = False
         self._craft_screen   = CraftScreen()
-        self.house_open      = False
-        self._house_screen   = HouseScreen()
+        self.house_open         = False
+        self._house_screen      = HouseScreen()
+        self.settings_open      = False
+        self._settings_screen   = SettingsScreen()
         self._active_merchant: Merchant | None = None
 
         # ── Multiplayer ───────────────────────────────────────────────────────
@@ -122,6 +124,7 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._sparks:    list = []
         self._particles: list = []
         self._lang_btn_rects: dict = {}   # populated by _draw_menu, read by events
+        self._settings_btn_rect = None    # populated by _draw_menu
 
         self._player_hurt_t    = 0.0
         self._transition_timer = 0.0
@@ -153,6 +156,16 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         # If a net_client was provided, jump straight into the dungeon
         if net_client:
             self._start_net_game()
+
+    # ─── Display settings ────────────────────────────────────────────────────────
+
+    def _apply_display_settings(self):
+        """Called by SettingsScreen when fullscreen/window mode changes."""
+        self.screen = game_settings.apply_display()
+        # Rebuild surfaces that use a fixed pixel size
+        self._fog      = pygame.Surface(
+            (SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT), pygame.SRCALPHA)
+        self._vignette = self._bake_vignette()
 
     # ─── Net HUD ─────────────────────────────────────────────────────────────────
 
@@ -189,14 +202,17 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 k = event.key
 
                 if k == pygame.K_ESCAPE:
-                    if self.house_open:   self.house_open   = False
-                    elif self.enchant_open: self.enchant_open = False
-                    elif self.craft_open: self.craft_open  = False
-                    elif self.inv_open:   self.inv_open   = False
-                    elif self.shop_open:  self.shop_open  = False
-                    elif self.char_open:  self.char_open  = False
-                    elif self.quest_open: self.quest_open = False
-                    elif self.skill_open: self.skill_open = False
+                    if self.settings_open and self._settings_screen.is_listening:
+                        self._settings_screen.handle_event(event)
+                    elif self.settings_open: self.settings_open = False
+                    elif self.house_open:    self.house_open   = False
+                    elif self.enchant_open:  self.enchant_open = False
+                    elif self.craft_open:    self.craft_open   = False
+                    elif self.inv_open:      self.inv_open     = False
+                    elif self.shop_open:     self.shop_open    = False
+                    elif self.char_open:     self.char_open    = False
+                    elif self.quest_open:    self.quest_open   = False
+                    elif self.skill_open:    self.skill_open   = False
                     elif self.state == STATE_PLAYING:
                         self.state = STATE_MENU
                     elif self.state == STATE_TOWN:
@@ -221,6 +237,16 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 if k == pygame.K_l and self.state == STATE_MENU:
                     locale.set_lang("de" if locale.lang() == "en" else "en")
 
+                # Settings screen — S key on menu
+                if k == pygame.K_s and self.state == STATE_MENU and not self.settings_open:
+                    self.settings_open = True
+                    self._settings_screen.open(apply_display_fn=self._apply_display_settings)
+
+                # Forward all events to settings screen when open
+                if self.settings_open:
+                    self._settings_screen.handle_event(event)
+                    continue
+
                 any_overlay = (self.inv_open or self.shop_open or self.char_open
                                or self.quest_open or self.skill_open)
 
@@ -228,37 +254,38 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 if self.state == STATE_TOWN:
                     any_town_overlay = (self.shop_open or self.enchant_open
                                         or self.craft_open or self.house_open)
-                    if k == pygame.K_f and not any_town_overlay:
+                    _ki = game_settings.key("interact")
+                    if k == _ki and not any_town_overlay:
                         self._try_open_town_shop()
-                    elif k == pygame.K_f and self.shop_open:
+                    elif k == _ki and self.shop_open:
                         self.shop_open = False
                         self._active_merchant = None
-                    elif k == pygame.K_f and self.enchant_open:
+                    elif k == _ki and self.enchant_open:
                         self.enchant_open = False
                         self._active_merchant = None
-                    elif k == pygame.K_f and self.craft_open:
+                    elif k == _ki and self.craft_open:
                         self.craft_open = False
                         self._active_merchant = None
-                    if k == pygame.K_e and not any_town_overlay:
+                    if k == game_settings.key("descend") and not any_town_overlay:
                         if math.hypot(self.player.x - DUNGEON_ENTRANCE_POS[0],
                                       self.player.y - DUNGEON_ENTRANCE_POS[1]) < DUNGEON_INTERACT_R:
                             self._enter_dungeon_from_town()
-                    if k in (pygame.K_i, pygame.K_TAB):
+                    if k in (game_settings.key("inventory"), pygame.K_TAB):
                         if not any_town_overlay:
                             self.inv_open = not self.inv_open
-                    if k == pygame.K_c and not any_town_overlay and not self.inv_open:
+                    if k == game_settings.key("character") and not any_town_overlay and not self.inv_open:
                         self.char_open = not self.char_open
-                    if k == pygame.K_k:
+                    if k == game_settings.key("skills"):
                         self.skill_open = not self.skill_open
                         if self.skill_open:
                             self.inv_open = self.shop_open = self.char_open = False
 
                 # ── Dungeon keys ───────────────────────────────────────────
                 if self.state == STATE_PLAYING and not any_overlay:
-                    if k == pygame.K_t:
+                    if k == game_settings.key("return_town"):
                         self._return_to_town()
                 if self.state == STATE_PLAYING and not any_overlay:
-                    if k == pygame.K_SPACE:
+                    if k == game_settings.key("attack"):
                         mods = pygame.key.get_mods()
                         if (mods & pygame.KMOD_SHIFT and
                                 self.player.skill_tree.has_whirlwind() and
@@ -268,43 +295,49 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                             self._fire_arrow()
                         else:
                             self._player_attack()
-                    if k == pygame.K_z: self._cast_fireball()
-                    if k == pygame.K_x: self._cast_ice_nova()
-                    if k == pygame.K_r: self._cast_chain_lightning()
-                    if k == pygame.K_v: self._cast_blink()
-                    if k == pygame.K_b: self._cast_battle_cry()
-                    if k == pygame.K_e: self._try_descend()
-                    if k == pygame.K_q:
+                    if k == game_settings.key("spell_fireball"):    self._cast_fireball()
+                    if k == game_settings.key("spell_ice_nova"):    self._cast_ice_nova()
+                    if k == game_settings.key("spell_chain"):       self._cast_chain_lightning()
+                    if k == game_settings.key("spell_blink"):       self._cast_blink()
+                    if k == game_settings.key("spell_battle_cry"):  self._cast_battle_cry()
+                    if k == game_settings.key("descend"):           self._try_descend()
+                    if k == game_settings.key("potion"):
                         if self.player.use_potion():
                             self.inventory.notify(
                                 t("game.used_potion", n=len(self.player.potions)))
 
                 if self.state == STATE_PLAYING:
-                    if k in (pygame.K_i, pygame.K_TAB):
+                    if k in (game_settings.key("inventory"), pygame.K_TAB):
                         if not self.shop_open and not self.char_open and not self.skill_open:
                             self.inv_open = not self.inv_open
-                    if k == pygame.K_c and not self.shop_open and not self.inv_open:
+                    if k == game_settings.key("character") and not self.shop_open and not self.inv_open:
                         self.char_open = not self.char_open
-                    if k == pygame.K_j:
+                    if k == game_settings.key("quests"):
                         self.quest_open = not self.quest_open
                         if self.quest_open:
                             self.inv_open = self.shop_open = self.char_open = self.skill_open = False
-                    if k == pygame.K_k:
+                    if k == game_settings.key("skills"):
                         self.skill_open = not self.skill_open
                         if self.skill_open:
                             self.inv_open = self.shop_open = self.char_open = self.quest_open = False
-                    if k == pygame.K_f:
+                    if k == game_settings.key("interact"):
                         if self.shop_open:
                             self.shop_open = False
                         elif not any_overlay:
                             self._try_open_shop()
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if self.settings_open:
+                    self._settings_screen.handle_event(event)
+                    continue
                 if self.state == STATE_MENU:
                     for code, rect in self._lang_btn_rects.items():
                         if rect.collidepoint(event.pos):
                             locale.set_lang(code)
                             break
+                    if self._settings_btn_rect and self._settings_btn_rect.collidepoint(event.pos):
+                        self.settings_open = True
+                        self._settings_screen.open(apply_display_fn=self._apply_display_settings)
 
             if event.type == pygame.MOUSEBUTTONDOWN and self.state in (STATE_PLAYING, STATE_TOWN):
                 if self.house_open:
@@ -323,6 +356,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 elif self.skill_open and event.button == 1:
                     self.skillscreen.handle_click(*event.pos, self.player)
 
+            if event.type == pygame.MOUSEWHEEL and self.settings_open:
+                self._settings_screen.handle_event(event)
             if event.type == pygame.MOUSEWHEEL and self.house_open:
                 self._house_screen.handle_event(event, self.player)
             if event.type == pygame.MOUSEWHEEL and self.enchant_open:
@@ -363,18 +398,18 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
             wy = my + self.camera.y
             aim_angle = math.atan2(wy - self.player.y, wx - self.player.x)
         self.net_client.send_input({
-            "up":              bool(keys[pygame.K_w] or keys[pygame.K_UP]),
-            "down":            bool(keys[pygame.K_s] or keys[pygame.K_DOWN]),
-            "left":            bool(keys[pygame.K_a] or keys[pygame.K_LEFT]),
-            "right":           bool(keys[pygame.K_d] or keys[pygame.K_RIGHT]),
-            "attack":          bool(keys[pygame.K_SPACE]),
-            "spell_fireball":  bool(keys[pygame.K_z]),
-            "spell_ice_nova":  bool(keys[pygame.K_x]),
-            "spell_chain":     bool(keys[pygame.K_r]),
-            "spell_blink":     bool(keys[pygame.K_v]),
-            "spell_battle_cry":bool(keys[pygame.K_b]),
-            "use_potion":      bool(keys[pygame.K_q]),
-            "descend":         bool(keys[pygame.K_e]),
+            "up":              bool(keys[game_settings.key("move_up")]    or keys[pygame.K_UP]),
+            "down":            bool(keys[game_settings.key("move_down")]  or keys[pygame.K_DOWN]),
+            "left":            bool(keys[game_settings.key("move_left")]  or keys[pygame.K_LEFT]),
+            "right":           bool(keys[game_settings.key("move_right")] or keys[pygame.K_RIGHT]),
+            "attack":          bool(keys[game_settings.key("attack")]),
+            "spell_fireball":  bool(keys[game_settings.key("spell_fireball")]),
+            "spell_ice_nova":  bool(keys[game_settings.key("spell_ice_nova")]),
+            "spell_chain":     bool(keys[game_settings.key("spell_chain")]),
+            "spell_blink":     bool(keys[game_settings.key("spell_blink")]),
+            "spell_battle_cry":bool(keys[game_settings.key("spell_battle_cry")]),
+            "use_potion":      bool(keys[game_settings.key("potion")]),
+            "descend":         bool(keys[game_settings.key("descend")]),
             "aim_angle":       aim_angle,
         })
 
@@ -567,6 +602,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
 
         if self.state == STATE_MENU:
             self._update_sparks(dt)
+            if self.settings_open:
+                self._settings_screen.update(dt)
             return
         if self.state == STATE_TOWN:
             # In multiplayer: keep sending in_town signal so server skips us
@@ -690,6 +727,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
 
         if self.state == STATE_MENU:
             self._draw_menu()
+            if self.settings_open:
+                self._settings_screen.draw(self.screen)
         elif self.state == STATE_TOWN:
             self._draw_town()
         elif self.state == STATE_PLAYING:

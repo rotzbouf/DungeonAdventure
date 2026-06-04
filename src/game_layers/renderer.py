@@ -369,7 +369,16 @@ class RendererLayer:
                 cont = self._font_md.render(t("menu.press_c"), True, (120,200,255))
                 self.screen.blit(cont, cont.get_rect(center=(cx, SCREEN_HEIGHT*48//100)))
 
-        sep_y = SCREEN_HEIGHT*55//100 if savesys.has_save() else SCREEN_HEIGHT*49//100
+        # Settings button
+        _settings_lbl = self._font_sm.render("[S]  SETTINGS", True, LIGHT_GRAY)
+        _sbr = _settings_lbl.get_rect(center=(cx, SCREEN_HEIGHT * 53 // 100))
+        bg_s = pygame.Surface((_sbr.width + 24, _sbr.height + 8), pygame.SRCALPHA)
+        bg_s.fill((30, 20, 50, 160))
+        self.screen.blit(bg_s, (_sbr.left - 12, _sbr.top - 4))
+        self.screen.blit(_settings_lbl, _sbr)
+        self._settings_btn_rect = _sbr.inflate(24, 8)
+
+        sep_y = SCREEN_HEIGHT*59//100 if savesys.has_save() else SCREEN_HEIGHT*57//100
         pygame.draw.line(self.screen, _STONE_HI, (cx-240,sep_y),(cx-12,sep_y),1)
         pygame.draw.line(self.screen, _STONE_HI, (cx+12,sep_y),(cx+240,sep_y),1)
         pygame.draw.polygon(self.screen, YELLOW,

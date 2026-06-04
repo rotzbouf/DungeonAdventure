@@ -326,11 +326,12 @@ class Player(Entity):
         self._attack_anim  = 0.22
 
         keys = net_keys if net_keys is not None else pygame.key.get_pressed()
+        from src.settings_manager import game_settings as _gs
         dx = dy = 0.0
-        if keys[pygame.K_w] or keys[pygame.K_UP]:    dy -= 1.0
-        if keys[pygame.K_s] or keys[pygame.K_DOWN]:  dy += 1.0
-        if keys[pygame.K_a] or keys[pygame.K_LEFT]:  dx -= 1.0
-        if keys[pygame.K_d] or keys[pygame.K_RIGHT]: dx += 1.0
+        if keys[_gs.key("move_up")]   or keys[pygame.K_UP]:    dy -= 1.0
+        if keys[_gs.key("move_down")] or keys[pygame.K_DOWN]:  dy += 1.0
+        if keys[_gs.key("move_left")] or keys[pygame.K_LEFT]:  dx -= 1.0
+        if keys[_gs.key("move_right")]or keys[pygame.K_RIGHT]: dx += 1.0
         if dx != 0 or dy != 0:
             self.attack_angle = math.atan2(dy, dx)
 
@@ -369,11 +370,12 @@ class Player(Entity):
             self.hp = max(0.0, self.hp - dot)
 
         keys = net_keys if net_keys is not None else pygame.key.get_pressed()
+        from src.settings_manager import game_settings as _gs
         dx = dy = 0.0
-        if keys[pygame.K_w] or keys[pygame.K_UP]:    dy -= 1.0
-        if keys[pygame.K_s] or keys[pygame.K_DOWN]:  dy += 1.0
-        if keys[pygame.K_a] or keys[pygame.K_LEFT]:  dx -= 1.0
-        if keys[pygame.K_d] or keys[pygame.K_RIGHT]: dx += 1.0
+        if keys[_gs.key("move_up")]   or keys[pygame.K_UP]:    dy -= 1.0
+        if keys[_gs.key("move_down")] or keys[pygame.K_DOWN]:  dy += 1.0
+        if keys[_gs.key("move_left")] or keys[pygame.K_LEFT]:  dx -= 1.0
+        if keys[_gs.key("move_right")]or keys[pygame.K_RIGHT]: dx += 1.0
         if dx != 0 and dy != 0:
             dx *= 0.7071; dy *= 0.7071
         if dx != 0 or dy != 0:
