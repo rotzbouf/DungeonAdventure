@@ -59,21 +59,25 @@ def install_player():
     out_dir = OUT / "sprites"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # South / North — use as-is (DCSS sprites face south by default)
-    img.save(out_dir / "player_south.png")
-    print(f"  sprites/player_south.png")
+    # DCSS human_male.png is a top-down sprite (viewed from above).
+    # In top-down view, the character is always "upright" — rotating it 90°
+    # makes it look like the player is lying flat, and flipping vertically
+    # makes them appear upside-down.  The correct approach:
+    #
+    #   South  — original (character naturally faces toward camera)
+    #   North  — same sprite  (top-down: the figure looks the same going away)
+    #   East   — flip horizontally  (natural mirror, character appears to face right)
+    #   West   — flip horizontally back (or same as south; character faces left)
+    #
+    # Attack arc + weapon angle communicate the actual movement direction;
+    # the sprite just keeps the character looking upright at all times.
 
-    # North — flip vertically for a "walking away" look
-    img.transpose(Image.FLIP_TOP_BOTTOM).save(out_dir / "player_north.png")
-    print(f"  sprites/player_north.png")
+    img_flip = img.transpose(Image.FLIP_LEFT_RIGHT)
 
-    # East — rotate 90° clockwise
-    img.rotate(-90, expand=False).save(out_dir / "player_east.png")
-    print(f"  sprites/player_east.png")
-
-    # West — mirror east (flip horizontally)
-    img.rotate(90, expand=False).save(out_dir / "player_west.png")
-    print(f"  sprites/player_west.png")
+    img.save(out_dir / "player_south.png");      print(f"  sprites/player_south.png")
+    img.save(out_dir / "player_north.png");      print(f"  sprites/player_north.png")
+    img_flip.save(out_dir / "player_east.png");  print(f"  sprites/player_east.png")
+    img.save(out_dir / "player_west.png");       print(f"  sprites/player_west.png")
 
 
 # ── Enemy sprites ──────────────────────────────────────────────────────────────
