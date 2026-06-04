@@ -43,6 +43,7 @@ env/
 ENV/
 
 # ── Testing & coverage ────────────────────────────────────────────────────────
+tests/
 .pytest_cache/
 .coverage
 .coverage.*
