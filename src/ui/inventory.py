@@ -56,10 +56,10 @@ _TIP_LINE_H = 14
 
 class InventoryScreen:
     def __init__(self):
-        self._font_lg  = pygame.font.SysFont("monospace", 18, bold=True)
-        self._font_md  = pygame.font.SysFont("monospace", 14, bold=True)
-        self._font_sm  = pygame.font.SysFont("monospace", 12)
-        self._font_xs  = pygame.font.SysFont("monospace", 11)
+        self._font_lg  = pygame.font.SysFont("monospace", 28, bold=True)
+        self._font_md  = pygame.font.SysFont("monospace", 28, bold=True)
+        self._font_sm  = pygame.font.SysFont("monospace", 24)
+        self._font_xs  = pygame.font.SysFont("monospace", 28)
 
         self._msg    = ""
         self._msg_t  = 0.0

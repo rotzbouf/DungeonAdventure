@@ -23,9 +23,9 @@ _TREE_HEADERS = {"combat": "── COMBAT ──",
 
 class SkillScreen:
     def __init__(self):
-        self._font_lg = pygame.font.SysFont("monospace", 19, bold=True)
-        self._font_md = pygame.font.SysFont("monospace", 12, bold=True)
-        self._font_sm = pygame.font.SysFont("monospace", 10)
+        self._font_lg = pygame.font.SysFont("monospace", 24, bold=True)
+        self._font_md = pygame.font.SysFont("monospace", 24, bold=True)
+        self._font_sm = pygame.font.SysFont("monospace", 28)
         self._boxes:  dict[str, pygame.Rect] = {}
 
     def handle_click(self, mx: int, my: int, player):

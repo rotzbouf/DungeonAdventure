@@ -25,10 +25,10 @@ class EnchantScreen:
     H  = 660
 
     def __init__(self):
-        self._fxl  = pygame.font.SysFont("monospace", 22, bold=True)
-        self._flg  = pygame.font.SysFont("monospace", 18, bold=True)
-        self._fmd  = pygame.font.SysFont("monospace", 15, bold=True)
-        self._fsm  = pygame.font.SysFont("monospace", 13)
+        self._fxl  = pygame.font.SysFont("monospace", 28, bold=True)
+        self._flg  = pygame.font.SysFont("monospace", 28, bold=True)
+        self._fmd  = pygame.font.SysFont("monospace", 24, bold=True)
+        self._fsm  = pygame.font.SysFont("monospace", 25)
 
         self._sel_item: EquipItem | None = None
         self._sel_enc:  str | None       = None   # enchantment ID

@@ -63,11 +63,11 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         pygame.display.set_caption(TITLE)
         self.clock = pygame.time.Clock()
 
-        self._font_xl   = pygame.font.SysFont("monospace", 52, bold=True)
-        self._font_lg   = pygame.font.SysFont("monospace", 30, bold=True)
-        self._font_md   = pygame.font.SysFont("monospace", 22)
-        self._font_sm   = pygame.font.SysFont("monospace", 16)
-        self._font_boss = pygame.font.SysFont("monospace", 13, bold=True)
+        self._font_xl   = pygame.font.SysFont("monospace", 64, bold=True)
+        self._font_lg   = pygame.font.SysFont("monospace", 38, bold=True)
+        self._font_md   = pygame.font.SysFont("monospace", 28)
+        self._font_sm   = pygame.font.SysFont("monospace", 20)
+        self._font_boss = pygame.font.SysFont("monospace", 16, bold=True)
 
         self.state         = STATE_MENU
         self.dungeon_level = 1

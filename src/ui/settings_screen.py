@@ -49,7 +49,7 @@ class _TextField:
         self.digits_only = digits_only
         self.focused    = False
         self._rect      = pygame.Rect(0, 0, self.W, self.H)
-        self._font      = pygame.font.SysFont("monospace", 15)
+        self._font      = pygame.font.SysFont("monospace", 24)
         self._cursor_t  = 0.0
 
     def set_rect(self, x: int, y: int):
@@ -95,9 +95,9 @@ class SettingsScreen:
     H = 680
 
     def __init__(self):
-        self._fl = pygame.font.SysFont("monospace", 22, bold=True)
-        self._fm = pygame.font.SysFont("monospace", 16, bold=True)
-        self._fs = pygame.font.SysFont("monospace", 13)
+        self._fl = pygame.font.SysFont("monospace", 28, bold=True)
+        self._fm = pygame.font.SysFont("monospace", 25, bold=True)
+        self._fs = pygame.font.SysFont("monospace", 25)
 
         self._tab          = 0        # 0=Display, 1=Controls, 2=Multiplayer
         self._listening    = ""       # action name being rebound, or ""

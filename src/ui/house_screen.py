@@ -30,9 +30,9 @@ class HouseScreen:
     H = 680
 
     def __init__(self):
-        self._fl = pygame.font.SysFont("monospace", 22, bold=True)
-        self._fm = pygame.font.SysFont("monospace", 16, bold=True)
-        self._fs = pygame.font.SysFont("monospace", 13)
+        self._fl = pygame.font.SysFont("monospace", 28, bold=True)
+        self._fm = pygame.font.SysFont("monospace", 25, bold=True)
+        self._fs = pygame.font.SysFont("monospace", 25)
 
         self._stash_scroll = 0
         self._pack_scroll  = 0
@@ -283,7 +283,7 @@ def _draw_btn(surf, btn, label, enabled,
     b = border if enabled else border_off
     pygame.draw.rect(surf, c, btn)
     pygame.draw.rect(surf, b, btn, 1)
-    font = pygame.font.SysFont("monospace", 15, bold=True)
+    font = pygame.font.SysFont("monospace", 24, bold=True)
     col_txt = WHITE if enabled else _DIM
     ts = font.render(label, True, col_txt)
     surf.blit(ts, ts.get_rect(center=btn.center))

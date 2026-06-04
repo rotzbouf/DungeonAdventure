@@ -757,8 +757,8 @@ class TownRenderer:
 
     def _ensure_fonts(self):
         if self._font is None:
-            self._font    = pygame.font.SysFont("monospace", 17, bold=True)
-            self._font_sm = pygame.font.SysFont("monospace", 13)
+            self._font    = pygame.font.SysFont("monospace", 28, bold=True)
+            self._font_sm = pygame.font.SysFont("monospace", 25)
 
     def _build_bg(self) -> pygame.Surface:
         """Build the static background surface — rich medieval town."""

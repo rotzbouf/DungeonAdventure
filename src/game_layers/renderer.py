@@ -403,7 +403,7 @@ class RendererLayer:
         ]
         key_x = cx - 16
         act_x = cx + 16
-        y0, lh = sep_y + 20, 25
+        y0, lh = sep_y + 20, 30
         for i, (key, action) in enumerate(controls):
             y   = y0 + i * lh
             if y > SCREEN_HEIGHT - 30:

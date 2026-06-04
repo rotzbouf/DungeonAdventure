@@ -176,7 +176,7 @@ class RemotePlayer:
         self.size     = 24
         self.level    = 1
         self.rect     = pygame.Rect(0, 0, self.size, self.size)
-        self._font    = pygame.font.SysFont("monospace", 11)
+        self._font    = pygame.font.SysFont("monospace", 28)
 
     def update_from(self, data: dict):
         self._tx    = float(data["x"])

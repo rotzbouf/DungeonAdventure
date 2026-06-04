@@ -39,9 +39,9 @@ class CraftScreen:
     H = 700
 
     def __init__(self):
-        self._fl  = pygame.font.SysFont("monospace", 22, bold=True)
-        self._fm  = pygame.font.SysFont("monospace", 16, bold=True)
-        self._fs  = pygame.font.SysFont("monospace", 13)
+        self._fl  = pygame.font.SysFont("monospace", 28, bold=True)
+        self._fm  = pygame.font.SysFont("monospace", 25, bold=True)
+        self._fs  = pygame.font.SysFont("monospace", 25)
 
         self._tab        = "craft"       # "craft" | "disassemble"
         self._sel_recipe: Recipe | None  = None
@@ -476,7 +476,7 @@ def _draw_btn(surf, btn, label, enabled, danger=False):
         border = (60, 200, 80) if enabled else _BORDER_LO
     pygame.draw.rect(surf, col, btn)
     pygame.draw.rect(surf, border, btn, 1)
-    font = pygame.font.SysFont("monospace", 15, bold=True)
+    font = pygame.font.SysFont("monospace", 24, bold=True)
     ts   = font.render(label, True, WHITE)
     surf.blit(ts, ts.get_rect(center=btn.center))
 

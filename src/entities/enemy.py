@@ -222,7 +222,7 @@ class Enemy(Entity):
 
         # "ELITE" label above HP bar
         if not hasattr(self, '_elite_font'):
-            self._elite_font = pygame.font.SysFont("monospace", 10, bold=True)
+            self._elite_font = pygame.font.SysFont("monospace", 28, bold=True)
         lbl = self._elite_font.render("★ ELITE", True, (220, 175, 0))
         surface.blit(lbl, (dr.centerx - lbl.get_width() // 2, dr.top - 22))
 

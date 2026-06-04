@@ -53,10 +53,10 @@ def _gradient_bar(surface, x, y, w, h, pct, col_fill, col_hi, col_bg, border):
 
 class HUD:
     def __init__(self):
-        self._font_xl = pygame.font.SysFont("monospace", 22, bold=True)
-        self._font_lg = pygame.font.SysFont("monospace", 18, bold=True)
-        self._font_md = pygame.font.SysFont("monospace", 15, bold=True)
-        self._font_sm = pygame.font.SysFont("monospace", 13)
+        self._font_xl = pygame.font.SysFont("monospace", 28, bold=True)
+        self._font_lg = pygame.font.SysFont("monospace", 28, bold=True)
+        self._font_md = pygame.font.SysFont("monospace", 24, bold=True)
+        self._font_sm = pygame.font.SysFont("monospace", 25)
         self._lvup_timer  = 0.0
         self._shop_timer  = 0.0
         self._quest_msgs: list[tuple[str, float]] = []

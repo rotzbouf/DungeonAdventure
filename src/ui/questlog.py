@@ -17,9 +17,9 @@ _BAR_FILL   = (80,  160,  80)
 
 class QuestLogScreen:
     def __init__(self):
-        self._font_lg = pygame.font.SysFont("monospace", 20, bold=True)
-        self._font_md = pygame.font.SysFont("monospace", 13, bold=True)
-        self._font_sm = pygame.font.SysFont("monospace", 12)
+        self._font_lg = pygame.font.SysFont("monospace", 25, bold=True)
+        self._font_md = pygame.font.SysFont("monospace", 25, bold=True)
+        self._font_sm = pygame.font.SysFont("monospace", 24)
 
     def draw(self, surface: pygame.Surface, quest_log):
         W = SCREEN_WIDTH

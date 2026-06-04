@@ -131,7 +131,7 @@ class Minimap:
 
         # ── Legend strip below minimap ────────────────────────────────────────
         if not hasattr(self, '_leg_font'):
-            self._leg_font = pygame.font.SysFont("monospace", 9)
+            self._leg_font = pygame.font.SysFont("monospace", 24)
         leg_y  = mm_y + self._dh + 4
         leg_x  = mm_x
         legend = [("■ YOU",   _MM_PLR),  ("■ ENE",  _MM_ENE),

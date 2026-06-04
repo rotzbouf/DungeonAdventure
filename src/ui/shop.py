@@ -45,9 +45,9 @@ class ShopScreen:
     def _init_fonts(self):
         if self._fonts_init:
             return
-        self._font_lg = pygame.font.SysFont("monospace", 20, bold=True)
-        self._font_md = pygame.font.SysFont("monospace", 15, bold=True)
-        self._font_sm = pygame.font.SysFont("monospace", 13)
+        self._font_lg = pygame.font.SysFont("monospace", 25, bold=True)
+        self._font_md = pygame.font.SysFont("monospace", 24, bold=True)
+        self._font_sm = pygame.font.SysFont("monospace", 25)
         self._fonts_init = True
 
     def notify(self, msg: str, duration: float = 2.5):

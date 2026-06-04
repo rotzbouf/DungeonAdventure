@@ -55,10 +55,10 @@ class CharScreen:
     def _init_fonts(self):
         if self._fonts_init:
             return
-        self._font_xl = pygame.font.SysFont("monospace", 22, bold=True)
-        self._font_lg = pygame.font.SysFont("monospace", 18, bold=True)
-        self._font_md = pygame.font.SysFont("monospace", 14, bold=True)
-        self._font_sm = pygame.font.SysFont("monospace", 13)
+        self._font_xl = pygame.font.SysFont("monospace", 28, bold=True)
+        self._font_lg = pygame.font.SysFont("monospace", 28, bold=True)
+        self._font_md = pygame.font.SysFont("monospace", 28, bold=True)
+        self._font_sm = pygame.font.SysFont("monospace", 25)
         self._fonts_init = True
 
     def notify(self, msg: str, duration: float = 1.8):
