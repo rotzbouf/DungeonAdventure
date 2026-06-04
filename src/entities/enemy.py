@@ -91,6 +91,11 @@ class Enemy(Entity):
         if not self.alive:
             return
 
+        # ── Stunned: skip all movement and attack ─────────────────────────────
+        if self.has_status('stun'):
+            self._sync_rect()
+            return
+
         # ── Knockback physics ────────────────────────────────────────────────
         if self.kbx or self.kby:
             self._move(self.kbx * dt, self.kby * dt, dungeon)

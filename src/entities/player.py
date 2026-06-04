@@ -146,6 +146,9 @@ class Player(Entity):
             base += max(0, (self.level - 30)) * 3
         if self.has_perk("battle_hardened"):
             base += max(0, self.vit_pts - BASE_VIT) // 2
+        base += self.skill_tree.shield_mastery_def()
+        if self.skill_tree.has_colossus():
+            base += 10
         return int(base)
 
     @property
@@ -160,6 +163,7 @@ class Player(Entity):
         if self.has_perk("fortitude"):  base += 40
         if self.has_perk("fortified"):  base += 60
         if self.has_perk("undying"):    base += 80
+        if self.skill_tree.has_colossus(): base += 50
         return base
 
     @property
@@ -222,10 +226,17 @@ class Player(Entity):
         from src.items.item import MOD_SPEED
         bonus    = self._equip_total(MOD_SPEED)
         base_spd = PLAYER_SPEED * (1.0 + bonus / 100)
-        if self.has_status('slow') or self.has_status('freeze'):
+        # Colossus: immune to slow/freeze while moving (dx/dy non-zero handled by caller;
+        # we simply skip the debuff if the perk is owned)
+        slowed = (self.has_status('slow') or self.has_status('freeze'))
+        if slowed and not self.skill_tree.has_colossus():
             base_spd *= 0.55
         if self.has_status('haste'):
             base_spd *= 1.25
+        # Shadow Arts speed bonus
+        sa = self.skill_tree.shadow_arts_speed_bonus()
+        if sa > 0:
+            base_spd *= (1.0 + sa)
         return base_spd
 
     @property
@@ -362,6 +373,12 @@ class Player(Entity):
         # Perk: Iron Skin — flat damage reduction
         if self.has_perk("iron_skin"):
             amount = max(1, amount - 2)
+        # Skill: Mana Shield — absorb a fraction of damage as mana drain
+        ms = self.skill_tree.mana_shield_fraction()
+        if ms > 0 and self.mana > 0:
+            mana_absorbed = min(self.mana, amount * ms)
+            amount = max(1, amount - int(mana_absorbed))
+            self.mana = max(0.0, self.mana - mana_absorbed)
         actual = max(1, amount - self.defense)
         # Perk: Fortified — 10% reduction; Avatar of War — 10% more damage
         actual = int(actual * self.damage_reduction())

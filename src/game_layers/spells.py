@@ -17,20 +17,42 @@ class SpellLayer:
     """All player spells: fireball, ice nova, chain lightning, blink, battle cry."""
 
     def _spell_mana_mult(self) -> float:
-        """Mana cost multiplier from perks (< 1.0 = cheaper)."""
+        """Mana cost multiplier from perks and skills (< 1.0 = cheaper)."""
         m = 1.0
         if self.player.has_perk("spell_surge"):    m *= 0.80
         if self.player.has_perk("arcane_reserve"): m *= 0.90
+        if self.player.skill_tree.has_arcane_ascension() and \
+                self.player.mana >= self.player.max_mana_total:
+            m *= 0.50
         return m
 
     def _spell_dmg_mult(self) -> float:
-        """Damage multiplier from perks (> 1.0 = stronger)."""
+        """Damage multiplier from perks and skills."""
         m = 1.0
-        if self.player.has_perk("arcane_mastery"): m *= 1.30
+        if self.player.has_perk("arcane_mastery"):   m *= 1.30
         if self.player.has_perk("arcane_overflow") and \
                 self.player.mana >= self.player.max_mana_total:
             m *= 1.50
+        # Skill: Elemental Fury
+        ef = self.player.skill_tree.elemental_fury_mult()
+        if ef > 0:
+            m *= (1.0 + ef)
+        # Skill: Arcane Ascension capstone — at full mana, extra 50%
+        if self.player.skill_tree.has_arcane_ascension() and \
+                self.player.mana >= self.player.max_mana_total:
+            m *= 1.50
         return m
+
+    def _maybe_arcane_surge(self, ex: float, ey: float):
+        """Secondary echo explosion for the Arcane Surge skill."""
+        import random as _rnd
+        chance = self.player.skill_tree.arcane_surge_chance()
+        if chance > 0 and _rnd.random() < chance:
+            for enemy in self.enemies:
+                if enemy.alive and math.hypot(enemy.x - ex, enemy.y - ey) < 64:
+                    enemy.take_damage(int(12 * self._spell_dmg_mult()))
+                    if not enemy.alive:
+                        self._on_enemy_killed(enemy)
 
     def _cast_fireball(self):
         discount = self.player.skill_tree.fireball_mana_discount()
@@ -92,6 +114,9 @@ class SpellLayer:
                 })
                 if not enemy.alive:
                     self._on_enemy_killed(enemy)
+
+        # Skill: Arcane Surge — chance to trigger echo at player position
+        self._maybe_arcane_surge(px, py)
 
         # Ice burst visual — add as a projectile-style entry
         self.projectiles.append({

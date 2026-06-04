@@ -86,6 +86,19 @@ class CombatLayer:
             if dmg > 0 and self.player.life_steal > 0:
                 self.player.heal(max(1, int(dmg * self.player.life_steal / 100)))
 
+            # Assassination — extra crit damage multiplier
+            if is_crit:
+                ab = self.player.skill_tree.assassination_crit_bonus()
+                if ab > 0:
+                    bonus = int(dmg * ab)
+                    enemy.take_damage(bonus)
+                    dmg += bonus
+
+            # Iron Fist — stun on melee hit
+            stun_ch = self.player.skill_tree.iron_fist_stun_chance()
+            if stun_ch > 0 and random.random() < stun_ch:
+                enemy.apply_status('stun', 0.7)
+
             # Poison Blade
             pb = self.player.skill_tree.poison_blade_chance()
             if pb > 0 and random.random() < pb:
@@ -113,6 +126,17 @@ class CombatLayer:
         # Perk: Bloodlust — restore HP on kill
         if self.player.has_perk("bloodlust"):
             self.player.heal(8)
+        # Skill: Death Mark — killed enemy explodes, damaging nearby foes
+        if self.player.skill_tree.has_death_mark():
+            boom_dmg = int(enemy.MAX_HP * 0.20)
+            if boom_dmg > 0:
+                for other in self.enemies:
+                    if other is not enemy and other.alive:
+                        dist = math.hypot(other.x - enemy.x, other.y - enemy.y)
+                        if dist < 80:
+                            other.take_damage(boom_dmg)
+                            if not other.alive:
+                                self._on_enemy_killed(other)
         # Perk: Momentum — brief speed boost after kill
         if self.player.has_perk("momentum"):
             self.player.apply_status("haste", 3.0, 25.0)   # 3s, 25% speed bonus
