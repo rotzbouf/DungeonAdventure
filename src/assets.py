@@ -11,10 +11,17 @@ Usage:
     fac = assets.town_facade("weapons")  # pygame.Surface or None
 """
 from __future__ import annotations
+import sys
 from pathlib import Path
 import pygame
 
-_ASSETS = Path(__file__).parent.parent / "assets"
+# When running as a PyInstaller bundle sys.frozen is True and all bundled
+# data files live under sys._MEIPASS.  In normal development the assets/
+# folder sits two levels above this file.
+if getattr(sys, "frozen", False):
+    _ASSETS = Path(sys._MEIPASS) / "assets"   # type: ignore[attr-defined]
+else:
+    _ASSETS = Path(__file__).parent.parent / "assets"
 
 
 class AssetManager:

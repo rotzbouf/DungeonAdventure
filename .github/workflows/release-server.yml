@@ -1,0 +1,129 @@
+name: Build Server Release
+
+# Triggered when a release is published in the GitHub UI.
+# Builds the headless dedicated server for Linux and Windows, then attaches
+# each archive as a downloadable asset on the release.
+#
+# The server binary:
+#   • Sets SDL_VIDEODRIVER=dummy at startup — no display required
+#   • Runs entirely from the terminal (never opens a window)
+#   • Suitable for Docker containers, VMs, and any headless Linux/Windows host
+#
+# Usage after downloading:
+#   Linux:   ./DungeonAdventure-Server [--host 0.0.0.0] [--port 5555] [--floor 1]
+#   Windows: DungeonAdventure-Server.exe --port 5555
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+
+  build:
+    name: Server — ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+
+          # ── Linux x86_64 (primary server target) ──────────────────────────
+          - os:         ubuntu-latest
+            label:      Linux x86_64
+            exe:        dist/DungeonAdventure-Server
+            asset_name: DungeonAdventure-Server-linux-x86_64.tar.gz
+
+          # ── Windows x86_64 ────────────────────────────────────────────────
+          - os:         windows-latest
+            label:      Windows x86_64
+            exe:        dist/DungeonAdventure-Server.exe
+            asset_name: DungeonAdventure-Server-windows-x86_64.zip
+
+          # ── macOS arm64 ───────────────────────────────────────────────────
+          - os:         macos-14
+            label:      macOS arm64
+            exe:        dist/DungeonAdventure-Server
+            asset_name: DungeonAdventure-Server-macos-arm64.tar.gz
+
+    steps:
+
+      # ── 1. Source ────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Python ────────────────────────────────────────────────────────
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # ── 3. System deps — Linux (SDL2 needed even for dummy driver) ────────
+      - name: Install system libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libsdl2-dev libsdl2-image-dev
+
+      # ── 4. Python deps ────────────────────────────────────────────────────
+      # Pillow is NOT required for the server (no asset generation at runtime).
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pygame>=2.6.0
+          pip install pyinstaller
+
+      # ── 5a. Build — Linux / macOS ─────────────────────────────────────────
+      # The server does NOT need the assets/ directory.
+      # Keep --console (default) so log output is visible in the terminal.
+      # --strip reduces binary size on Unix.
+      - name: Build server (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          pyinstaller \
+            --onefile \
+            --name DungeonAdventure-Server \
+            --collect-all pygame \
+            --collect-all src \
+            --strip \
+            server.py
+
+      # ── 5b. Build — Windows ───────────────────────────────────────────────
+      # No --noconsole: server output must be visible in the terminal.
+      - name: Build server (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          pyinstaller `
+            --onefile `
+            --name DungeonAdventure-Server `
+            --collect-all pygame `
+            --collect-all src `
+            server.py
+
+      # ── 6a. Package — Linux / macOS ───────────────────────────────────────
+      - name: Package (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          tar -czf "${{ matrix.asset_name }}" \
+            -C dist DungeonAdventure-Server
+
+      # ── 6b. Package — Windows ─────────────────────────────────────────────
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive `
+            -Path dist\DungeonAdventure-Server.exe `
+            -DestinationPath "${{ matrix.asset_name }}"
+
+      # ── 7. Upload to release ──────────────────────────────────────────────
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset_name }}
+          fail_on_unmatched_files: true
