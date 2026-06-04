@@ -12,7 +12,7 @@ class Enemy(Entity):
     MAX_HP      = 30
     ATTACK      = 8
     DEFENSE     = 0
-    SPEED       = 70.0
+    SPEED       = 50.0
     DETECT      = 200.0
     ATK_RANGE   = 35.0
     ATK_CD      = 1.2
@@ -72,7 +72,8 @@ class Enemy(Entity):
             self.max_hp = max(1, int(self.MAX_HP * f))
             self.hp     = float(self.max_hp)
             self.attack = int(self.ATTACK * f)
-            self.speed  = self.SPEED * min(3.5, 1.0 + n * 0.025)
+            # Cap at 2.0× so speed never vastly outpaces the player
+            self.speed  = self.SPEED * min(2.0, 1.0 + n * 0.018)
 
     def update(self, dt: float, player, dungeon):
         self._atk_timer  = max(0.0, self._atk_timer  - dt)
@@ -277,7 +278,7 @@ class Goblin(Enemy):
     ASSET_KEY = "goblin"
     COLOR = (220,  92,  16)
     MAX_HP      = 25;        ATTACK = 7;    DEFENSE = 0
-    SPEED       = 144.0;     DETECT = 275.0; ATK_RANGE = 32.0; ATK_CD = 0.9
+    SPEED       = 104.0;     DETECT = 275.0; ATK_RANGE = 32.0; ATK_CD = 0.9
     XP_REWARD   = 15;        LOOT_CHANCE = 0.35
 
     def draw(self, surface: pygame.Surface, camera):
@@ -355,7 +356,7 @@ class Skeleton(Enemy):
     ASSET_KEY = "skeleton"
     COLOR = (204, 196, 176)   # bone white
     MAX_HP      = 38;         ATTACK = 11;   DEFENSE = 2
-    SPEED       = 94.0;       DETECT = 312.0; ATK_RANGE = 35.0; ATK_CD = 1.1
+    SPEED       = 68.0;       DETECT = 312.0; ATK_RANGE = 35.0; ATK_CD = 1.1
     XP_REWARD   = 28;         LOOT_CHANCE = 0.45
     ON_HIT_STATUS   = STATUS_SLOW
     ON_HIT_DURATION = 2.5
@@ -423,7 +424,7 @@ class Orc(Enemy):
     ASSET_KEY = "orc"
     COLOR = (0,  52, 216)   # blue armour
     MAX_HP      = 70;     ATTACK = 20;   DEFENSE = 4
-    SPEED       = 75.0;   DETECT = 225.0; ATK_RANGE = 40.0; ATK_CD = 1.5
+    SPEED       = 54.0;   DETECT = 225.0; ATK_RANGE = 40.0; ATK_CD = 1.5
     XP_REWARD   = 50;     LOOT_CHANCE = 0.62
 
     def __init__(self, x, y):
@@ -499,7 +500,7 @@ class Demon(Enemy):
     ASSET_KEY = "demon"
     COLOR = (148,  0, 216)   # purple
     MAX_HP      = 130;     ATTACK = 27;   DEFENSE = 6
-    SPEED       = 115.0;   DETECT = 375.0; ATK_RANGE = 44.0; ATK_CD = 0.95
+    SPEED       = 82.0;   DETECT = 375.0; ATK_RANGE = 44.0; ATK_CD = 0.95
     XP_REWARD   = 110;     LOOT_CHANCE = 0.9
 
     def draw(self, surface: pygame.Surface, camera):
@@ -635,7 +636,7 @@ class Lich(BossEnemy):
     BOSS_NAME      = "The Lich"
     COLOR          = (80, 0, 140)
     MAX_HP         = 450;   ATTACK = 32;   DEFENSE = 6
-    SPEED          = 90.0;  DETECT = 475.0; ATK_RANGE = 52.0; ATK_CD = 1.9
+    SPEED          = 65.0;  DETECT = 475.0; ATK_RANGE = 52.0; ATK_CD = 1.9
     XP_REWARD      = 650
     CHARGE_INTERVAL = 10.0; CHARGE_DURATION = 0.8
 
@@ -698,7 +699,7 @@ class DemonLord(BossEnemy):
     BOSS_NAME      = "Demon Lord"
     COLOR          = (160, 10, 20)
     MAX_HP         = 650;   ATTACK = 42;   DEFENSE = 8
-    SPEED          = 118.0; DETECT = 400.0; ATK_RANGE = 55.0; ATK_CD = 1.1
+    SPEED          = 85.0; DETECT = 400.0; ATK_RANGE = 55.0; ATK_CD = 1.1
     XP_REWARD      = 650
     CHARGE_INTERVAL = 5.0; CHARGE_DURATION = 1.3
 
@@ -768,7 +769,7 @@ class StoneGolem(BossEnemy):
     BOSS_NAME      = "Stone Golem"
     COLOR          = (100, 95, 88)
     MAX_HP         = 950;   ATTACK = 58;   DEFENSE = 20
-    SPEED          = 57.0;  DETECT = 325.0; ATK_RANGE = 60.0; ATK_CD = 2.6
+    SPEED          = 42.0;  DETECT = 325.0; ATK_RANGE = 60.0; ATK_CD = 2.6
     XP_REWARD      = 650
     CHARGE_INTERVAL = 8.0; CHARGE_DURATION = 1.1
 
@@ -828,7 +829,7 @@ class VampireLord(BossEnemy):
     BOSS_NAME      = "Vampire Lord"
     COLOR          = (100, 0, 60)
     MAX_HP         = 900;   ATTACK = 55;   DEFENSE = 12
-    SPEED          = 140.0; DETECT = 430.0; ATK_RANGE = 48.0; ATK_CD = 0.85
+    SPEED          = 100.0; DETECT = 430.0; ATK_RANGE = 48.0; ATK_CD = 0.85
     XP_REWARD      = 800
     CHARGE_INTERVAL = 4.0; CHARGE_DURATION = 0.9
 
@@ -908,7 +909,7 @@ class ElderDragon(BossEnemy):
     BOSS_NAME      = "Elder Dragon"
     COLOR          = (30, 100, 20)
     MAX_HP         = 1400;  ATTACK = 80;   DEFENSE = 22
-    SPEED          = 88.0;  DETECT = 380.0; ATK_RANGE = 56.0; ATK_CD = 1.6
+    SPEED          = 64.0;  DETECT = 380.0; ATK_RANGE = 56.0; ATK_CD = 1.6
     XP_REWARD      = 1000
     CHARGE_INTERVAL = 5.5; CHARGE_DURATION = 1.4
 
@@ -999,7 +1000,7 @@ class IronColossus(BossEnemy):
     BOSS_NAME      = "Iron Colossus"
     COLOR          = (80, 80, 90)
     MAX_HP         = 1800;  ATTACK = 95;   DEFENSE = 35
-    SPEED          = 55.0;  DETECT = 300.0; ATK_RANGE = 60.0; ATK_CD = 2.8
+    SPEED          = 40.0;  DETECT = 300.0; ATK_RANGE = 60.0; ATK_CD = 2.8
     XP_REWARD      = 1200
     CHARGE_INTERVAL = 9.0; CHARGE_DURATION = 1.2
 
