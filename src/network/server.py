@@ -248,6 +248,9 @@ class ServerGame:
                 continue
             ss  = self._spell_state[pid]
             aim = float(inp.get("aim_angle", player.attack_angle))
+            # Honour the client's explicit aim angle (e.g. mouse-directed arrow shots)
+            if inp.get("aim_angle") is not None:
+                player.attack_angle = aim
 
             # Melee / bow attack
             if inp.get("attack"):
