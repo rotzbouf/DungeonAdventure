@@ -137,10 +137,29 @@ class TownLayer:
             m.draw(self.screen, self.camera)   # camera is zeroed in town
             if m.near_player(self.player):
                 hx = int(m.x)
-                hy = int(m.y) - 50
-                hi_col = m._palette.get("robe_h", (220, 220, 220))
-                hint = self._font_sm.render(t("town.shop_hint"), True, hi_col)
-                self.screen.blit(hint, hint.get_rect(centerx=hx, centery=hy))
+                hy = int(m.y) - 58
+                # ── High-contrast interaction badge ────────────────────────
+                key_lbl  = self._font_sm.render("[F]", True, (255, 235, 80))
+                act_lbl  = self._font_sm.render(t("town.shop_hint").replace("[F]", "").strip(" —").strip(),
+                                                 True, (220, 210, 180))
+                # Fallback: if translation already has key stripped, use full
+                if not act_lbl.get_width():
+                    act_lbl = self._font_sm.render(t("town.shop_hint"), True, (220, 210, 180))
+                pad  = 8
+                gap  = 6
+                bw   = pad + key_lbl.get_width() + gap + act_lbl.get_width() + pad
+                bh   = key_lbl.get_height() + pad
+                bx_  = hx - bw // 2
+                by_  = hy - bh // 2
+                # Dark pill background
+                bg   = pygame.Surface((bw, bh), pygame.SRCALPHA)
+                bg.fill((0, 0, 0, 210))
+                pygame.draw.rect(bg, (180, 155, 40), (0, 0, bw, bh), 2)
+                self.screen.blit(bg, (bx_, by_))
+                # Key badge + action text
+                self.screen.blit(key_lbl, (bx_ + pad, by_ + pad // 2))
+                self.screen.blit(act_lbl, (bx_ + pad + key_lbl.get_width() + gap,
+                                            by_ + pad // 2))
 
         # Player
         self.player.draw(self.screen, self.camera)

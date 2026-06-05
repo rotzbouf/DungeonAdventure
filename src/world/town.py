@@ -132,6 +132,34 @@ def _blit_shadowed(surf, text_surf, pos, shadow_off=(2, 2)):
     surf.blit(text_surf, pos)
 
 
+def _draw_interaction_badge(surface, font, key_txt: str, action_txt: str,
+                             cx: int, cy: int, accent: tuple):
+    """
+    Draw a high-contrast interaction hint badge centred at (cx, cy).
+    key_txt   — the key label e.g. "[F]" shown in bright yellow
+    action_txt — the action description in light colour
+    accent     — border colour (themed per location)
+    """
+    key_s    = font.render(key_txt,    True, (255, 235, 80))
+    # Strip any "[X]" prefix the locale string might already contain
+    clean_action = action_txt
+    for prefix in ("[F]", "[E]", "[H]"):
+        clean_action = clean_action.replace(prefix, "").strip(" —").strip()
+    act_s    = font.render(clean_action or action_txt, True, (220, 210, 185))
+    pad, gap = 8, 6
+    bw = pad + key_s.get_width() + gap + act_s.get_width() + pad
+    bh = max(key_s.get_height(), act_s.get_height()) + pad
+    bx = cx - bw // 2
+    by = cy - bh // 2
+    bg = pygame.Surface((bw, bh), pygame.SRCALPHA)
+    bg.fill((0, 0, 0, 215))
+    pygame.draw.rect(bg, accent, (0, 0, bw, bh), 2)
+    surface.blit(bg, (bx, by))
+    ty = by + (bh - key_s.get_height()) // 2
+    surface.blit(key_s, (bx + pad, ty))
+    surface.blit(act_s, (bx + pad + key_s.get_width() + gap, ty))
+
+
 def _draw_stone_blocks(surf, rect, block_w, block_h, seed=0):
     """Tile a rect with offset stone blocks in multiple shades."""
     rng = random.Random(seed)
@@ -154,7 +182,72 @@ def _draw_stone_blocks(surf, rect, block_w, block_h, seed=0):
             pygame.draw.line(surf, _MORTAR, (x2 - 1, y1), (x2 - 1, y2 - 1))
 
 
-def _draw_building(surf, px, py, pal, seed=0):
+# ── Item icons displayed on shop fronts ──────────────────────────────────────
+# Maps specialty → base_name used to look up assets/items/{name}.png
+_SPECIALTY_ICON = {
+    "weapons": "Broad Sword",
+    "armor":   "Plate Armor",
+    "jewelry": "Gold Ring",
+    "potions": "health_potion",
+    "enchant": "Ancient Amulet",
+    "craft":   "Quarterstaff",
+}
+
+_facade_cache: dict[str, pygame.Surface | None] = {}
+_icon_cache:   dict[str, pygame.Surface | None] = {}
+
+
+def _load_facade(specialty: str, w: int, h: int) -> pygame.Surface | None:
+    key = f"{specialty}_{w}_{h}"
+    if key in _facade_cache:
+        return _facade_cache[key]
+    from pathlib import Path, PurePath
+    import sys
+    if getattr(sys, "frozen", False):
+        base = Path(sys._MEIPASS) / "assets" / "town"     # type: ignore
+    else:
+        base = Path(__file__).parent.parent.parent / "assets" / "town"
+    path = base / f"facade_{specialty}.png"
+    if path.exists():
+        try:
+            raw  = pygame.image.load(str(path)).convert_alpha()
+            surf = pygame.transform.smoothscale(raw, (w, h))
+            _facade_cache[key] = surf
+            return surf
+        except Exception:
+            pass
+    _facade_cache[key] = None
+    return None
+
+
+def _load_item_icon(specialty: str, size: int) -> pygame.Surface | None:
+    key = f"{specialty}_{size}"
+    if key in _icon_cache:
+        return _icon_cache[key]
+    from pathlib import Path
+    import sys
+    base_name = _SPECIALTY_ICON.get(specialty)
+    if not base_name:
+        _icon_cache[key] = None
+        return None
+    if getattr(sys, "frozen", False):
+        base = Path(sys._MEIPASS) / "assets" / "items"    # type: ignore
+    else:
+        base = Path(__file__).parent.parent.parent / "assets" / "items"
+    path = base / f"{base_name}.png"
+    if path.exists():
+        try:
+            raw  = pygame.image.load(str(path)).convert_alpha()
+            surf = pygame.transform.smoothscale(raw, (size, size))
+            _icon_cache[key] = surf
+            return surf
+        except Exception:
+            pass
+    _icon_cache[key] = None
+    return None
+
+
+def _draw_building(surf, px, py, pal, seed=0, specialty=""):
     """Draw a full merchant building facade centered at (px, py)."""
     BW, BH = 200, 140   # building width, height
     bx = px - BW // 2
@@ -165,32 +258,47 @@ def _draw_building(surf, px, py, pal, seed=0):
     sh_surf.fill((0, 0, 0, 80))
     surf.blit(sh_surf, (bx + 6, by + 6))
 
-    # ── Stone base (lower 40px) ───────────────────────────────────────────────
-    base_r = pygame.Rect(bx, by + BH - 40, BW, 40)
-    _draw_stone_blocks(surf, base_r, 28, 14, seed=seed)
-    pygame.draw.rect(surf, _MORTAR, base_r, 1)
+    # ── Wall: try PNG facade first, fall back to procedural ──────────────────
+    facade = _load_facade(specialty, BW, BH) if specialty else None
+    if facade is not None:
+        surf.blit(facade, (bx, by))
+    else:
+        # Procedural stone base + timber-frame wall
+        base_r = pygame.Rect(bx, by + BH - 40, BW, 40)
+        _draw_stone_blocks(surf, base_r, 28, 14, seed=seed)
+        pygame.draw.rect(surf, _MORTAR, base_r, 1)
 
-    # ── Timber-frame plaster wall (upper portion) ─────────────────────────────
-    wall_r = pygame.Rect(bx, by, BW, BH - 40)
-    pygame.draw.rect(surf, _PL_BASE, wall_r)
-    # plaster shading — subtle gradient
-    _grad_rect(surf, wall_r, _PL_SHD, _PL_BASE)
-    # vertical timber beams
-    for beam_x in range(bx, bx + BW + 1, BW // 3):
-        pygame.draw.rect(surf, _WD_DARK, (beam_x - 3, by, 6, BH - 40))
-        pygame.draw.line(surf, _WD_MID, (beam_x - 2, by), (beam_x - 2, by + BH - 40))
-    # horizontal timber beams
-    for beam_y in [by, by + (BH - 40) // 2, by + BH - 40]:
-        pygame.draw.rect(surf, _WD_DARK, (bx, beam_y - 3, BW, 6))
-        pygame.draw.line(surf, _WD_MID, (bx, beam_y - 2), (bx + BW, beam_y - 2))
-    # diagonal brace timbers (X pattern in each panel)
-    panel_w = BW // 3
-    for pi in range(3):
-        px1 = bx + pi * panel_w
-        py1 = by
-        py2 = by + (BH - 40)
-        pygame.draw.line(surf, _WD_DARK, (px1 + 4, py1 + 4), (px1 + panel_w - 4, py2 - 4), 2)
-        pygame.draw.line(surf, _WD_DARK, (px1 + panel_w - 4, py1 + 4), (px1 + 4, py2 - 4), 2)
+        wall_r = pygame.Rect(bx, by, BW, BH - 40)
+        pygame.draw.rect(surf, _PL_BASE, wall_r)
+        _grad_rect(surf, wall_r, _PL_SHD, _PL_BASE)
+        for beam_x in range(bx, bx + BW + 1, BW // 3):
+            pygame.draw.rect(surf, _WD_DARK, (beam_x - 3, by, 6, BH - 40))
+            pygame.draw.line(surf, _WD_MID, (beam_x - 2, by), (beam_x - 2, by + BH - 40))
+        for beam_y in [by, by + (BH - 40) // 2, by + BH - 40]:
+            pygame.draw.rect(surf, _WD_DARK, (bx, beam_y - 3, BW, 6))
+            pygame.draw.line(surf, _WD_MID, (bx, beam_y - 2), (bx + BW, beam_y - 2))
+        panel_w = BW // 3
+        for pi in range(3):
+            px1 = bx + pi * panel_w
+            py1 = by
+            py2 = by + (BH - 40)
+            pygame.draw.line(surf, _WD_DARK, (px1 + 4, py1 + 4), (px1 + panel_w - 4, py2 - 4), 2)
+            pygame.draw.line(surf, _WD_DARK, (px1 + panel_w - 4, py1 + 4), (px1 + 4, py2 - 4), 2)
+
+    # ── Specialty item icon on facade ─────────────────────────────────────────
+    if specialty:
+        icon = _load_item_icon(specialty, 52)
+        if icon is not None:
+            # Display icon in upper-centre of facade wall with a dark backing circle
+            ix = bx + BW // 2 - 26
+            iy = by + 14
+            bg_circ = pygame.Surface((56, 56), pygame.SRCALPHA)
+            pygame.draw.circle(bg_circ, (0, 0, 0, 140), (28, 28), 28)
+            surf.blit(bg_circ, (ix - 2, iy - 2))
+            surf.blit(icon, (ix, iy))
+            # Thin coloured ring around the icon
+            ring_col = pal.get("hi", (180, 180, 180))
+            pygame.draw.circle(surf, ring_col, (bx + BW // 2, iy + 26), 28, 2)
 
     # ── Pitched roof ─────────────────────────────────────────────────────────
     roof_pts = [
@@ -793,7 +901,7 @@ class TownRenderer:
         # ── 5. Merchant buildings ─────────────────────────────────────────────
         for title, specialty, px, py in MERCHANT_SPECS:
             pal = _STALL[specialty]
-            _draw_building(surf, px, py, pal, seed=hash(title))
+            _draw_building(surf, px, py, pal, seed=hash(title), specialty=specialty)
 
         # ── 5b. Player house ──────────────────────────────────────────────────
         _draw_house(surf, HOUSE_POS[0], HOUSE_POS[1])
@@ -914,9 +1022,9 @@ class TownRenderer:
         _blit_shadowed(surface, home_lbl,
                        home_lbl.get_rect(centerx=hpx, centery=_h_by - 70).topleft)
         if near_house:
-            hint = self._font_sm.render(t("town.enter_house"), True, (240, 200, 120))
-            _blit_shadowed(surface, hint,
-                           hint.get_rect(centerx=hpx, centery=hpy + 80).topleft)
+            _draw_interaction_badge(surface, self._font_sm,
+                                     "[F]", t("town.enter_house"),
+                                     hpx, hpy + 80, (220, 185, 80))
 
         # ── Stall names with drop shadows ─────────────────────────────────────
         for title, specialty, px, py in MERCHANT_SPECS:
@@ -935,9 +1043,9 @@ class TownRenderer:
         _blit_shadowed(surface, lbl, lrect.topleft, shadow_off=(2, 2))
 
         if near_entrance:
-            hint = self._font_sm.render(t("town.enter_dungeon"), True, (220, 190, 255))
-            hrect = hint.get_rect(centerx=ex, centery=ey + 46)
-            _blit_shadowed(surface, hint, hrect.topleft)
+            _draw_interaction_badge(surface, self._font_sm,
+                                     "[E]", t("town.enter_dungeon"),
+                                     ex, ey + 46, (180, 140, 255))
 
     def draw_return_notice(self, surface: pygame.Surface, msg: str):
         """Short-lived 'Rested' banner after returning from the dungeon."""
