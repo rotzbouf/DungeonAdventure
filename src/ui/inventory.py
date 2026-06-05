@@ -293,16 +293,26 @@ class InventoryScreen:
             surface.blit(lbl_s, (r.left + 3, r.top + 2))
 
             if item is not None:
-                # Item name (middle row, quality colour, truncated)
+                # Tiny item sprite left-side icon
+                try:
+                    from src.assets import assets as _a
+                    _isz = _SH - 10
+                    _spr = _a.item_sprite(item.base_name, size=(_isz, _isz))
+                    if _spr:
+                        surface.blit(_spr, (r.left + 2, r.centery - _isz // 2))
+                except Exception:
+                    pass
+
+                # Item name (right of icon, quality colour, truncated)
                 name_col = item.quality_color
                 name_txt = item.display_name
-                max_w    = _SW - 6
+                max_w    = _SW - _SH - 2
                 n = self._font_xs.render(name_txt, True, name_col)
                 while n.get_width() > max_w and len(name_txt) > 3:
                     name_txt = name_txt[:-1]
                     n = self._font_xs.render(name_txt + "…", True, name_col)
                 ny = r.top + self._font_xs.get_height() + 4
-                surface.blit(n, (r.left + 3, ny))
+                surface.blit(n, (r.left + _SH, ny))
 
                 # Primary stat (bottom row)
                 ps = item.primary_stat
@@ -373,10 +383,23 @@ class InventoryScreen:
                     pygame.draw.rect(surface, bc, r,
                                      1 if item.quality == QUALITY_NORMAL else 2)
                     icon_rect = r.inflate(-14, -14)
-                    if item.slot == "weapon":
-                        item._draw_weapon_icon(surface, icon_rect, bc)
-                    else:
-                        item._draw_armor_icon(surface, icon_rect, bc)
+                    # Try PNG sprite first; fall back to procedural drawing
+                    try:
+                        from src.assets import assets
+                        spr = assets.item_sprite(item.base_name,
+                                                  size=(icon_rect.width,
+                                                        icon_rect.height))
+                        if spr:
+                            surface.blit(spr, icon_rect.topleft)
+                        elif item.slot == "weapon":
+                            item._draw_weapon_icon(surface, icon_rect, bc)
+                        else:
+                            item._draw_armor_icon(surface, icon_rect, bc)
+                    except Exception:
+                        if item.slot == "weapon":
+                            item._draw_weapon_icon(surface, icon_rect, bc)
+                        else:
+                            item._draw_armor_icon(surface, icon_rect, bc)
 
                     # Quality badge (top-right)
                     badge_chars = {1: "M", 2: "R", 3: "U"}

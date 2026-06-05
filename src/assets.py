@@ -81,9 +81,14 @@ class AssetManager:
 
     def item(self, kind: str,
              size: tuple | None = None) -> pygame.Surface | None:
-        """kind: 'gold_pile' | 'health_potion' | 'weapon_sword' | 'ring' etc."""
+        """kind: exact base_name ('Dagger', 'Chain Mail', …) or legacy key."""
         path = _ASSETS / "items" / f"{kind}.png"
         return self._load(path, size)
+
+    def item_sprite(self, base_name: str,
+                    size: tuple | None = None) -> pygame.Surface | None:
+        """Return the sprite PNG for an item base_name, or None."""
+        return self.item(base_name, size)
 
     def clear_cache(self):
         self._cache.clear()

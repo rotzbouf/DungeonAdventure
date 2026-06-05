@@ -204,72 +204,200 @@ _RARE_SECOND = ["Bane",  "Edge",  "Crest",  "Wail", "Brand","Gore",  "Fang",
 # ── Base item types ───────────────────────────────────────────────────────────
 # (slot, primary_stat_min, primary_stat_max, level_tier)
 
-BOW_BASES = frozenset({"Short Bow", "Long Bow", "Hunter's Bow", "War Bow", "Crossbow"})
+BOW_BASES = frozenset({
+    "Short Bow", "Long Bow", "Hunter's Bow", "War Bow",
+    "Crossbow", "Hand Crossbow", "Arbalest",
+})
 
 _BASES: dict[str, tuple] = {
-    # Weapons — primary = ATK
-    "Dagger":          (SLOT_WEAPON,  1,  3, 1),
-    "Short Sword":     (SLOT_WEAPON,  3,  6, 1),
-    "Broad Sword":     (SLOT_WEAPON,  6, 10, 2),
-    "Battle Axe":      (SLOT_WEAPON, 10, 16, 3),
-    "War Hammer":      (SLOT_WEAPON, 15, 22, 4),
-    "Great Sword":     (SLOT_WEAPON, 20, 30, 5),
-    # Bows — primary = ATK (DEX-scaled via bow_attack property)
-    "Short Bow":       (SLOT_WEAPON,  3,  7, 1),
-    "Long Bow":        (SLOT_WEAPON,  7, 13, 2),
-    "Hunter's Bow":    (SLOT_WEAPON, 12, 20, 3),
-    "War Bow":         (SLOT_WEAPON, 18, 28, 4),
-    "Crossbow":        (SLOT_WEAPON, 24, 36, 5),
-    # Shields — primary = DEF
-    "Buckler":         (SLOT_SHIELD,  1,  2, 1),
-    "Kite Shield":     (SLOT_SHIELD,  3,  5, 3),
-    "Tower Shield":    (SLOT_SHIELD,  6, 10, 5),
-    # Helms
-    "Cap":             (SLOT_HELM,    1,  2, 1),
-    "Helm":            (SLOT_HELM,    3,  5, 3),
-    "Great Helm":      (SLOT_HELM,    6, 10, 5),
-    # Chest
-    "Leather Armor":   (SLOT_CHEST,   2,  4, 1),
-    "Ring Mail":       (SLOT_CHEST,   5,  8, 3),
-    "Plate Armor":     (SLOT_CHEST,   9, 14, 5),
-    # Gloves
-    "Leather Gloves":  (SLOT_GLOVES,  1,  2, 1),
-    "Chain Gloves":    (SLOT_GLOVES,  2,  4, 3),
-    "Gauntlets":       (SLOT_GLOVES,  4,  7, 5),
-    # Boots
-    "Leather Boots":   (SLOT_BOOTS,   1,  2, 1),
-    "Chain Boots":     (SLOT_BOOTS,   2,  4, 3),
-    "Greaves":         (SLOT_BOOTS,   4,  7, 5),
-    # Belt
-    "Sash":            (SLOT_BELT,    0,  1, 1),
-    "Belt":            (SLOT_BELT,    1,  3, 3),
-    "War Belt":        (SLOT_BELT,    3,  5, 5),
-    # Jewellery — no primary stat
-    "Ring":            (SLOT_RING,    0,  0, 1),
-    "Amulet":          (SLOT_AMULET,  0,  0, 1),
+    # ── Swords ── (slot, atk_min, atk_max, tier)
+    "Dagger":            (SLOT_WEAPON,  1,  4, 1),
+    "Short Sword":       (SLOT_WEAPON,  3,  7, 1),
+    "Long Sword":        (SLOT_WEAPON,  5,  9, 2),
+    "Scimitar":          (SLOT_WEAPON,  6, 11, 2),
+    "Rapier":            (SLOT_WEAPON,  7, 12, 3),
+    "Broad Sword":       (SLOT_WEAPON,  9, 14, 3),
+    "Claymore":          (SLOT_WEAPON, 14, 22, 4),
+    "Great Sword":       (SLOT_WEAPON, 20, 32, 5),
+    "Demon Blade":       (SLOT_WEAPON, 28, 42, 7),
+    # ── Axes ──
+    "Hand Axe":          (SLOT_WEAPON,  4,  8, 1),
+    "War Axe":           (SLOT_WEAPON,  8, 14, 2),
+    "Battle Axe":        (SLOT_WEAPON, 13, 20, 3),
+    "Great Axe":         (SLOT_WEAPON, 19, 29, 4),
+    "Executioner's Axe": (SLOT_WEAPON, 27, 40, 6),
+    # ── Maces ──
+    "Club":              (SLOT_WEAPON,  2,  5, 1),
+    "Mace":              (SLOT_WEAPON,  7, 12, 2),
+    "Flail":             (SLOT_WEAPON, 11, 18, 3),
+    "Morningstar":       (SLOT_WEAPON, 17, 26, 4),
+    "War Hammer":        (SLOT_WEAPON, 22, 34, 5),
+    "Dire Flail":        (SLOT_WEAPON, 30, 44, 7),
+    # ── Polearms ──
+    "Spear":             (SLOT_WEAPON,  6, 11, 2),
+    "Halberd":           (SLOT_WEAPON, 12, 19, 3),
+    "Glaive":            (SLOT_WEAPON, 18, 28, 4),
+    "Bardiche":          (SLOT_WEAPON, 26, 38, 6),
+    # ── Staves ──
+    "Quarterstaff":      (SLOT_WEAPON,  5, 10, 2),
+    "Battle Staff":      (SLOT_WEAPON, 16, 26, 5),
+    # ── Ranged ──
+    "Short Bow":         (SLOT_WEAPON,  3,  7, 1),
+    "Long Bow":          (SLOT_WEAPON,  7, 13, 2),
+    "Hunter's Bow":      (SLOT_WEAPON, 12, 20, 3),
+    "Hand Crossbow":     (SLOT_WEAPON, 14, 22, 3),
+    "War Bow":           (SLOT_WEAPON, 18, 28, 4),
+    "Crossbow":          (SLOT_WEAPON, 24, 36, 5),
+    "Arbalest":          (SLOT_WEAPON, 32, 48, 7),
+    # ── Shields ── primary = DEF
+    "Buckler":           (SLOT_SHIELD,  1,  3, 1),
+    "Heater Shield":     (SLOT_SHIELD,  3,  6, 2),
+    "Kite Shield":       (SLOT_SHIELD,  5,  9, 3),
+    "Round Shield":      (SLOT_SHIELD,  7, 12, 4),
+    "Tower Shield":      (SLOT_SHIELD, 10, 16, 5),
+    "Dwarven Shield":    (SLOT_SHIELD, 14, 22, 7),
+    # ── Helms ──
+    "Cap":               (SLOT_HELM,   1,  2, 1),
+    "Leather Helm":      (SLOT_HELM,   2,  4, 2),
+    "Helm":              (SLOT_HELM,   4,  7, 3),
+    "Visored Helm":      (SLOT_HELM,   6, 10, 4),
+    "Great Helm":        (SLOT_HELM,   9, 14, 5),
+    "Dragon Helm":       (SLOT_HELM,  13, 20, 7),
+    # ── Chest ──
+    "Leather Armor":     (SLOT_CHEST,  2,  5, 1),
+    "Ring Mail":         (SLOT_CHEST,  5,  9, 2),
+    "Chain Mail":        (SLOT_CHEST,  8, 13, 3),
+    "Banded Mail":       (SLOT_CHEST, 12, 18, 4),
+    "Plate Armor":       (SLOT_CHEST, 16, 24, 5),
+    "Crystal Plate":     (SLOT_CHEST, 22, 34, 7),
+    # ── Gloves ──
+    "Leather Gloves":    (SLOT_GLOVES, 1,  2, 1),
+    "Chain Gloves":      (SLOT_GLOVES, 2,  5, 2),
+    "Gauntlets":         (SLOT_GLOVES, 5,  9, 4),
+    "War Gauntlets":     (SLOT_GLOVES, 8, 13, 6),
+    # ── Boots ──
+    "Leather Boots":     (SLOT_BOOTS,  1,  2, 1),
+    "Chain Boots":       (SLOT_BOOTS,  2,  5, 2),
+    "Greaves":           (SLOT_BOOTS,  5,  9, 4),
+    "Iron Boots":        (SLOT_BOOTS,  8, 14, 6),
+    # ── Belt ──
+    "Sash":              (SLOT_BELT,   0,  2, 1),
+    "Belt":              (SLOT_BELT,   2,  4, 2),
+    "Studded Belt":      (SLOT_BELT,   3,  6, 4),
+    "War Belt":          (SLOT_BELT,   5,  9, 6),
+    # ── Rings — visual variants at different tiers ──
+    "Ring":              (SLOT_RING,   0,  0, 1),
+    "Iron Ring":         (SLOT_RING,   0,  0, 2),
+    "Silver Ring":       (SLOT_RING,   0,  0, 3),
+    "Gold Ring":         (SLOT_RING,   0,  0, 5),
+    "Ancient Ring":      (SLOT_RING,   0,  0, 7),
+    # ── Amulets — visual variants at different tiers ──
+    "Amulet":            (SLOT_AMULET, 0,  0, 1),
+    "Stone Amulet":      (SLOT_AMULET, 0,  0, 2),
+    "Runed Amulet":      (SLOT_AMULET, 0,  0, 4),
+    "Elven Amulet":      (SLOT_AMULET, 0,  0, 6),
+    "Ancient Amulet":    (SLOT_AMULET, 0,  0, 8),
 }
 
-# Weapon/armour type available at each level (pick from this list)
-# Melee and bows share the weapon slot; equipping a bow switches attack mode.
-_LEVEL_WEAPONS = {1: ["Dagger", "Short Sword", "Short Bow"],
-                  2: ["Short Sword", "Broad Sword", "Short Bow", "Long Bow"],
-                  3: ["Broad Sword", "Battle Axe", "Long Bow", "Hunter's Bow"],
-                  4: ["Battle Axe", "War Hammer", "Hunter's Bow", "War Bow"],
-                  5: ["War Hammer", "Great Sword", "War Bow", "Crossbow"]}
+# ── Weapon pool per tier (randomly selected when generating loot) ─────────────
+# Tiers extended to 8 so gear keeps evolving past floor 20.
+_LEVEL_WEAPONS: dict[int, list[str]] = {
+    1: ["Dagger",      "Short Sword",  "Hand Axe",   "Club",          "Short Bow"],
+    2: ["Long Sword",  "Scimitar",     "War Axe",    "Mace",    "Spear",
+        "Quarterstaff","Long Bow"],
+    3: ["Broad Sword", "Rapier",       "Battle Axe", "Flail",   "Halberd",
+        "Hunter's Bow","Hand Crossbow"],
+    4: ["Claymore",    "Great Axe",    "Morningstar","Glaive",  "Battle Staff",
+        "War Bow"],
+    5: ["Great Sword", "War Hammer",   "Bardiche",   "Crossbow"],
+    6: ["Executioner's Axe", "Dire Flail",   "Demon Blade"],
+    7: ["Demon Blade", "Arbalest",     "Bardiche"],
+    8: ["Demon Blade", "Dire Flail",   "Arbalest"],
+}
 
-_LEVEL_ARMOR: dict[str, dict[int, str]] = {
-    SLOT_SHIELD: {1: "Buckler",        2: "Buckler",        3: "Kite Shield",
-                  4: "Kite Shield",    5: "Tower Shield"},
-    SLOT_HELM:   {1: "Cap",            2: "Cap",            3: "Helm",
-                  4: "Helm",           5: "Great Helm"},
-    SLOT_CHEST:  {1: "Leather Armor",  2: "Leather Armor",  3: "Ring Mail",
-                  4: "Ring Mail",      5: "Plate Armor"},
-    SLOT_GLOVES: {1: "Leather Gloves", 2: "Leather Gloves", 3: "Chain Gloves",
-                  4: "Chain Gloves",   5: "Gauntlets"},
-    SLOT_BOOTS:  {1: "Leather Boots",  2: "Leather Boots",  3: "Chain Boots",
-                  4: "Chain Boots",    5: "Greaves"},
-    SLOT_BELT:   {1: "Sash",           2: "Sash",           3: "Belt",
-                  4: "Belt",           5: "War Belt"},
+# ── Armour pool per slot per tier ─────────────────────────────────────────────
+# Values are now lists so multiple options can appear at the same tier.
+_LEVEL_ARMOR: dict[str, dict[int, list[str]]] = {
+    SLOT_SHIELD: {
+        1: ["Buckler"],
+        2: ["Buckler",        "Heater Shield"],
+        3: ["Heater Shield",  "Kite Shield"],
+        4: ["Kite Shield",    "Round Shield"],
+        5: ["Round Shield",   "Tower Shield"],
+        6: ["Tower Shield"],
+        7: ["Tower Shield",   "Dwarven Shield"],
+        8: ["Dwarven Shield"],
+    },
+    SLOT_HELM: {
+        1: ["Cap"],
+        2: ["Cap",            "Leather Helm"],
+        3: ["Leather Helm",   "Helm"],
+        4: ["Helm",           "Visored Helm"],
+        5: ["Visored Helm",   "Great Helm"],
+        6: ["Great Helm"],
+        7: ["Great Helm",     "Dragon Helm"],
+        8: ["Dragon Helm"],
+    },
+    SLOT_CHEST: {
+        1: ["Leather Armor"],
+        2: ["Leather Armor",  "Ring Mail"],
+        3: ["Ring Mail",      "Chain Mail"],
+        4: ["Chain Mail",     "Banded Mail"],
+        5: ["Banded Mail",    "Plate Armor"],
+        6: ["Plate Armor"],
+        7: ["Plate Armor",    "Crystal Plate"],
+        8: ["Crystal Plate"],
+    },
+    SLOT_GLOVES: {
+        1: ["Leather Gloves"],
+        2: ["Leather Gloves", "Chain Gloves"],
+        3: ["Chain Gloves"],
+        4: ["Chain Gloves",   "Gauntlets"],
+        5: ["Gauntlets"],
+        6: ["Gauntlets",      "War Gauntlets"],
+        7: ["War Gauntlets"],
+        8: ["War Gauntlets"],
+    },
+    SLOT_BOOTS: {
+        1: ["Leather Boots"],
+        2: ["Leather Boots",  "Chain Boots"],
+        3: ["Chain Boots"],
+        4: ["Chain Boots",    "Greaves"],
+        5: ["Greaves"],
+        6: ["Greaves",        "Iron Boots"],
+        7: ["Iron Boots"],
+        8: ["Iron Boots"],
+    },
+    SLOT_BELT: {
+        1: ["Sash"],
+        2: ["Sash",           "Belt"],
+        3: ["Belt"],
+        4: ["Belt",           "Studded Belt"],
+        5: ["Studded Belt"],
+        6: ["Studded Belt",   "War Belt"],
+        7: ["War Belt"],
+        8: ["War Belt"],
+    },
+    SLOT_RING: {
+        1: ["Ring"],
+        2: ["Ring",           "Iron Ring"],
+        3: ["Iron Ring",      "Silver Ring"],
+        4: ["Silver Ring"],
+        5: ["Silver Ring",    "Gold Ring"],
+        6: ["Gold Ring"],
+        7: ["Gold Ring",      "Ancient Ring"],
+        8: ["Ancient Ring"],
+    },
+    SLOT_AMULET: {
+        1: ["Amulet"],
+        2: ["Amulet",         "Stone Amulet"],
+        3: ["Stone Amulet"],
+        4: ["Stone Amulet",   "Runed Amulet"],
+        5: ["Runed Amulet"],
+        6: ["Runed Amulet",   "Elven Amulet"],
+        7: ["Elven Amulet",   "Ancient Amulet"],
+        8: ["Ancient Amulet"],
+    },
 }
 
 # ── Unique item database ──────────────────────────────────────────────────────
@@ -424,6 +552,150 @@ _UNIQUES: list[dict] = [
      "name": "The Eye of Etlich",
      "mods": [(MOD_LIFE_STEAL, 12), (MOD_MAX_HP, 40), (MOD_CRIT, 10), (MOD_SPEED, 12)],
      "flavor": "Sees all, grants all."},
+
+    # ── New weapons — Axes ────────────────────────────────────────────────────
+    {"slot": SLOT_WEAPON, "base": "Hand Axe",       "min_lvl": 1,
+     "name": "Cleaver",
+     "mods": [(MOD_ATK, 10), (MOD_CRIT, 8), (MOD_ATK_SPD, 15)],
+     "flavor": "Short, brutal, effective."},
+
+    {"slot": SLOT_WEAPON, "base": "War Axe",        "min_lvl": 2,
+     "name": "Skullsplitter",
+     "mods": [(MOD_ATK, 20), (MOD_CRIT, 12), (MOD_LIFE_STEAL, 5)],
+     "flavor": "The skull remembers every blow."},
+
+    {"slot": SLOT_WEAPON, "base": "Great Axe",      "min_lvl": 4,
+     "name": "Carnage",
+     "mods": [(MOD_ATK, 35), (MOD_ATK_PCT, 30), (MOD_THORNS, 10)],
+     "flavor": "Not a weapon. A catastrophe."},
+
+    {"slot": SLOT_WEAPON, "base": "Executioner's Axe", "min_lvl": 6,
+     "name": "Headsman's Pride",
+     "mods": [(MOD_ATK, 55), (MOD_ATK_PCT, 40), (MOD_CRIT, 18)],
+     "flavor": "One clean stroke is all it takes."},
+
+    # ── New weapons — Maces ───────────────────────────────────────────────────
+    {"slot": SLOT_WEAPON, "base": "Mace",           "min_lvl": 2,
+     "name": "Bonecrusher",
+     "mods": [(MOD_ATK, 18), (MOD_THORNS, 14), (MOD_MAX_HP, 25)],
+     "flavor": "Armor means nothing to bone."},
+
+    {"slot": SLOT_WEAPON, "base": "Morningstar",    "min_lvl": 4,
+     "name": "Star of Chaos",
+     "mods": [(MOD_ATK, 32), (MOD_ATK_PCT, 25), (MOD_CRIT, 10), (MOD_THORNS, 12)],
+     "flavor": "Chaos given form and weight."},
+
+    {"slot": SLOT_WEAPON, "base": "Dire Flail",     "min_lvl": 7,
+     "name": "Seraph's Demand",
+     "mods": [(MOD_ATK, 50), (MOD_ATK_PCT, 35), (MOD_LIFE_STEAL, 10)],
+     "flavor": "Angels do not ask kindly."},
+
+    # ── New weapons — Polearms ────────────────────────────────────────────────
+    {"slot": SLOT_WEAPON, "base": "Spear",          "min_lvl": 2,
+     "name": "Bloodletter",
+     "mods": [(MOD_ATK, 16), (MOD_CRIT, 14), (MOD_LIFE_STEAL, 7)],
+     "flavor": "Reaches where swords cannot."},
+
+    {"slot": SLOT_WEAPON, "base": "Halberd",        "min_lvl": 3,
+     "name": "Voidpiercer",
+     "mods": [(MOD_ATK, 26), (MOD_ATK_PCT, 22), (MOD_CRIT, 8), (MOD_SPEED, 10)],
+     "flavor": "Even the void bleeds."},
+
+    {"slot": SLOT_WEAPON, "base": "Bardiche",       "min_lvl": 6,
+     "name": "The Reaping Edge",
+     "mods": [(MOD_ATK, 48), (MOD_ATK_PCT, 42), (MOD_LIFE_STEAL, 8)],
+     "flavor": "Wide enough to harvest armies."},
+
+    # ── New weapons — Staves ──────────────────────────────────────────────────
+    {"slot": SLOT_WEAPON, "base": "Quarterstaff",   "min_lvl": 2,
+     "name": "Staff of Warding",
+     "mods": [(MOD_DEF, 10), (MOD_MAX_MANA, 40), (MOD_ATK, 8)],
+     "flavor": "Blocks both blade and spell."},
+
+    {"slot": SLOT_WEAPON, "base": "Battle Staff",   "min_lvl": 5,
+     "name": "Arcane Bludgeon",
+     "mods": [(MOD_ATK, 28), (MOD_MAX_MANA, 60), (MOD_ATK_PCT, 20), (MOD_CRIT, 8)],
+     "flavor": "Where raw force meets arcane fury."},
+
+    # ── New weapons — Swords (new bases) ─────────────────────────────────────
+    {"slot": SLOT_WEAPON, "base": "Long Sword",     "min_lvl": 2,
+     "name": "Whispering Edge",
+     "mods": [(MOD_ATK, 14), (MOD_ATK_SPD, 22), (MOD_CRIT, 10)],
+     "flavor": "Silent. Lethal. Inevitable."},
+
+    {"slot": SLOT_WEAPON, "base": "Scimitar",       "min_lvl": 2,
+     "name": "Desert Wind",
+     "mods": [(MOD_ATK, 16), (MOD_ATK_SPD, 28), (MOD_SPEED, 14)],
+     "flavor": "Hot and merciless as the desert."},
+
+    {"slot": SLOT_WEAPON, "base": "Claymore",       "min_lvl": 4,
+     "name": "Grief",
+     "mods": [(MOD_ATK, 42), (MOD_ATK_PCT, 38), (MOD_CRIT, 14)],
+     "flavor": "Loss given an edge."},
+
+    {"slot": SLOT_WEAPON, "base": "Demon Blade",    "min_lvl": 7,
+     "name": "Herald of Chaos",
+     "mods": [(MOD_ATK, 65), (MOD_ATK_PCT, 55), (MOD_CRIT, 22), (MOD_LIFE_STEAL, 8)],
+     "flavor": "Forged in the abyss, perfected in carnage."},
+
+    # ── New ranged ────────────────────────────────────────────────────────────
+    {"slot": SLOT_WEAPON, "base": "Hand Crossbow",  "min_lvl": 3,
+     "name": "Tempest",
+     "mods": [(MOD_ATK, 28), (MOD_ATK_SPD, 35), (MOD_CRIT, 14)],
+     "flavor": "A storm that fits in one hand."},
+
+    {"slot": SLOT_WEAPON, "base": "Arbalest",       "min_lvl": 7,
+     "name": "Ice Bolt Launcher",
+     "mods": [(MOD_ATK, 58), (MOD_CRIT, 16), (MOD_ATK_PCT, 30), (MOD_DEF, 8)],
+     "flavor": "Each bolt a frozen death."},
+
+    # ── New armour ────────────────────────────────────────────────────────────
+    {"slot": SLOT_CHEST, "base": "Chain Mail",      "min_lvl": 3,
+     "name": "Naj's Light Plate",
+     "mods": [(MOD_DEF, 18), (MOD_MAX_MANA, 60), (MOD_ATK_SPD, 20)],
+     "flavor": "Light enough to dance, strong enough to endure."},
+
+    {"slot": SLOT_CHEST, "base": "Banded Mail",     "min_lvl": 4,
+     "name": "Greyform",
+     "mods": [(MOD_DEF, 25), (MOD_MAX_HP, 70), (MOD_THORNS, 18)],
+     "flavor": "Grey as ash. Hard as grief."},
+
+    {"slot": SLOT_CHEST, "base": "Crystal Plate",   "min_lvl": 7,
+     "name": "The Gladiator's Shroud",
+     "mods": [(MOD_DEF, 45), (MOD_MAX_HP, 120), (MOD_HP_REGEN, 4.0), (MOD_THORNS, 20)],
+     "flavor": "The crowd roars. The plate endures."},
+
+    {"slot": SLOT_SHIELD, "base": "Heater Shield",  "min_lvl": 2,
+     "name": "Troll's Nest",
+     "mods": [(MOD_DEF, 18), (MOD_MAX_HP, 45), (MOD_HP_REGEN, 1.5)],
+     "flavor": "Smells like troll. Protects like one too."},
+
+    {"slot": SLOT_SHIELD, "base": "Dwarven Shield", "min_lvl": 7,
+     "name": "The Bulwark Eternal",
+     "mods": [(MOD_DEF, 38), (MOD_MAX_HP, 90), (MOD_THORNS, 30), (MOD_HP_REGEN, 2.5)],
+     "flavor": "Dwarves do not yield. Neither does this."},
+
+    # ── New jewellery ─────────────────────────────────────────────────────────
+    {"slot": SLOT_RING, "base": "Gold Ring",         "min_lvl": 5,
+     "name": "Manald Heal",
+     "mods": [(MOD_MAX_HP, 80), (MOD_HP_REGEN, 3.0), (MOD_LIFE_STEAL, 6)],
+     "flavor": "Gold that gives back what was taken."},
+
+    {"slot": SLOT_RING, "base": "Ancient Ring",      "min_lvl": 7,
+     "name": "Trang-Oul's Coil",
+     "mods": [(MOD_MAX_MANA, 80), (MOD_MAX_HP, 50), (MOD_ATK, 20), (MOD_CRIT, 15)],
+     "flavor": "Ancient power distilled into a circle."},
+
+    {"slot": SLOT_AMULET, "base": "Runed Amulet",   "min_lvl": 4,
+     "name": "Highlord's Wrath",
+     "mods": [(MOD_ATK_PCT, 40), (MOD_CRIT, 14), (MOD_ATK_SPD, 20)],
+     "flavor": "The fury of a thousand fallen kings."},
+
+    {"slot": SLOT_AMULET, "base": "Ancient Amulet",  "min_lvl": 8,
+     "name": "Tal Rasha's Adjudication",
+     "mods": [(MOD_MAX_HP, 80), (MOD_MAX_MANA, 80), (MOD_LIFE_STEAL, 14),
+              (MOD_ATK_PCT, 30)],
+     "flavor": "Bound by ancient pacts, freed by ancient power."},
 ]
 
 
@@ -835,7 +1107,7 @@ def random_equip(tx: int, ty: int, ilvl: int,
                  depth_mult: float = 1.0) -> EquipItem:
     """Generate a random equipment item for the given dungeon level."""
     q_ilvl = max(1, min(10, ilvl))   # quality/affix rolling extends to ilvl 10
-    b_ilvl = max(1, min(5,  ilvl))   # base type selection caps at tier 5
+    b_ilvl = max(1, min(8,  ilvl))   # base type selection extends to tier 8
 
     if quality is None:
         quality = _pick_quality(q_ilvl)
@@ -867,9 +1139,18 @@ def random_equip(tx: int, ty: int, ilvl: int,
     if slot == SLOT_WEAPON:
         base = random.choice(_LEVEL_WEAPONS.get(b_ilvl, ["Short Sword"]))
     elif slot in _LEVEL_ARMOR:
-        base = _LEVEL_ARMOR[slot].get(b_ilvl, list(_LEVEL_ARMOR[slot].values())[0])
-    elif slot == SLOT_RING:
-        base = "Ring"
+        # _LEVEL_ARMOR values are now lists — pick randomly for variety
+        options = _LEVEL_ARMOR[slot].get(b_ilvl)
+        if options is None:
+            # Fall back to closest lower tier
+            for t in range(b_ilvl - 1, 0, -1):
+                options = _LEVEL_ARMOR[slot].get(t)
+                if options:
+                    break
+        if isinstance(options, list):
+            base = random.choice(options)
+        else:
+            base = options or "Leather Armor"
     else:
         base = "Amulet"
 

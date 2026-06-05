@@ -169,17 +169,99 @@ def install_items():
     out = OUT / "items"
     out.mkdir(parents=True, exist_ok=True)
 
+    # Each key becomes assets/items/{key}.png
+    # The value is a path tuple relative to FULL.
     _ITEM_MAP = {
-        "gold_pile":       ("item", "gold",   "gold_pile_3.png"),
-        "health_potion":   ("item", "potion", "red_new.png"),
-        "weapon_sword":    ("item", "weapon", "short_sword_2.png"),
-        "weapon_axe":      ("item", "weapon", "battle_axe_1.png"),
-        "weapon_bow":      ("item", "weapon", "ranged", "shortbow.png"),
-        "armour_chest":    ("item", "armor",  "torso", "ring_mail.png"),
-        "armour_helm":     ("item", "armor",  "headgear", "helmet_1.png"),
-        "armour_shield":   ("item", "armor",  "shields", "kite_shield.png"),
-        "ring":            ("item", "ring",   "ring_silver.png"),
-        "amulet":          ("item", "amulet", "amulet_1.png"),
+        # ── Ground drops ─────────────────────────────────────────────────────
+        "gold_pile":           ("item", "gold",   "gold_pile_3.png"),
+        "health_potion":       ("item", "potion", "ruby.png"),
+        # ── Swords ───────────────────────────────────────────────────────────
+        "Dagger":              ("item", "weapon", "dagger.png"),
+        "Short Sword":         ("item", "weapon", "short_sword_2.png"),
+        "Long Sword":          ("item", "weapon", "long_sword_1.png"),
+        "Scimitar":            ("item", "weapon", "falchion_1.png"),
+        "Rapier":              ("item", "weapon", "rapier_1.png"),
+        "Broad Sword":         ("item", "weapon", "elven_broadsword.png"),
+        "Claymore":            ("item", "weapon", "claymore.png"),
+        "Great Sword":         ("item", "weapon", "double_sword.png"),
+        "Demon Blade":         ("item", "weapon", "demon_blade.png"),
+        # ── Axes ─────────────────────────────────────────────────────────────
+        "Hand Axe":            ("item", "weapon", "hand_axe_1.png"),
+        "War Axe":             ("item", "weapon", "war_axe_1.png"),
+        "Battle Axe":          ("item", "weapon", "battle_axe_1.png"),
+        "Great Axe":           ("item", "weapon", "broad_axe_1.png"),
+        "Executioner's Axe":   ("item", "weapon", "executioner_axe_1.png"),
+        # ── Maces ────────────────────────────────────────────────────────────
+        "Club":                ("item", "weapon", "club.png"),
+        "Mace":                ("item", "weapon", "mace_1.png"),
+        "Flail":               ("item", "weapon", "flail_1.png"),
+        "Morningstar":         ("item", "weapon", "morningstar_1.png"),
+        "War Hammer":          ("item", "weapon", "hammer_2_new.png"),
+        "Dire Flail":          ("item", "weapon", "dire_flail_1.png"),
+        # ── Polearms ─────────────────────────────────────────────────────────
+        "Spear":               ("item", "weapon", "spear_1.png"),
+        "Halberd":             ("item", "weapon", "halberd_1.png"),
+        "Glaive":              ("item", "weapon", "glaive_1.png"),
+        "Bardiche":            ("item", "weapon", "bardiche_1.png"),
+        # ── Staves ───────────────────────────────────────────────────────────
+        "Quarterstaff":        ("item", "weapon", "quarterstaff.png"),
+        "Battle Staff":        ("item", "weapon", "quarterstaff_2.png"),
+        # ── Ranged ───────────────────────────────────────────────────────────
+        "Short Bow":           ("item", "weapon", "ranged", "shortbow.png"),
+        "Long Bow":            ("item", "weapon", "ranged", "longbow.png"),
+        "Hunter's Bow":        ("item", "weapon", "ranged", "bow_1.png"),
+        "Hand Crossbow":       ("item", "weapon", "ranged", "hand_crossbow.png"),
+        "War Bow":             ("item", "weapon", "ranged", "longbow_1.png"),
+        "Crossbow":            ("item", "weapon", "ranged", "crossbow_1.png"),
+        "Arbalest":            ("item", "weapon", "ranged", "arbalest_1.png"),
+        # ── Shields ──────────────────────────────────────────────────────────
+        "Buckler":             ("item", "armor", "shields", "buckler_1.png"),
+        "Heater Shield":       ("item", "armor", "shields", "shield_1.png"),
+        "Kite Shield":         ("item", "armor", "shields", "shield_2_kite.png"),
+        "Round Shield":        ("item", "armor", "shields", "shield_3_round.png"),
+        "Tower Shield":        ("item", "armor", "shields", "large_shield_1.png"),
+        "Dwarven Shield":      ("item", "armor", "shields", "dwarven_buckler_1.png"),
+        # ── Helms ────────────────────────────────────────────────────────────
+        "Cap":                 ("item", "armor", "headgear", "cap_1.png"),
+        "Leather Helm":        ("item", "armor", "headgear", "elven_leather_helm.png"),
+        "Helm":                ("item", "armor", "headgear", "helmet_1.png"),
+        "Visored Helm":        ("item", "armor", "headgear", "helmet_1_visored.png"),
+        "Great Helm":          ("item", "armor", "headgear", "helmet_2.png"),
+        "Dragon Helm":         ("item", "armor", "headgear", "crested_helmet.png"),
+        # ── Chest ────────────────────────────────────────────────────────────
+        "Leather Armor":       ("item", "armor", "torso", "leather_armor_1.png"),
+        "Ring Mail":           ("item", "armor", "torso", "dwarven_ringmail.png"),
+        "Chain Mail":          ("item", "armor", "torso", "chain_mail_1.png"),
+        "Banded Mail":         ("item", "armor", "torso", "banded_mail_1.png"),
+        "Plate Armor":         ("item", "armor", "torso", "plate_mail_1.png"),
+        "Crystal Plate":       ("item", "armor", "torso", "crystal_plate_mail.png"),
+        # ── Gloves ───────────────────────────────────────────────────────────
+        "Leather Gloves":      ("item", "armor", "hands", "glove_1.png"),
+        "Chain Gloves":        ("item", "armor", "hands", "glove_2.png"),
+        "Gauntlets":           ("item", "armor", "hands", "gauntlet_1.png"),
+        "War Gauntlets":       ("item", "armor", "hands", "glove_3.png"),
+        # ── Boots ────────────────────────────────────────────────────────────
+        "Leather Boots":       ("item", "armor", "feet", "boots_1_brown_new.png"),
+        "Chain Boots":         ("item", "armor", "feet", "boots_3_stripe_new.png"),
+        "Greaves":             ("item", "armor", "feet", "boots_iron_2.png"),
+        "Iron Boots":          ("item", "armor", "feet", "low_boots.png"),
+        # ── Belt (use cloaks as belt sprites — similar silhouette) ────────────
+        "Sash":                ("item", "armor", "back", "cloak_1_leather.png"),
+        "Belt":                ("item", "armor", "back", "cloak_2.png"),
+        "Studded Belt":        ("item", "armor", "back", "cloak_3.png"),
+        "War Belt":            ("item", "armor", "back", "cloak_4.png"),
+        # ── Rings ────────────────────────────────────────────────────────────
+        "Ring":                ("item", "ring", "brass.png"),
+        "Iron Ring":           ("item", "ring", "iron.png"),
+        "Silver Ring":         ("item", "ring", "glass.png"),
+        "Gold Ring":           ("item", "ring", "gold.png"),
+        "Ancient Ring":        ("item", "ring", "opal.png"),
+        # ── Amulets ──────────────────────────────────────────────────────────
+        "Amulet":              ("item", "amulet", "bone_gray.png"),
+        "Stone Amulet":        ("item", "amulet", "stone_1_cyan.png"),
+        "Runed Amulet":        ("item", "amulet", "celtic_red.png"),
+        "Elven Amulet":        ("item", "amulet", "crystal_green.png"),
+        "Ancient Amulet":      ("item", "amulet", "penta_orange.png"),
     }
 
     for name, parts in _ITEM_MAP.items():
