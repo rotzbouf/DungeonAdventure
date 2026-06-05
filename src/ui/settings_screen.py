@@ -102,6 +102,7 @@ class SettingsScreen:
         self._tab          = 0        # 0=Display, 1=Controls, 2=Multiplayer
         self._listening    = ""       # action name being rebound, or ""
         self._apply_fn     = None     # callable: apply display settings
+        self._connect_fn   = None     # callable(host, port, name) → NetworkClient
         self._msg          = ""
         self._msg_t        = 0.0
         self._msg_ok       = True
@@ -111,14 +112,21 @@ class SettingsScreen:
         self._tf_host = _TextField(game_settings.server_host, max_len=64)
         self._tf_port = _TextField(str(game_settings.server_port), max_len=5, digits_only=True)
 
+        # Multiplayer connect state
+        self._net_client_ref = None   # pending NetworkClient while connecting
+        self._connect_status = ""     # "" | "connecting" | "connected" | "failed: ..."
+
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def open(self, apply_display_fn=None):
-        self._tab       = 0
-        self._listening = ""
-        self._msg       = ""
-        self._msg_t     = 0.0
-        self._apply_fn  = apply_display_fn
+    def open(self, apply_display_fn=None, connect_fn=None):
+        self._tab          = 0
+        self._listening    = ""
+        self._msg          = ""
+        self._msg_t        = 0.0
+        self._apply_fn     = apply_display_fn
+        self._connect_fn   = connect_fn
+        self._net_client_ref = None
+        self._connect_status = ""
         # Re-sync text fields in case settings changed externally
         self._tf_name.value = game_settings.player_name
         self._tf_host.value = game_settings.server_host
@@ -134,6 +142,15 @@ class SettingsScreen:
         self._tf_name.update(dt)
         self._tf_host.update(dt)
         self._tf_port.update(dt)
+        # Poll pending connection
+        if self._net_client_ref is not None:
+            nc = self._net_client_ref
+            if nc.connected:
+                self._connect_status = "connected"
+                self._net_client_ref = None
+            elif nc.error:
+                self._connect_status = f"failed: {nc.error}"
+                self._net_client_ref = None
 
     def handle_event(self, event: pygame.event.Event) -> bool:
         ox = SCREEN_WIDTH  // 2 - self.W // 2
@@ -176,7 +193,12 @@ class SettingsScreen:
             elif self._tab == 1:
                 self._handle_controls_click(lx, ly)
             elif self._tab == 2:
-                # Route to text fields
+                # Connect button (panel-local coords)
+                conn_r = self._connect_btn_rect()
+                if conn_r.collidepoint(lx, ly) and self._net_client_ref is None:
+                    self._do_connect()
+                    return True
+                # Route to text fields (absolute coords)
                 lpos = (event.pos[0], event.pos[1])
                 for tf in (self._tf_name, self._tf_host, self._tf_port):
                     if tf._rect.collidepoint(lpos):
@@ -250,6 +272,22 @@ class SettingsScreen:
             oy + self.H - 52,
             bw, bh
         )
+
+    def _connect_btn_rect(self) -> pygame.Rect:
+        bw, bh = 220, 38
+        return pygame.Rect(self.W // 2 - bw // 2, 276, bw, bh)
+
+    def _do_connect(self):
+        self._save_multiplayer()
+        if self._connect_fn is None:
+            self._notify("Connect callback not configured.", ok=False)
+            return
+        self._net_client_ref = self._connect_fn(
+            game_settings.server_host,
+            game_settings.server_port,
+            game_settings.player_name,
+        )
+        self._connect_status = "connecting"
 
     def _save_multiplayer(self):
         game_settings.player_name = self._tf_name.value or "Adventurer"
@@ -441,12 +479,51 @@ class SettingsScreen:
         pygame.draw.line(surf, _BORDER_LO, (pad, y + 10), (self.W - pad, y + 10), 1)
         y += 26
 
-        # Quick-connect hint
+        # CONNECT button
+        conn_r = self._connect_btn_rect()
+        connecting = (self._connect_status == "connecting")
+        connected  = (self._connect_status == "connected")
+        failed     = self._connect_status.startswith("failed")
+        if connecting:
+            btn_col, txt_col = _WARN, (0, 0, 0)
+            btn_label = "CONNECTING..."
+        elif connected:
+            btn_col, txt_col = _GREEN, (0, 0, 0)
+            btn_label = "CONNECTED"
+        else:
+            btn_col  = _SEL_HI if not failed else _SEL
+            txt_col  = _HDR if not failed else _DIM
+            btn_label = "CONNECT TO SERVER"
+        pygame.draw.rect(surf, btn_col, conn_r, border_radius=5)
+        pygame.draw.rect(surf, _BORDER, conn_r, 1, border_radius=5)
+        bs = self._fm.render(btn_label, True, txt_col)
+        surf.blit(bs, bs.get_rect(center=conn_r.center))
+        y = conn_r.bottom + 8
+
+        # Status text
+        if self._connect_status:
+            if connected:
+                st_col, st_txt = _GREEN, "Connected!"
+            elif connecting:
+                st_col, st_txt = _WARN, "Connecting to server..."
+            else:
+                st_col = _RED
+                st_txt = self._connect_status[len("failed: "):][:80]
+            ss = self._fs.render(st_txt, True, st_col)
+            surf.blit(ss, ss.get_rect(centerx=self.W // 2, y=y))
+            y += ss.get_height() + 10
+
+        # Divider before hint
+        y += 6
+        pygame.draw.line(surf, _BORDER_LO, (pad, y), (self.W - pad, y), 1)
+        y += 14
+
+        # Command-line hint
         for line in [
             "To start a server:",
             "  python server.py --port 5555",
             "",
-            "To connect (client):",
+            "CLI connect (alternative):",
             f'  python main.py --connect {game_settings.server_host}:{game_settings.server_port}',
             f'    --name "{game_settings.player_name}"',
         ]:

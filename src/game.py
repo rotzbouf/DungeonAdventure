@@ -104,6 +104,7 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
 
         # ── Multiplayer ───────────────────────────────────────────────────────
         self.net_client = net_client          # NetworkClient | None
+        self._pending_net_client = None       # NetworkClient connecting in background
         self.remote_players: dict = {}        # pid → RemotePlayer proxies
         self._net_floor: int       = 1        # server's current floor
         self._net_seed:  int | None = None    # server's current dungeon seed
@@ -180,6 +181,15 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._fog      = pygame.Surface(
             (SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT), pygame.SRCALPHA)
         self._vignette = self._bake_vignette()
+
+    def _connect_to_server(self, host: str, port: int, name: str):
+        """Start a background network connection; returns the NetworkClient immediately."""
+        from src.network.client import NetworkClient
+        from src import save as savesys
+        player_data = savesys.load_game()
+        nc = NetworkClient(host, port, name, player_data=player_data)
+        self._pending_net_client = nc
+        return nc
 
     # ─── Net HUD ─────────────────────────────────────────────────────────────────
 
@@ -266,7 +276,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 # Settings screen — S key on menu
                 if k == pygame.K_s and self.state == STATE_MENU and not self.settings_open:
                     self.settings_open = True
-                    self._settings_screen.open(apply_display_fn=self._apply_display_settings)
+                    self._settings_screen.open(apply_display_fn=self._apply_display_settings,
+                                               connect_fn=self._connect_to_server)
 
                 # Forward all events to settings screen when open
                 if self.settings_open:
@@ -373,7 +384,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                             break
                     if self._settings_btn_rect and self._settings_btn_rect.collidepoint(event.pos):
                         self.settings_open = True
-                        self._settings_screen.open(apply_display_fn=self._apply_display_settings)
+                        self._settings_screen.open(apply_display_fn=self._apply_display_settings,
+                                               connect_fn=self._connect_to_server)
 
             if event.type == pygame.MOUSEBUTTONDOWN and self.state in (STATE_PLAYING, STATE_TOWN):
                 if self.house_open:
@@ -643,6 +655,17 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
             self._update_sparks(dt)
             if self.settings_open:
                 self._settings_screen.update(dt)
+            # Transition to multiplayer game once background connection succeeds
+            if self._pending_net_client is not None:
+                nc = self._pending_net_client
+                if nc.connected:
+                    self._pending_net_client = None
+                    self.net_client = nc
+                    self.settings_open = False
+                    self._start_net_game()
+                    self.state = STATE_PLAYING
+                elif nc.error:
+                    self._pending_net_client = None
             return
 
         # Open perk screen if a milestone level-up just happened
