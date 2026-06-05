@@ -53,10 +53,11 @@ def _gradient_bar(surface, x, y, w, h, pct, col_fill, col_hi, col_bg, border):
 
 class HUD:
     def __init__(self):
-        self._font_xl = pygame.font.SysFont("monospace", 28, bold=True)
-        self._font_lg = pygame.font.SysFont("monospace", 28, bold=True)
-        self._font_md = pygame.font.SysFont("monospace", 24, bold=True)
-        self._font_sm = pygame.font.SysFont("monospace", 25)
+        self._font_xl    = pygame.font.SysFont("monospace", 28, bold=True)
+        self._font_lg    = pygame.font.SysFont("monospace", 28, bold=True)
+        self._font_md    = pygame.font.SysFont("monospace", 24, bold=True)
+        self._font_sm    = pygame.font.SysFont("monospace", 25)
+        self._font_badge = pygame.font.SysFont("monospace", 17, bold=True)
         self._lvup_timer  = 0.0
         self._shop_timer  = 0.0
         self._quest_msgs: list[tuple[str, float]] = []
@@ -185,6 +186,25 @@ class HUD:
         fl_txt = self._font_xl.render(fl_str, True, LIGHT_GRAY)
         _shadow_blit(surface, fl_txt, (fx, hud_y + 8))
 
+        # Pending point badges — compact, steady, right of the floor label
+        bx = fx + fl_txt.get_width() + 14
+        by = hud_y + 13
+        if player.stat_points > 0:
+            lbl = self._font_badge.render(
+                f"+{player.stat_points}pt [C]", True, (70, 215, 90))
+            bg = pygame.Rect(bx - 4, by - 2, lbl.get_width() + 8, lbl.get_height() + 4)
+            pygame.draw.rect(surface, (0, 36, 8),  bg, border_radius=3)
+            pygame.draw.rect(surface, (30, 100, 40), bg, 1, border_radius=3)
+            surface.blit(lbl, (bx, by))
+            bx += lbl.get_width() + 16
+        if player.skill_tree.skill_points > 0:
+            lbl = self._font_badge.render(
+                f"+{player.skill_tree.skill_points}sk [K]", True, (90, 150, 255))
+            bg = pygame.Rect(bx - 4, by - 2, lbl.get_width() + 8, lbl.get_height() + 4)
+            pygame.draw.rect(surface, (6, 10, 40),  bg, border_radius=3)
+            pygame.draw.rect(surface, (30, 50, 110), bg, 1, border_radius=3)
+            surface.blit(lbl, (bx, by))
+
         # Spell icons
         st = player.skill_tree
         spells = [
@@ -219,22 +239,6 @@ class HUD:
             msg.set_alpha(alpha)
             pos = msg.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 60))
             _shadow_blit(surface, msg, pos.topleft)
-
-        if player.stat_points > 0 and int(pygame.time.get_ticks() / 500) % 2 == 0:
-            n = player.stat_points
-            sp_msg = self._font_lg.render(
-                t("hud.stat_pts", n=n, s="S" if n != 1 else "", e="E" if n != 1 else ""),
-                True, (80, 255, 120))
-            pos = sp_msg.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 38))
-            _shadow_blit(surface, sp_msg, pos.topleft)
-
-        if player.skill_tree.skill_points > 0 and int(pygame.time.get_ticks() / 700) % 2 == 0:
-            n = player.skill_tree.skill_points
-            sp2 = self._font_lg.render(
-                t("hud.skill_pts", n=n, s="S" if n != 1 else "", e="E" if n != 1 else ""),
-                True, (100, 160, 255))
-            pos = sp2.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 18))
-            _shadow_blit(surface, sp2, pos.topleft)
 
         qy = play_cy + 10
         for txt, timer in self._quest_msgs:

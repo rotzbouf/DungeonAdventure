@@ -434,7 +434,7 @@ class Orc(Enemy):
 
     def __init__(self, x, y):
         super().__init__(x, y)
-        self.size = ENEMY_SIZE + 10   # bigger than standard enemies
+        self.size = ENEMY_SIZE + 12   # bigger than standard enemies
         self.rect = pygame.Rect(0, 0, self.size, self.size)
         self._sync_rect()
 
@@ -586,7 +586,7 @@ class Demon(Enemy):
 class BossEnemy(Enemy):
     """Base class for floor-boss enemies: large, has a charge attack."""
     is_boss        = True
-    SIZE           = 80        # was 60
+    SIZE           = 96        # was 80
     LOOT_CHANCE    = 1.0
     CHARGE_INTERVAL = 6.0
     CHARGE_DURATION = 1.1

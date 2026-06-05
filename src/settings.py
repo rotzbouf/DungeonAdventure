@@ -25,12 +25,12 @@ VOID_COLOR      = (0,   0,   0)    # pure black — used by tile.py for void til
 # Player
 PLAYER_COLOR           = (110, 160, 255)
 PLAYER_SPEED           = 225
-PLAYER_SIZE            = 40        # was 28 — ~40% bigger for 1080p visibility
+PLAYER_SIZE            = 48        # was 40
 PLAYER_MAX_HP          = 100
 PLAYER_MAX_MANA        = 50
 PLAYER_BASE_ATTACK     = 10
 PLAYER_BASE_DEFENSE    = 2
-PLAYER_ATTACK_RANGE    = 96        # was 72 — scaled with player size
+PLAYER_ATTACK_RANGE    = 112       # was 96 — scaled with player size
 PLAYER_ATTACK_COOLDOWN = 0.45
 
 XP_BASE = 120              # was 80 — slightly slower early leveling
@@ -47,7 +47,7 @@ STAT_POINTS_PER_LEVEL = 4  # was 5 — 160 total at cap vs 100 before
 PERK_MILESTONE = 5         # offer a perk pick every N levels
 
 # Enemies
-ENEMY_SIZE = 34        # was 25 — ~36% bigger
+ENEMY_SIZE = 40        # was 34
 
 # Items
 ITEM_SIZE = 28         # was 22

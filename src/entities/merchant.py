@@ -15,8 +15,52 @@ from __future__ import annotations
 
 import math
 import random
+import sys
+from pathlib import Path
 import pygame
 from src.settings import TILE_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT
+
+# ── NPC sprite paths (DCSS Full bundle) ──────────────────────────────────────
+if getattr(sys, "frozen", False):
+    _DCSS = Path(sys._MEIPASS) / "assets" / "Dungeon Crawl Stone Soup Full"  # type: ignore[attr-defined]
+else:
+    _DCSS = Path(__file__).parent.parent.parent / "assets" / "Dungeon Crawl Stone Soup Full"
+
+_NPC_SPRITE_PATHS: dict[str, Path] = {
+    "weapons": _DCSS / "monster/unique/norris.png",
+    "armor":   _DCSS / "monster/unique/jozef.png",
+    "jewelry": _DCSS / "monster/unique/eustachio.png",
+    "potions": _DCSS / "monster/unique/jessica.png",
+    "enchant": _DCSS / "monster/unique/enchantress.png",
+    "craft":   _DCSS / "monster/deep_dwarf_artificer.png",
+    "dungeon": _DCSS / "monster/human.png",
+}
+
+_sprite_cache: dict[str, pygame.Surface] = {}
+
+
+def _load_npc_sprite(key: str, size: int) -> pygame.Surface | None:
+    cache_key = f"{key}_{size}"
+    if cache_key not in _sprite_cache:
+        path = _NPC_SPRITE_PATHS.get(key)
+        if not path or not path.exists():
+            return None
+        try:
+            surf = pygame.image.load(str(path)).convert_alpha()
+            surf = pygame.transform.smoothscale(surf, (size, size))
+            _sprite_cache[cache_key] = surf
+        except Exception:
+            return None
+    return _sprite_cache.get(cache_key)
+
+
+def _draw_npc_glow(surface: pygame.Surface, cx: int, cy: int,
+                   bob: float, gem_col: tuple):
+    pulse = 0.55 + 0.45 * abs(math.sin(bob * 0.9))
+    gr = 28
+    gs = pygame.Surface((gr * 2, gr * 2), pygame.SRCALPHA)
+    pygame.draw.circle(gs, (*gem_col, int(28 * pulse)), (gr, gr), gr)
+    surface.blit(gs, (cx - gr, cy - gr))
 from src.items.item import (EquipItem, HealthPotion, random_equip,
                              QUALITY_MAGIC, QUALITY_RARE, QUALITY_UNIQUE,
                              SLOT_WEAPON, SLOT_SHIELD, SLOT_HELM, SLOT_CHEST,
@@ -61,7 +105,7 @@ class Merchant:
     def __init__(self, px: float, py: float, dungeon_level: int,
                  elite: bool = True):
         self.x, self.y   = px, py
-        self.size        = 38        # was 28
+        self.size        = 46        # was 38
         self.rect        = pygame.Rect(0, 0, self.size, self.size)
         self.rect.center = (int(px), int(py))
         self._bob        = random.uniform(0, math.pi * 2)
@@ -123,9 +167,15 @@ class Merchant:
         sy = int(self.y - camera.y)
         if not (-40 < sx < SCREEN_WIDTH + 40 and -40 < sy < play_h + 40):
             return
-        self._draw_sprite(surface, sx, sy,
-                          robe=(88, 40, 128), robe_d=(52, 20, 80), robe_h=(140, 80, 192),
-                          gem=(148, 0, 216), gem_h=(200, 100, 255))
+        bob = int(math.sin(self._bob) * 2)
+        spr = _load_npc_sprite("dungeon", self.size + 14)
+        if spr:
+            _draw_npc_glow(surface, sx, sy + bob, self._bob, (148, 0, 216))
+            surface.blit(spr, spr.get_rect(center=(sx, sy + bob)))
+        else:
+            self._draw_sprite(surface, sx, sy,
+                              robe=(88, 40, 128), robe_d=(52, 20, 80), robe_h=(140, 80, 192),
+                              gem=(148, 0, 216), gem_h=(200, 100, 255))
 
     def _draw_sprite(self, surface, cx, cy,
                      robe, robe_d, robe_h, gem, gem_h):
@@ -217,7 +267,7 @@ class TownMerchant(Merchant):
                  title: str, specialty: str, player_level: int = 1):
         # Bypass Merchant.__init__ so we can set everything ourselves
         self.x, self.y   = px, py
-        self.size        = 44        # was 32 — town merchants are prominent
+        self.size        = 52        # was 44
         self.rect        = pygame.Rect(0, 0, self.size, self.size)
         self.rect.center = (int(px), int(py))
         self._bob        = random.uniform(0, math.pi * 2)
@@ -301,8 +351,15 @@ class TownMerchant(Merchant):
         """Draw the merchant; camera is a zero-offset Camera in town."""
         sx = int(self.x - camera.x)
         sy = int(self.y - camera.y)
-        pal = self._palette
-        self._draw_sprite(surface, sx, sy,
-                          robe=pal["robe"], robe_d=pal["robe_d"],
-                          robe_h=pal["robe_h"],
-                          gem=pal["gem"], gem_h=pal["gem_h"])
+        bob = int(math.sin(self._bob) * 2)
+        spr = _load_npc_sprite(self.specialty, self.size + 14)
+        if spr:
+            pal = self._palette
+            _draw_npc_glow(surface, sx, sy + bob, self._bob, pal["gem"])
+            surface.blit(spr, spr.get_rect(center=(sx, sy + bob)))
+        else:
+            pal = self._palette
+            self._draw_sprite(surface, sx, sy,
+                              robe=pal["robe"], robe_d=pal["robe_d"],
+                              robe_h=pal["robe_h"],
+                              gem=pal["gem"], gem_h=pal["gem_h"])
