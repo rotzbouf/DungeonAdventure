@@ -52,6 +52,7 @@ class CraftScreen:
         self._msg       = ""
         self._msg_timer = 0.0
         self._msg_ok    = True
+        self._disassemble_preview: dict[str, int] = {}   # cached yield for selected item
 
     # ─── Public ──────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ class CraftScreen:
         self._item_scroll   = 0
         self._msg = ""
         self._msg_timer = 0.0
+        self._disassemble_preview = {}
 
     def update(self, dt: float):
         if self._msg_timer > 0:
@@ -167,6 +169,7 @@ class CraftScreen:
                     if list_y0 <= iy <= list_y0 + clip_h:
                         if iy <= ly <= iy + row_h - 2:
                             self._sel_item = item
+                            self._disassemble_preview = disassemble(item)
                             return
 
             btn = self._disassemble_btn_rect()
@@ -213,8 +216,9 @@ class CraftScreen:
         player.materials = mats
         player.backpack.remove(self._sel_item)
         name = self._sel_item.display_name
-        self._sel_item  = None
-        self._msg       = f"Disassembled {name}!"
+        self._sel_item           = None
+        self._disassemble_preview = {}
+        self._msg                = f"Disassembled {name}!"
         self._msg_ok    = True
         self._msg_timer = 3.0
 
@@ -421,10 +425,9 @@ class CraftScreen:
         pygame.draw.line(surf, _BORDER_LO, (px, ry), (self.W - pad, ry), 1)
         ry += 10
 
-        yield_ = disassemble(item)
         yh = self._fs.render("WILL YIELD:", True, _HDR)
         surf.blit(yh, (px, ry)); ry += 18
-        for mid, qty in yield_.items():
+        for mid, qty in self._disassemble_preview.items():
             mat = MATERIALS[mid]
             col = mat.color
             pygame.draw.circle(surf, col, (px + 8, ry + 7), 6)
