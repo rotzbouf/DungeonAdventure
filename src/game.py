@@ -54,11 +54,10 @@ from src.game_layers.combat     import CombatLayer
 from src.game_layers.spells     import SpellLayer
 from src.game_layers.projectiles import ProjectileLayer
 from src.game_layers.particles  import ParticleLayer
-from src.game_layers.traps      import TrapLayer
 from src.game_layers.renderer   import RendererLayer
 
 
-class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, ParticleLayer, TrapLayer, RendererLayer):
+class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, ParticleLayer, RendererLayer):
     def __init__(self, net_client=None):
         self.screen = game_settings.apply_display()
         pygame.display.set_caption(TITLE)
@@ -132,10 +131,6 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._player_hurt_t    = 0.0
         self._transition_timer = 0.0
         self._transition_level: int | None = None
-
-        self._spike_phase = "idle"
-        self._spike_timer = 2.5
-        self._trap_dmg_cd = 0.0
 
         # Spell cooldowns
         self._ice_nova_cd      = 0.0
@@ -758,7 +753,6 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 self._shake_int = 5.0
 
         self._update_projectiles(dt)
-        self._update_traps(dt)
 
         # Quest completion pop-up
         for msg in self.quest_log.pop_notifications():

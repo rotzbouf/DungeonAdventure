@@ -11,7 +11,6 @@ _MM_ENE  = (210, 55,  55)   # red — enemies
 _MM_PLR  = (120, 180, 255)  # blue — player
 _MM_CHST = (220, 175, 40)   # gold — treasure chest
 _MM_MRCH = (180, 80,  220)  # purple — merchant
-_MM_TRAP = (160, 35,  35)   # dark red — spike trap
 _ELITE_E = (220, 175, 0)    # gold — elite enemy
 
 
@@ -50,7 +49,7 @@ class Minimap:
                 _dot2(self._base, tx * SCALE, ty * SCALE, col)
 
     def draw(self, surface: pygame.Surface, player, enemies,
-             stairs_pos, chests=None, merchants=None, trap_positions=None):
+             stairs_pos, chests=None, merchants=None):
         if self._base is None:
             return
 
@@ -58,11 +57,6 @@ class Minimap:
         mm_y = 10
 
         frame = self._base.copy()
-
-        # ── Traps (dim red dots — subtle, hard to miss) ───────────────────────
-        if trap_positions:
-            for tx, ty in trap_positions:
-                _dot2(frame, tx * SCALE, ty * SCALE, _MM_TRAP)
 
         # ── Merchants (purple dot) ────────────────────────────────────────────
         if merchants:

@@ -90,9 +90,6 @@ class SessionLayer:
         # Reset per-floor perk flags on the player
         if self.player is not None:
             self.player._second_wind_ready = self.player.has_perk("second_wind")
-        self._spike_phase   = "idle"
-        self._spike_timer   = 2.5
-        self._trap_dmg_cd   = 0.0
         self._dmg_nums      = []
         self._particles     = []
         self.inv_open = self.shop_open = self.char_open = False

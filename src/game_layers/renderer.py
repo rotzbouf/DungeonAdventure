@@ -55,8 +55,6 @@ class RendererLayer:
                 hint = self._font_sm.render(t("game.descend"), True, YELLOW)
                 self.screen.blit(hint, (int(dsx)-hint.get_width()//2, max(4,int(dsy)-32)))
 
-        self._draw_traps()
-
         for item in self.items:
             if self._is_visible(item.x, item.y):
                 item.draw(self.screen, self.camera)
@@ -123,7 +121,7 @@ class RendererLayer:
                           self.dungeon.stairs_pos,
                           chests=self.chests,
                           merchants=self.merchants,
-                          trap_positions=self.dungeon.trap_positions)
+                          )
         self._draw_boss_bar()
         self.hud.draw(self.screen, self.player, self.dungeon_level,
                       battle_cry_active=self._battle_cry_timer > 0,

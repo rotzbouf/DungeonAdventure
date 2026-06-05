@@ -157,7 +157,6 @@ class Dungeon:
         self.enemy_spawns:    list[tuple[int, int]] = []  # tile coords
         self.item_spawns:     list[tuple[int, int]] = []  # tile coords
         self.merchant_spawns: list[tuple[int, int]] = []  # tile coords (room centres)
-        self.trap_positions:  list[tuple[int, int]] = []  # tile coords of spike traps
         self.chest_positions: list[tuple[int, int]] = []  # tile coords of treasure chests
         self.sconce_positions: list[tuple[int, int]] = []  # world px (sconce flame)
         self._baked: pygame.Surface | None = None           # pre-rendered level surface
@@ -281,22 +280,6 @@ class Dungeon:
                 room = self.rng.choice(eligible)
                 cx, cy = room.center
                 self.merchant_spawns.append((cx, cy))
-
-        # Spike traps — scatter in floor tiles that are in corridors (not in rooms)
-        room_cells: set[tuple[int, int]] = set()
-        for room in self.rooms:
-            for pos in room.inner_positions():
-                room_cells.add(pos)
-
-        corridor_floor: list[tuple[int, int]] = []
-        for ty in range(1, self.height - 1):
-            for tx in range(1, self.width - 1):
-                if self.grid[ty][tx] == TILE_FLOOR and (tx, ty) not in room_cells:
-                    corridor_floor.append((tx, ty))
-
-        self.rng.shuffle(corridor_floor)
-        n_traps = min(len(corridor_floor), 4 + self.level * 2)
-        self.trap_positions = corridor_floor[:n_traps]
 
         # Treasure chest — one per floor in a random mid room (not merchant room)
         merchant_rooms = {self.merchant_spawns[i] for i in range(len(self.merchant_spawns))} if self.merchant_spawns else set()
