@@ -1,10 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = []
+datas = [('assets', 'assets')]
 binaries = []
-hiddenimports = ['src', 'src.game', 'src.settings', 'src.skills', 'src.quests', 'src.save', 'src.entities.entity', 'src.entities.player', 'src.entities.enemy', 'src.entities.merchant', 'src.items.item', 'src.world.dungeon', 'src.world.tile', 'src.ui.hud', 'src.ui.inventory', 'src.ui.shop', 'src.ui.charscreen', 'src.ui.questlog', 'src.ui.skillscreen', 'src.ui.minimap', 'src.utils.camera']
+hiddenimports = []
 tmp_ret = collect_all('pygame')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('src')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
