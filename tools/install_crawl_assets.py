@@ -283,6 +283,93 @@ def install_items():
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+# ── Player equipment overlays ─────────────────────────────────────────────────
+# Maps (layer_dir, dest_name) → source path in FULL/player/{layer}/
+# dest_name is used as the key in EQUIPMENT_OVERLAYS in assets.py.
+
+_OVERLAY_MAP: dict[str, tuple[str, str]] = {
+    # ── Chest (body layer) ────────────────────────────────────────────────────
+    "body_none":         ("body", "leather_armor.png"),   # unarmoured default
+    "body_Leather Armor":("body", "leather_armor.png"),
+    "body_Ring Mail":    ("body", "ringmail.png"),
+    "body_Chain Mail":   ("body", "chainmail.png"),
+    "body_Banded Mail":  ("body", "banded.png"),
+    "body_Plate Armor":  ("body", "plate.png"),
+    "body_Crystal Plate":("body", "crystal_plate.png"),
+    # ── Helm (head layer) ─────────────────────────────────────────────────────
+    "head_Cap":          ("head", "cap_black_1.png"),
+    "head_Leather Helm": ("head", "cap_blue.png"),
+    "head_Helm":         ("head", "iron_1.png"),
+    "head_Visored Helm": ("head", "iron_2.png"),
+    "head_Great Helm":   ("head", "helm_gimli.png"),
+    "head_Dragon Helm":  ("head", "art_dragonhelm.png"),
+    # ── Weapon (hand_right layer) ─────────────────────────────────────────────
+    "wpn_Dagger":              ("hand_right", "dagger.png"),
+    "wpn_Short Sword":         ("hand_right", "short_sword.png"),
+    "wpn_Long Sword":          ("hand_right", "long_sword.png"),
+    "wpn_Scimitar":            ("hand_right", "scimitar.png"),
+    "wpn_Rapier":              ("hand_right", "rapier.png"),
+    "wpn_Broad Sword":         ("hand_right", "broadsword.png"),
+    "wpn_Claymore":            ("hand_right", "great_sword.png"),
+    "wpn_Great Sword":         ("hand_right", "double_sword.png"),
+    "wpn_Demon Blade":         ("hand_right", "black_sword.png"),
+    "wpn_Hand Axe":            ("hand_right", "axe_short.png"),
+    "wpn_War Axe":             ("hand_right", "axe.png"),
+    "wpn_Battle Axe":          ("hand_right", "battleaxe.png"),
+    "wpn_Great Axe":           ("hand_right", "broad_axe.png"),
+    "wpn_Executioner's Axe":   ("hand_right", "axe_executioner.png"),
+    "wpn_Club":                ("hand_right", "mace.png"),
+    "wpn_Mace":                ("hand_right", "mace_2.png"),
+    "wpn_Flail":               ("hand_right", "flail_ball.png"),
+    "wpn_Morningstar":         ("hand_right", "morningstar.png"),
+    "wpn_War Hammer":          ("hand_right", "hammer_2.png"),
+    "wpn_Dire Flail":          ("hand_right", "flail_great.png"),
+    "wpn_Spear":               ("hand_right", "d_glaive.png"),
+    "wpn_Halberd":             ("hand_right", "halberd.png"),
+    "wpn_Glaive":              ("hand_right", "glaive.png"),
+    "wpn_Bardiche":            ("hand_right", "glaive_three.png"),
+    "wpn_Quarterstaff":        ("hand_right", "quarterstaff_1.png"),
+    "wpn_Battle Staff":        ("hand_right", "great_staff.png"),
+    "wpn_Short Bow":           ("hand_right", "bow.png"),
+    "wpn_Long Bow":            ("hand_right", "bow_2.png"),
+    "wpn_Hunter's Bow":        ("hand_right", "bow_3.png"),
+    "wpn_War Bow":             ("hand_right", "bow_blue.png"),
+    "wpn_Hand Crossbow":       ("hand_right", "hand_crossbow.png"),
+    "wpn_Crossbow":            ("hand_right", "crossbow.png"),
+    "wpn_Arbalest":            ("hand_right", "crossbow_4.png"),
+    # ── Shield (hand_left layer) ──────────────────────────────────────────────
+    "shld_Buckler":            ("hand_left", "buckler_round_2.png"),
+    "shld_Heater Shield":      ("hand_left", "buckler_rb.png"),
+    "shld_Kite Shield":        ("hand_left", "lshield_green.png"),
+    "shld_Round Shield":       ("hand_left", "buckler_spiral.png"),
+    "shld_Tower Shield":       ("hand_left", "lshield_quartered.png"),
+    "shld_Dwarven Shield":     ("hand_left", "lshield_louise.png"),
+    # ── Boots ─────────────────────────────────────────────────────────────────
+    "boot_Leather Boots":      ("boots", "middle_brown.png"),
+    "boot_Chain Boots":        ("boots", "middle_gray.png"),
+    "boot_Greaves":            ("boots", "mesh_blue.png"),
+    "boot_Iron Boots":         ("boots", "mesh_black.png"),
+    # ── Gloves ────────────────────────────────────────────────────────────────
+    "glv_Leather Gloves":      ("gloves", "glove_brown.png"),
+    "glv_Chain Gloves":        ("gloves", "glove_gray.png"),
+    "glv_Gauntlets":           ("gloves", "gauntlet_blue.png"),
+    "glv_War Gauntlets":       ("gloves", "glove_grayfist.png"),
+}
+
+
+def install_player_overlays():
+    print("\n[Player overlays]")
+    out = OUT / "player_overlays"
+    out.mkdir(exist_ok=True)
+    for key, (layer, fname) in _OVERLAY_MAP.items():
+        try:
+            s = src("player", layer, fname)
+            dest = out / f"{key}.png"
+            copy(s, dest)
+        except FileNotFoundError as e:
+            print(f"  SKIP {key}: {e}")
+
+
 if __name__ == "__main__":
     if not FULL.exists():
         print(f"ERROR: DCSS full pack not found at:\n  {FULL}")
@@ -294,4 +381,5 @@ if __name__ == "__main__":
     install_enemies()
     install_tiles()
     install_items()
+    install_player_overlays()
     print(f"\nDone — DCSS assets installed into {OUT.relative_to(ROOT)}/")

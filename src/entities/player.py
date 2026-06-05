@@ -298,6 +298,11 @@ class Player(Entity):
         self.equipment[key] = item
         if item in self.backpack:
             self.backpack.remove(item)
+        try:
+            from src.assets import assets
+            assets.invalidate_player_cache()
+        except Exception:
+            pass
         return old
 
     def unequip(self, slot_key: str) -> None:
@@ -305,6 +310,11 @@ class Player(Entity):
         if item is not None:
             self.equipment[slot_key] = None
             self.backpack.append(item)
+        try:
+            from src.assets import assets
+            assets.invalidate_player_cache()
+        except Exception:
+            pass
 
     def use_potion(self) -> bool:
         if self.potions and self.hp < self.max_hp_total:
@@ -649,11 +659,11 @@ class Player(Entity):
         fa     = self.attack_angle
         perp   = fa + math.pi / 2
 
-        # ── PNG sprite override ───────────────────────────────────────────────
+        # ── PNG sprite override (composited with equipment overlays) ─────────
         try:
             from src.assets import assets
-            spr = assets.player(self._facing_direction(),
-                                 size=(self.size + 6, self.size + 6))
+            spr = assets.compose_player(self, self._facing_direction(),
+                                         size=(self.size + 6, self.size + 6))
             if spr is not None:
                 tint = self.status_tint()
                 if tint:
@@ -661,7 +671,6 @@ class Player(Entity):
                     tinted.fill((*tint, 80), special_flags=pygame.BLEND_RGBA_ADD)
                     spr = tinted
                 surface.blit(spr, spr.get_rect(center=(cx, cy)))
-                # Still draw the attack arc + ring on top of the sprite
                 self._draw_attack_fx(surface, cx, cy, fa, perp)
                 return
         except Exception:
