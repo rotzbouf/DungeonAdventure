@@ -221,6 +221,7 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
     # ─── Events ──────────────────────────────────────────────────────────────────
 
     def _handle_events(self):
+        game_settings.apply_pending_resize()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit(); sys.exit()

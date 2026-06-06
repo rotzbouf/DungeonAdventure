@@ -81,6 +81,7 @@ class SettingsManager:
         self.player_name:    str   = "Adventurer"
         self.language:       str   = "en"
         self.keybindings:    dict  = dict(_DEFAULTS)
+        self._pending_resize: "tuple[int,int] | None" = None
         self.load()
 
     # ── Keybinding helpers ─────────────────────────────────────────────────────
@@ -157,16 +158,26 @@ class SettingsManager:
                 (SCREEN_WIDTH, SCREEN_HEIGHT),
                 pygame.SCALED | pygame.DOUBLEBUF,
             )
-            # Resize the physical OS window to the chosen preset.
-            try:
-                import pygame._sdl2.video as _sdl2
-                win = _sdl2.Window.from_display_module()
-                win.size = (ww, wh)
-                win.position = _sdl2.WINDOWPOS_CENTERED
-            except Exception:
-                pass
+            # Defer the physical window resize to the next event-loop iteration.
+            # Calling SDL_SetWindowSize directly from here races with the SCALED
+            # renderer's internal state and causes a segfault in pygame.event.get().
+            self._pending_resize = (ww, wh)
         self.save()
         return surf
+
+    def apply_pending_resize(self) -> None:
+        """Apply a deferred window resize safely from within the game loop."""
+        if self._pending_resize is None:
+            return
+        ww, wh = self._pending_resize
+        self._pending_resize = None
+        try:
+            import pygame._sdl2.video as _sdl2
+            win = _sdl2.Window.from_display_module()
+            win.size = (ww, wh)
+            win.position = _sdl2.WINDOWPOS_CENTERED
+        except Exception:
+            pass
 
     @property
     def window_size_label(self) -> str:
