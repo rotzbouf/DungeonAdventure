@@ -341,118 +341,189 @@ class RendererLayer:
             txt.set_alpha(alpha)
             self.screen.blit(txt, (sx-w//2, sy))
 
+    # ── Menu decoration sprite cache ──────────────────────────────────────────
+    _MENU_SPR: dict = {}
+
+    @classmethod
+    def _menu_spr(cls, path_str: str, size: int) -> "pygame.Surface | None":
+        key = (path_str, size)
+        if key in cls._MENU_SPR:
+            return cls._MENU_SPR[key]
+        import pathlib
+        p = pathlib.Path(path_str)
+        spr = None
+        if p.exists():
+            try:
+                raw = pygame.image.load(str(p)).convert_alpha()
+                spr = pygame.transform.scale(raw, (size, size))
+            except Exception:
+                pass
+        cls._MENU_SPR[key] = spr
+        return spr
+
     def _draw_menu(self):
         self.screen.fill((0, 0, 0))
         cx = SCREEN_WIDTH // 2
-        _STONE    = (68, 100, 176)
-        _STONE_HI = (112,152,220)
-        _MORTAR   = (0,  8,  52)
 
+        _STONE    = (68, 100, 176)
+        _STONE_HI = (112, 152, 220)
+        _MORTAR   = (0,   8,  52)
+        _GOLD     = (220, 175,   0)
+        _DIM      = (90,  80, 120)
+
+        # ── Stone border tiles ────────────────────────────────────────────────
         for ty in range(0, SCREEN_HEIGHT, TILE_SIZE):
             for tx in range(0, SCREEN_WIDTH, TILE_SIZE):
                 if (tx == 0 or ty == 0 or
-                        tx >= SCREEN_WIDTH-TILE_SIZE or ty >= SCREEN_HEIGHT-TILE_SIZE):
+                        tx >= SCREEN_WIDTH - TILE_SIZE or
+                        ty >= SCREEN_HEIGHT - TILE_SIZE):
                     pygame.draw.rect(self.screen, _MORTAR,
                                      (tx, ty, TILE_SIZE, TILE_SIZE))
                     pygame.draw.rect(self.screen, _STONE,
                                      (tx+1, ty+1, TILE_SIZE-2, TILE_SIZE-2))
                     pygame.draw.line(self.screen, _STONE_HI,
-                                     (tx+1,ty+1),(tx+TILE_SIZE-2,ty+1))
+                                     (tx+1, ty+1), (tx+TILE_SIZE-2, ty+1))
 
+        # ── Sparks ────────────────────────────────────────────────────────────
         for s in self._sparks:
             tf  = s['life'] / s['max']
-            a   = int(min(255, tf*230))
-            r   = max(1, int(s['sz']*tf))
-            col = (min(255,int(195+tf*60)), int(105*tf*tf), 0)
-            gs  = pygame.Surface((r*4+2,r*4+2), pygame.SRCALPHA)
-            pygame.draw.circle(gs, (*col, a//3), (r*2+1,r*2+1), r*2)
-            pygame.draw.circle(gs, (*col, a),    (r*2+1,r*2+1), r)
+            a   = int(min(255, tf * 230))
+            r   = max(1, int(s['sz'] * tf))
+            col = (min(255, int(195+tf*60)), int(105*tf*tf), 0)
+            gs  = pygame.Surface((r*4+2, r*4+2), pygame.SRCALPHA)
+            pygame.draw.circle(gs, (*col, a//3), (r*2+1, r*2+1), r*2)
+            pygame.draw.circle(gs, (*col, a),    (r*2+1, r*2+1), r)
             self.screen.blit(gs, (int(s['x'])-r*2-1, int(s['y'])-r*2-1))
 
-        pulse = 0.88 + 0.12*math.sin(self._time*2.2)
-        ycol  = tuple(int(c*pulse) for c in YELLOW)
-        game_title = self._font_xl.render("DUNGEON ADVENTURE", True, ycol)
-        t_sh       = self._font_xl.render("DUNGEON ADVENTURE", True, (0,0,0))
-        self.screen.blit(t_sh,       t_sh.get_rect(center=(cx+3, SCREEN_HEIGHT*25//100+3)))
-        self.screen.blit(game_title, game_title.get_rect(center=(cx, SCREEN_HEIGHT*25//100)))
+        # ── Title ─────────────────────────────────────────────────────────────
+        pulse    = 0.88 + 0.12 * math.sin(self._time * 2.2)
+        ycol     = tuple(int(c * pulse) for c in YELLOW)
+        title_cy = int(SCREEN_HEIGHT * 0.19)
+        t_sh     = self._font_xl.render("DUNGEON ADVENTURE", True, (0, 0, 0))
+        t_lbl    = self._font_xl.render("DUNGEON ADVENTURE", True, ycol)
+        self.screen.blit(t_sh,  t_sh.get_rect(center=(cx+3, title_cy+3)))
+        self.screen.blit(t_lbl, t_lbl.get_rect(center=(cx,   title_cy)))
 
-        sub = self._font_lg.render(t("menu.subtitle"), True, WHITE)
-        self.screen.blit(sub, sub.get_rect(center=(cx, SCREEN_HEIGHT*33//100)))
+        # ── Subtitle ──────────────────────────────────────────────────────────
+        sub_cy = int(SCREEN_HEIGHT * 0.28)
+        sub    = self._font_lg.render(t("menu.subtitle"), True, WHITE)
+        self.screen.blit(sub, sub.get_rect(center=(cx, sub_cy)))
 
-        # Buttons
-        if int(self._time*2) % 2 == 0:
-            enter = self._font_md.render(t("menu.press_enter"), True, YELLOW)
-            self.screen.blit(enter, enter.get_rect(center=(cx, SCREEN_HEIGHT*43//100)))
+        # ── Top divider ───────────────────────────────────────────────────────
+        div_y = int(SCREEN_HEIGHT * 0.36)
+        pygame.draw.line(self.screen, _STONE_HI, (cx-320, div_y), (cx-14, div_y), 1)
+        pygame.draw.polygon(self.screen, _GOLD,
+                            [(cx, div_y-7), (cx+7, div_y), (cx, div_y+7), (cx-7, div_y)])
+        pygame.draw.line(self.screen, _STONE_HI, (cx+14, div_y), (cx+320, div_y), 1)
 
-        if savesys.has_save():
-            if int(self._time*2) % 2 == 0:
-                cont = self._font_md.render(t("menu.press_c"), True, (120,200,255))
-                self.screen.blit(cont, cont.get_rect(center=(cx, SCREEN_HEIGHT*48//100)))
+        # ── Decorative statues ────────────────────────────────────────────────
+        DCSS = "assets/Dungeon Crawl Stone Soup Full"
+        SPR_SIZE = 224
+        statue_left  = self._menu_spr(f"{DCSS}/dungeon/statues/granite_statue.png", SPR_SIZE)
+        statue_right = self._menu_spr(f"{DCSS}/dungeon/statues/statue_ancient_hero.png", SPR_SIZE)
 
-        # Settings button
-        _settings_lbl = self._font_sm.render("[S]  SETTINGS", True, LIGHT_GRAY)
-        _sbr = _settings_lbl.get_rect(center=(cx, SCREEN_HEIGHT * 53 // 100))
-        bg_s = pygame.Surface((_sbr.width + 24, _sbr.height + 8), pygame.SRCALPHA)
-        bg_s.fill((30, 20, 50, 160))
-        self.screen.blit(bg_s, (_sbr.left - 12, _sbr.top - 4))
-        self.screen.blit(_settings_lbl, _sbr)
-        self._settings_btn_rect = _sbr.inflate(24, 8)
+        BTN_W  = 400
+        BTN_H  = 68
+        VGAP   = 20
+        btn_y0 = int(SCREEN_HEIGHT * 0.41)
+        btn_area_cy = btn_y0 + (3 * BTN_H + 2 * VGAP) // 2
 
-        sep_y = SCREEN_HEIGHT*59//100 if savesys.has_save() else SCREEN_HEIGHT*57//100
-        pygame.draw.line(self.screen, _STONE_HI, (cx-240,sep_y),(cx-12,sep_y),1)
-        pygame.draw.line(self.screen, _STONE_HI, (cx+12,sep_y),(cx+240,sep_y),1)
-        pygame.draw.polygon(self.screen, YELLOW,
-                            [(cx,sep_y-6),(cx+6,sep_y),(cx,sep_y+6),(cx-6,sep_y)])
+        if statue_left:
+            sy = btn_area_cy - SPR_SIZE // 2
+            # Subtle amber glow behind the statue
+            glow = pygame.Surface((SPR_SIZE + 40, SPR_SIZE + 40), pygame.SRCALPHA)
+            ga   = int(28 + 14 * math.sin(self._time * 1.6))
+            pygame.draw.ellipse(glow, (180, 130, 30, ga),
+                                (0, 0, SPR_SIZE + 40, SPR_SIZE + 40))
+            self.screen.blit(glow, (cx - 540 - 20, sy - 20))
+            self.screen.blit(statue_left, (cx - 540, sy))
 
-        controls = [
-            ("WASD",       t("ctrl.move")),
-            ("SPACE",      t("ctrl.attack")),
-            ("Z",          t("ctrl.fireball")),
-            ("X",          t("ctrl.ice_nova")),
-            ("R",          t("ctrl.chain_light")),
-            ("V",          t("ctrl.blink")),
-            ("B",          t("ctrl.battle_cry")),
-            ("E",          t("ctrl.descend")),
-            ("T",          t("ctrl.return_town")),
-            ("F",          t("ctrl.shop")),
-            ("I / TAB",    t("ctrl.inventory")),
-            ("C",          t("ctrl.char")),
-            ("K",          t("ctrl.skills")),
-            ("J",          t("ctrl.quests")),
-            ("Q",          t("ctrl.potion")),
+        if statue_right:
+            sy = btn_area_cy - SPR_SIZE // 2
+            flipped = pygame.transform.flip(statue_right, True, False)
+            glow = pygame.Surface((SPR_SIZE + 40, SPR_SIZE + 40), pygame.SRCALPHA)
+            ga   = int(28 + 14 * math.sin(self._time * 1.6 + 1.0))
+            pygame.draw.ellipse(glow, (180, 130, 30, ga),
+                                (0, 0, SPR_SIZE + 40, SPR_SIZE + 40))
+            self.screen.blit(glow, (cx + 540 - SPR_SIZE - 20, sy - 20))
+            self.screen.blit(flipped, (cx + 540 - SPR_SIZE, sy))
+
+        # ── Buttons ───────────────────────────────────────────────────────────
+        has_save  = savesys.has_save()
+        mouse_pos = pygame.mouse.get_pos()
+
+        _BTN_BG    = (22,  15,  40)
+        _BTN_HV    = (48,  34,  78)
+        _BTN_BD    = (90,  60, 160)
+        _BTN_BD_HV = (220, 175,   0)
+        _BTN_DIM   = (48,  42,  60)
+        _BTN_BD_DIM= (40,  30,  55)
+
+        btn_defs = [
+            ("new_game", t("menu.new_game"), "[Enter]", True),
+            ("continue", t("menu.continue"), "[C]",     has_save),
+            ("settings", t("menu.settings"), "[S]",     True),
         ]
-        key_x = cx - 16
-        act_x = cx + 16
-        y0, lh = sep_y + 20, 30
-        for i, (key, action) in enumerate(controls):
-            y   = y0 + i * lh
-            if y > SCREEN_HEIGHT - 30:
-                break
-            ks  = self._font_sm.render(key,    True, YELLOW)
-            acs = self._font_sm.render(action,  True, LIGHT_GRAY)
-            self.screen.blit(ks,  ks.get_rect(right=key_x, centery=y))
-            pygame.draw.polygon(self.screen, _STONE_HI,
-                                [(cx,y-3),(cx+4,y),(cx,y+3),(cx-4,y)])
-            self.screen.blit(acs, acs.get_rect(left=act_x, centery=y))
 
-        note = self._font_sm.render(t("menu.skill_note"), True, GRAY)
-        self.screen.blit(note, note.get_rect(right=cx+240, y=SCREEN_HEIGHT-28))
+        self._menu_btn_rects = {}
 
-        # Version — bottom-right corner
+        for i, (btn_id, label, shortcut, active) in enumerate(btn_defs):
+            bx    = cx - BTN_W // 2
+            by    = btn_y0 + i * (BTN_H + VGAP)
+            brect = pygame.Rect(bx, by, BTN_W, BTN_H)
+            self._menu_btn_rects[btn_id] = brect
+
+            hov = active and brect.collidepoint(mouse_pos)
+
+            if not active:
+                bg_col, bd_col, txt_col = _BTN_BG, _BTN_BD_DIM, _BTN_DIM
+            elif hov:
+                bg_col, bd_col, txt_col = _BTN_HV, _BTN_BD_HV, YELLOW
+            else:
+                bg_col, bd_col, txt_col = _BTN_BG, _BTN_BD, WHITE
+
+            # Button panel + border
+            pygame.draw.rect(self.screen, bg_col, brect, border_radius=6)
+            pygame.draw.rect(self.screen, bd_col, brect, 2, border_radius=6)
+
+            # Hover: inner highlight line at top
+            if hov:
+                hi_r = pygame.Rect(bx+3, by+3, BTN_W-6, 2)
+                pygame.draw.rect(self.screen, (255, 230, 100, 120), hi_r, border_radius=2)
+
+            # Label
+            font = self._font_lg
+            lbl_s = font.render(label, True, txt_col)
+            self.screen.blit(lbl_s, lbl_s.get_rect(center=brect.center))
+
+            # Shortcut tag
+            sc_col = (110, 90, 140) if active else (38, 33, 50)
+            sc_s   = self._font_sm.render(shortcut, True, sc_col)
+            self.screen.blit(sc_s, sc_s.get_rect(
+                left=brect.right + 16, centery=brect.centery))
+
+        # ── Bottom divider ────────────────────────────────────────────────────
+        bot_y = btn_y0 + 3 * BTN_H + 2 * VGAP + 28
+        pygame.draw.line(self.screen, _STONE_HI, (cx-320, bot_y), (cx-14, bot_y), 1)
+        pygame.draw.polygon(self.screen, _GOLD,
+                            [(cx, bot_y-7), (cx+7, bot_y), (cx, bot_y+7), (cx-7, bot_y)])
+        pygame.draw.line(self.screen, _STONE_HI, (cx+14, bot_y), (cx+320, bot_y), 1)
+
+        # ── Version ───────────────────────────────────────────────────────────
         ver_s = self._font_sm.render(f"v{__version__}", True, (70, 70, 90))
         self.screen.blit(ver_s, ver_s.get_rect(right=SCREEN_WIDTH - 14,
                                                 bottom=SCREEN_HEIGHT - 8))
 
-        # ── Language selector ─────────────────────────────────────────────────
+        # ── Language selector (bottom-left) ───────────────────────────────────
         self._lang_btn_rects = {}
-        lang_lbl = self._font_sm.render(t("menu.lang_label") + ":", True, GRAY)
+        lang_lbl = self._font_sm.render(t("menu.lang_label") + ":", True, _DIM)
         lx = 20
         self.screen.blit(lang_lbl, (lx, SCREEN_HEIGHT - 28))
         lx += lang_lbl.get_width() + 8
-        for code, label in (("en", "EN"), ("de", "DE")):
+        for code, lcode in (("en", "EN"), ("de", "DE")):
             active  = locale.lang() == code
-            col     = YELLOW if active else GRAY
-            btn_txt = self._font_sm.render(f"[{label}]", True, col)
+            lc_col  = YELLOW if active else _DIM
+            btn_txt = self._font_sm.render(f"[{lcode}]", True, lc_col)
             btn_r   = btn_txt.get_rect(left=lx, top=SCREEN_HEIGHT - 28)
             if active:
                 bg = pygame.Surface((btn_r.width + 4, btn_r.height + 2))

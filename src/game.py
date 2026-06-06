@@ -128,6 +128,7 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._particles: list = []
         self._lang_btn_rects: dict = {}   # populated by _draw_menu, read by events
         self._settings_btn_rect = None    # populated by _draw_menu
+        self._menu_btn_rects:  dict = {}  # populated by _draw_menu, read by events
 
         self._player_hurt_t    = 0.0
         self._transition_timer = 0.0
@@ -380,14 +381,25 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     self._settings_screen.handle_event(event)
                     continue
                 if self.state == STATE_MENU:
+                    for btn_id, brect in self._menu_btn_rects.items():
+                        if brect.collidepoint(event.pos):
+                            if btn_id == "new_game":
+                                self._new_game()
+                            elif btn_id == "continue":
+                                if savesys.has_save():
+                                    self._continue_game()
+                            elif btn_id == "settings":
+                                self.settings_open = True
+                                self._settings_screen.open(
+                                    apply_display_fn=self._apply_display_settings,
+                                    connect_fn=self._connect_to_server)
+                            break
                     for code, rect in self._lang_btn_rects.items():
                         if rect.collidepoint(event.pos):
                             locale.set_lang(code)
+                            game_settings.language = code
+                            game_settings.save()
                             break
-                    if self._settings_btn_rect and self._settings_btn_rect.collidepoint(event.pos):
-                        self.settings_open = True
-                        self._settings_screen.open(apply_display_fn=self._apply_display_settings,
-                                               connect_fn=self._connect_to_server)
 
             if event.type == pygame.MOUSEBUTTONDOWN and self.state in (STATE_PLAYING, STATE_TOWN):
                 if self.house_open:

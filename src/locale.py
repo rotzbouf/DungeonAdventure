@@ -114,6 +114,9 @@ _T: dict[str, dict[str, str]] = {
     # ── Main Menu ─────────────────────────────────────────────────────────────
     "menu.subtitle":       {"en": "A Classic Dungeon Crawler",
                             "de": "Ein klassisches Dungeon-Abenteuer"},
+    "menu.new_game":       {"en": "NEW  GAME",   "de": "NEUES SPIEL"},
+    "menu.continue":       {"en": "CONTINUE",    "de": "FORTSETZEN"},
+    "menu.settings":       {"en": "SETTINGS",    "de": "EINSTELLUNGEN"},
     "menu.press_enter":    {"en": "- PRESS  ENTER  TO  START -",
                             "de": "- ENTER  DRÜCKEN  ZUM  START -"},
     "menu.press_c":        {"en": "- PRESS  C  TO  CONTINUE -",
