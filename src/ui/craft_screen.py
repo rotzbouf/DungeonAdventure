@@ -7,6 +7,7 @@ from src.items.materials import (
     MATERIALS, RECIPES, Recipe,
     disassemble, execute_recipe,
 )
+from src.ui.pager import draw_pager
 
 # ── Palette ───────────────────────────────────────────────────────────────────
 _BG      = (8,   6,  14)
@@ -49,6 +50,10 @@ class CraftScreen:
         self._target_item: EquipItem | None = None  # reforge / add_slot target
         self._recipe_scroll = 0
         self._item_scroll   = 0
+        self._recipe_prev: pygame.Rect | None = None
+        self._recipe_next: pygame.Rect | None = None
+        self._item_prev:   pygame.Rect | None = None
+        self._item_next:   pygame.Rect | None = None
         self._msg       = ""
         self._msg_timer = 0.0
         self._msg_ok    = True
@@ -113,6 +118,27 @@ class CraftScreen:
         hdr_h   = 88
         pad     = 14
         split_x = self.W // 2
+
+        # ── Pager button clicks ────────────────────────────────────────────────
+        _row_h   = 44
+        _list_y0 = hdr_h + pad
+        _clip_h  = self.H - 120 - _list_y0
+        _vis     = max(1, _clip_h // _row_h)
+        if self._recipe_prev and self._recipe_prev.collidepoint(lx, ly):
+            self._recipe_scroll = max(0, self._recipe_scroll - _vis)
+            return
+        if self._recipe_next and self._recipe_next.collidepoint(lx, ly):
+            ms = max(0, len(RECIPES) - _vis)
+            self._recipe_scroll = min(ms, self._recipe_scroll + _vis)
+            return
+        if self._item_prev and self._item_prev.collidepoint(lx, ly):
+            self._item_scroll = max(0, self._item_scroll - _vis)
+            return
+        if self._item_next and self._item_next.collidepoint(lx, ly):
+            items = self._backpack_items(player)
+            ms = max(0, len(items) - _vis)
+            self._item_scroll = min(ms, self._item_scroll + _vis)
+            return
 
         # ── Tab buttons ───────────────────────────────────────────────────────
         if ly < hdr_h:
@@ -292,6 +318,7 @@ class CraftScreen:
             name_col   = WHITE
             name_s = self._fm.render(recipe.name, True, name_col)
             surf.blit(name_s, (pad + 4, iy + 4))
+            # (cost summary continues below)
 
             # Cost summary on right of row
             cx = split_x - pad - 6
@@ -303,6 +330,13 @@ class CraftScreen:
                 cx -= 14
                 pygame.draw.circle(surf, mat_col, (cx + 5, iy + 18), 5)
                 cx -= 10
+
+        # ── Recipe pager ──────────────────────────────────────────────────────
+        vis          = max(1, clip_h // row_h)
+        total_pages  = max(1, (len(RECIPES) + vis - 1) // vis)
+        page         = self._recipe_scroll // vis + 1
+        self._recipe_prev, self._recipe_next = draw_pager(
+            surf, split_x // 2, list_y0 + clip_h + 5, page, total_pages, self._fs)
 
     def _draw_craft_right(self, surf, player):
         pad     = 14
@@ -398,6 +432,13 @@ class CraftScreen:
             surf.blit(ns, (pad + 4, iy + 4))
             slot_s = self._fs.render(SLOT_LABELS.get(item.slot, item.slot), True, _DIM)
             surf.blit(slot_s, (pad + 4, iy + 24))
+
+        # ── Disassemble item pager ─────────────────────────────────────────────
+        vis         = max(1, clip_h // row_h)
+        total_pages = max(1, (len(items) + vis - 1) // vis)
+        page        = self._item_scroll // vis + 1
+        self._item_prev, self._item_next = draw_pager(
+            surf, split_x // 2, list_y0 + clip_h + 5, page, total_pages, self._fs)
 
     def _draw_disassemble_right(self, surf, player):
         pad     = 14

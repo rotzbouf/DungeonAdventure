@@ -151,7 +151,8 @@ class Dungeon:
         self.grid: list[list[int]] = [
             [TILE_VOID] * self.width for _ in range(self.height)
         ]
-        self.rooms: list[Room] = []
+        self.rooms:     list[Room] = []
+        self.boss_room: Room | None = None  # pre-selected arena, set during generation
         self.player_start = (0, 0)   # pixel coords
         self.stairs_pos   = (0, 0)   # pixel coords
         self.enemy_spawns:    list[tuple[int, int]] = []  # tile coords
@@ -183,6 +184,7 @@ class Dungeon:
         for i in range(1, len(rooms)):
             self._connect(rooms[i - 1], rooms[i])
         self._build_walls()
+        self.boss_room = self._pick_boss_room()
         self._place_pillars()
 
         cx, cy = rooms[0].center
@@ -195,6 +197,16 @@ class Dungeon:
                            ly * TILE_SIZE + TILE_SIZE // 2)
 
         self._place_spawns()
+
+    def _pick_boss_room(self) -> Room:
+        """Return the best room for a boss arena: largest, not start, not staircase."""
+        _BOSS_MIN = 11   # minimum tiles in each dimension for a comfortable arena
+        candidates = self.rooms[1:-1]   # exclude player spawn and staircase room
+        if not candidates:
+            return self.rooms[-1]       # degenerate: only 1-2 rooms
+        big  = [r for r in candidates if r.w >= _BOSS_MIN and r.h >= _BOSS_MIN]
+        pool = big if big else candidates
+        return max(pool, key=lambda r: r.w * r.h)
 
     def _carve_room(self, room: Room):
         for ry in range(room.y, room.y + room.h):
@@ -244,6 +256,8 @@ class Dungeon:
     def _place_pillars(self):
         """Add stone pillar pairs inside large rooms for tactical cover."""
         for room in self.rooms[1:]:   # skip starting room
+            if room is self.boss_room:  # keep the boss arena open
+                continue
             if room.w < 9 or room.h < 9:
                 continue
             cx, cy = room.center

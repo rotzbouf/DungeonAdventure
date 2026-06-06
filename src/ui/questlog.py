@@ -67,9 +67,10 @@ class QuestLogScreen:
             line(t("quest.no_active"), _DIM_COL, 8)
         else:
             for q in quest_log.active:
-                name_str = t_quest_name(q.id, q.name)
+                name_str = t_quest_name(q.id, q.name, floor=q.floor, giver=q.giver, relic=q.relic)
                 line(f"▶ {name_str}", _ACTIVE_COL)
-                desc_str = t_quest_desc(q.id, q.required, q.target) or q.desc
+                desc_str = t_quest_desc(q.id, q.required, q.target,
+                                        floor=q.floor, giver=q.giver, relic=q.relic) or q.desc
                 if q.giver:
                     line(f"  [{q.giver}]", _DIM_COL, 12)
                 line(desc_str, _DIM_COL, 12)
@@ -105,7 +106,7 @@ class QuestLogScreen:
         # ── Completed quests ──────────────────────────────────────────────────
         section(t("quest.completed", n=len(quest_log.completed)))
         for q in reversed(quest_log.completed[-10:]):
-            line(f"✓  {t_quest_name(q.id)}", _DONE_COL)
+            line(f"✓  {t_quest_name(q.id, q.name, floor=q.floor, giver=q.giver, relic=q.relic)}", _DONE_COL)
 
         # Footer hint
         hint = self._font_sm.render(t("quest.hint"), True, _DIM_COL)

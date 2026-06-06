@@ -494,6 +494,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
 
             if event.type == pygame.MOUSEWHEEL and self.settings_open:
                 self._settings_screen.handle_event(event)
+            if event.type == pygame.MOUSEWHEEL and self.shop_open:
+                self.shop.handle_scroll(event.y, *pygame.mouse.get_pos())
             if event.type == pygame.MOUSEWHEEL and self.inv_open:
                 self.inventory.handle_scroll(event.y)
             if event.type == pygame.MOUSEWHEEL and self.house_open:

@@ -4,6 +4,7 @@ import pygame
 from src.settings import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, YELLOW, WHITE, LIGHT_GRAY
 from src.items.item import EquipItem, SLOT_ORDER, SLOT_LABELS
 from src.items.enchant import ENCHANTMENTS, SYNERGIES, RARITY_COLORS, RARITY_LABELS, active_synergies
+from src.ui.pager import draw_pager
 
 _BG        = (6,   4,  18)
 _PANEL     = (12,  8,  30)
@@ -36,6 +37,10 @@ class EnchantScreen:
         self._enc_scroll  = 0
         self._msg         = ""
         self._msg_timer   = 0.0
+        self._item_prev: pygame.Rect | None = None
+        self._item_next: pygame.Rect | None = None
+        self._enc_prev:  pygame.Rect | None = None
+        self._enc_next:  pygame.Rect | None = None
 
     # ─── Public API ─────────────────────────────────────────────────────────────
 
@@ -102,6 +107,25 @@ class EnchantScreen:
         pad = 14
         header_h = 52
         split_x  = self.W // 2
+
+        # ── Pager button clicks ────────────────────────────────────────────────
+        _ITEM_VIS = (self.H - 80 - (header_h + pad) - 32) // 40  # items visible per page
+        _ENC_VIS  = (self.H - 120 - (header_h + pad)) // 36      # enchants visible per page
+        if self._item_prev and self._item_prev.collidepoint(lx, ly):
+            self._item_scroll = max(0, self._item_scroll - _ITEM_VIS)
+            return
+        if self._item_next and self._item_next.collidepoint(lx, ly):
+            items = self._enchantable_items(player)
+            ms = max(0, len(items) - _ITEM_VIS)
+            self._item_scroll = min(ms, self._item_scroll + _ITEM_VIS)
+            return
+        if self._enc_prev and self._enc_prev.collidepoint(lx, ly):
+            self._enc_scroll = max(0, self._enc_scroll - _ENC_VIS)
+            return
+        if self._enc_next and self._enc_next.collidepoint(lx, ly):
+            ms = max(0, len(ENCHANTMENTS) - _ENC_VIS)
+            self._enc_scroll = min(ms, self._enc_scroll + _ENC_VIS)
+            return
 
         # ── Left panel click (item selection) ────────────────────────────────
         if lx < split_x:
@@ -200,7 +224,7 @@ class EnchantScreen:
         pad     = 14
         row_h   = 40
         list_y0 = 52 + pad
-        clip_h  = self.H - 80 - list_y0
+        clip_h  = self.H - 80 - list_y0 - 32   # 32 px reserved for pager
 
         # Column header
         hdr = self._fmd.render("ITEMS WITH OPEN SLOTS", True, _HDR)
@@ -246,6 +270,14 @@ class EnchantScreen:
                 )
                 enc_s = self._fsm.render(enc_names, True, _HDR)
                 surf.blit(enc_s, (pad + 2, iy + 22))
+
+        # ── Item pager ────────────────────────────────────────────────────────
+        vis_per_page = max(1, clip_h // row_h)
+        total_pages  = max(1, (len(items) + vis_per_page - 1) // vis_per_page)
+        page         = self._item_scroll // vis_per_page + 1
+        cx           = (split_x) // 2
+        self._item_prev, self._item_next = draw_pager(
+            surf, cx, list_y0 + clip_h + 5, page, total_pages, self._fsm)
 
     def _draw_enchant_panel(self, surf: pygame.Surface, player, split_x: int):
         pad     = 14
@@ -293,6 +325,15 @@ class EnchantScreen:
             cost_col = _GOLD_COL if can_afford else _RED
             cost_s = self._fmd.render(f"♦{enc.cost}", True, cost_col)
             surf.blit(cost_s, (self.W - pad - cost_s.get_width() - 4, iy + 8))
+
+        # ── Enchantment pager ─────────────────────────────────────────────────
+        enc_list     = list(ENCHANTMENTS.values())
+        vis_enc      = max(1, clip_h // row_h)
+        enc_pages    = max(1, (len(enc_list) + vis_enc - 1) // vis_enc)
+        enc_page     = self._enc_scroll // vis_enc + 1
+        enc_cx       = split_x + (self.W - split_x) // 2
+        self._enc_prev, self._enc_next = draw_pager(
+            surf, enc_cx, list_y0 + clip_h + 5, enc_page, enc_pages, self._fsm)
 
         # Tooltip panel for selected enchantment
         if self._sel_enc and self._sel_enc in ENCHANTMENTS:

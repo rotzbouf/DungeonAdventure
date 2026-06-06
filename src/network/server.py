@@ -130,7 +130,7 @@ class ServerGame:
                 self.dungeon.rng,
             )
             if BossClass:
-                room = self.dungeon.rooms[-1]
+                room = self.dungeon.boss_room
                 bx   = room.center[0] * TILE_SIZE + TILE_SIZE // 2
                 by   = room.center[1] * TILE_SIZE + TILE_SIZE // 2
                 boss = BossClass(float(bx), float(by))
@@ -467,6 +467,13 @@ class ServerGame:
             return
         player._attack_timer = player.effective_cooldown
         player._attack_anim  = 0.2
+        # Auto-target nearest alive enemy; fall back to aim_angle if none present
+        alive = [e for e in self.enemies if e.alive]
+        if alive:
+            t = min(alive, key=lambda e: math.hypot(e.x - player.x, e.y - player.y))
+            dx, dy = t.x - player.x, t.y - player.y
+            dist = math.hypot(dx, dy) or 1.0
+            aim_angle = math.atan2(dy / dist, dx / dist)
         nx = math.cos(aim_angle)
         ny = math.sin(aim_angle)
         self.projectiles.append({

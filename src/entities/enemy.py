@@ -213,20 +213,7 @@ class Enemy(Entity):
         return base
 
     def _draw_elite_aura(self, surface: pygame.Surface, dr: pygame.Rect):
-        """Pulsing gold/purple ring around elite enemies."""
-        pulse = 0.65 + 0.35 * math.sin(self._elite_aura_t * 4.0)
-        r     = self.size // 2 + 5
-        cx, cy = dr.centerx, dr.centery
-        # Outer gold ring
-        a = int(180 * pulse)
-        aura_surf = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
-        pygame.draw.circle(aura_surf, (220, 175, 0, a),
-                           (r + 2, r + 2), r + 2, 3)
-        pygame.draw.circle(aura_surf, (148, 0, 216, int(a * 0.6)),
-                           (r + 2, r + 2), r - 1, 2)
-        surface.blit(aura_surf, (cx - r - 2, cy - r - 2))
-
-        # "ELITE" label above HP bar
+        """★ ELITE label above the HP bar (ring removed)."""
         if not hasattr(self, '_elite_font'):
             self._elite_font = pygame.font.SysFont("monospace", 28, bold=True)
         lbl = self._elite_font.render("★ ELITE", True, (220, 175, 0))

@@ -58,16 +58,28 @@ _QUEST_PREFIXES = [
 ]
 
 
-def t_quest_name(quest_id: str, fallback: str = "") -> str:
+def t_quest_name(quest_id: str, fallback: str = "", *,
+                 floor: int = 0, giver: str = "", relic: str = "") -> str:
     """Return the localised display name for a quest given its ID.
     Falls back to *fallback* (or the raw ID) when no prefix matches."""
     for prefix, base_key in _QUEST_PREFIXES:
         if quest_id.startswith(prefix):
             return t(f"{base_key}.name")
+    if quest_id.startswith("npc_kill_"):
+        enemy = quest_id.split("_")[2]   # "goblin" | "skeleton" | "orc" | "demon"
+        return t(f"quest.npc_kill.{enemy}.name")
+    if quest_id.startswith("npc_fetch"):
+        relic_loc = t(f"quest.relic.{relic}") if relic else (fallback or quest_id)
+        return t("quest.npc_fetch.name", relic=relic_loc)
+    if quest_id.startswith("npc_clear"):
+        return t("quest.npc_clear.name", floor=floor)
+    if quest_id.startswith("npc_bounty"):
+        return t("quest.npc_bounty.name", floor=floor)
     return fallback if fallback else quest_id
 
 
-def t_quest_desc(quest_id: str, required: int, target: str = "") -> str:
+def t_quest_desc(quest_id: str, required: int, target: str = "", *,
+                 floor: int = 0, giver: str = "", relic: str = "") -> str:
     """Return the localised description for a quest."""
     if quest_id.startswith("goblin"):   return t("quest.goblin_hunter.desc")
     if quest_id.startswith("skeleton"): return t("quest.bone_crusher.desc")
@@ -83,6 +95,16 @@ def t_quest_desc(quest_id: str, required: int, target: str = "") -> str:
         except (IndexError, ValueError):
             floor_n = required
         return t("quest.deeper_down.desc", n=floor_n)
+    if quest_id.startswith("npc_kill_"):
+        enemy = quest_id.split("_")[2]
+        return t(f"quest.npc_kill.{enemy}.desc", req=required, giver=giver)
+    if quest_id.startswith("npc_fetch"):
+        relic_loc = t(f"quest.relic.{relic}") if relic else ""
+        return t("quest.npc_fetch.desc", relic=relic_loc, floor=floor)
+    if quest_id.startswith("npc_clear"):
+        return t("quest.npc_clear.desc", floor=floor)
+    if quest_id.startswith("npc_bounty"):
+        return t("quest.npc_bounty.desc", floor=floor)
     return ""
 
 
@@ -359,7 +381,7 @@ _T: dict[str, dict[str, str]] = {
     # Quest names & descriptions
     "quest.goblin_hunter.name":   {"en": "Goblin Hunter",      "de": "Goblin-Jäger"},
     "quest.goblin_hunter.desc":   {"en": "Kill 5 Goblins.",    "de": "Töte 5 Goblins."},
-    "quest.bone_crusher.name":    {"en": "Bone Crusher",       "de": "Knochenbrecherer"},
+    "quest.bone_crusher.name":    {"en": "Bone Crusher",       "de": "Knochenbrecher"},
     "quest.bone_crusher.desc":    {"en": "Kill 4 Skeletons.",  "de": "Töte 4 Skelette."},
     "quest.orc_slayer.name":      {"en": "Orc Slayer",         "de": "Ork-Töter"},
     "quest.orc_slayer.desc":      {"en": "Kill 3 Orcs.",       "de": "Töte 3 Orks."},
@@ -430,6 +452,116 @@ _T: dict[str, dict[str, str]] = {
                                   "de": "Quest angenommen: {name}"},
     "quest_giver.no_quests":     {"en": "I have no new quests for you right now.",
                                   "de": "Ich habe gerade keine neuen Quests für dich."},
+
+    # ── Perk screen ───────────────────────────────────────────────────────────
+    "perk.screen.title":        {"en": "LEVEL {n}  —  CHOOSE A PERK",
+                                 "de": "LEVEL {n}  —  WÄHLE EINE FÄHIGKEIT"},
+    "perk.screen.subtitle":     {"en": "Click a card to claim your perk  —  this cannot be skipped",
+                                 "de": "Karte klicken  —  Auswahl ist Pflicht"},
+    "perk.screen.click":        {"en": "CLICK TO CLAIM", "de": "KLICKEN ZUM WÄHLEN"},
+    "perk.screen.tier":         {"en": "TIER {n}",  "de": "STUFE {n}"},
+    "perk.cat.combat":          {"en": "COMBAT",    "de": "KAMPF"},
+    "perk.cat.defense":         {"en": "DEFENSE",   "de": "VERTEIDIGUNG"},
+    "perk.cat.magic":           {"en": "MAGIC",     "de": "MAGIE"},
+    "perk.cat.utility":         {"en": "UTILITY",   "de": "HILFREICH"},
+    # Perk names & descriptions
+    "perk.bloodlust.name":        {"en": "Bloodlust",      "de": "Blutdurst"},
+    "perk.bloodlust.desc":        {"en": "Killing an enemy restores 8 HP.",
+                                   "de": "Töten stellt 8 LP wieder her."},
+    "perk.iron_skin.name":        {"en": "Iron Skin",       "de": "Eisenhaut"},
+    "perk.iron_skin.desc":        {"en": "Reduce all incoming damage by 2.",
+                                   "de": "Verringert Schaden um 2."},
+    "perk.battle_focus.name":     {"en": "Battle Focus",    "de": "Kampffokus"},
+    "perk.battle_focus.desc":     {"en": "+10% critical hit chance.",
+                                   "de": "+10% kritische Trefferchance."},
+    "perk.fortitude.name":        {"en": "Fortitude",       "de": "Standhaftigkeit"},
+    "perk.fortitude.desc":        {"en": "Gain +40 permanent max HP.",
+                                   "de": "+40 permanente max. LP."},
+    "perk.spell_surge.name":      {"en": "Spell Surge",     "de": "Zauberschwall"},
+    "perk.spell_surge.desc":      {"en": "All spell mana costs reduced by 20%.",
+                                   "de": "Alle Zauberkosten um 20% reduziert."},
+    "perk.execute.name":          {"en": "Execute",         "de": "Hinrichten"},
+    "perk.execute.desc":          {"en": "Deal +60% damage to enemies below 25% HP.",
+                                   "de": "+60% Schaden an Feinden unter 25% LP."},
+    "perk.vampiric.name":         {"en": "Vampiric",        "de": "Vampirisch"},
+    "perk.vampiric.desc":         {"en": "Gain +4% life steal on all hits.",
+                                   "de": "+4% Lebensentzug bei allen Treffern."},
+    "perk.arcane_reserve.name":   {"en": "Arcane Reserve",  "de": "Arkane Reserve"},
+    "perk.arcane_reserve.desc":   {"en": "+50 max mana.  Spells cost an extra 10% less mana.",
+                                   "de": "+50 max. Mana.  Zauber kosten 10% weniger Mana."},
+    "perk.thorned.name":          {"en": "Thorned",         "de": "Gedornt"},
+    "perk.thorned.desc":          {"en": "Reflect 12 damage to every attacker.",
+                                   "de": "Reflektiert 12 Schaden an Angreifer."},
+    "perk.precision.name":        {"en": "Precision",       "de": "Präzision"},
+    "perk.precision.desc":        {"en": "Critical hits deal 3× damage instead of 2×.",
+                                   "de": "Krit. Treffer: 3× statt 2× Schaden."},
+    "perk.berserker.name":        {"en": "Berserker",       "de": "Berserker"},
+    "perk.berserker.desc":        {"en": "+1 ATK for every 5 HP currently missing.",
+                                   "de": "+1 Angriff für je 5 fehlende LP."},
+    "perk.second_wind.name":      {"en": "Second Wind",     "de": "Zweiter Wind"},
+    "perk.second_wind.desc":      {"en": "Once per floor, survive a killing blow at 1 HP.",
+                                   "de": "Einmal pro Etage tödlichen Treffer bei 1 LP überleben."},
+    "perk.arcane_mastery.name":   {"en": "Arcane Mastery",  "de": "Arkane Meisterschaft"},
+    "perk.arcane_mastery.desc":   {"en": "All spells deal +30% damage.",
+                                   "de": "Alle Zauber: +30% Schaden."},
+    "perk.fortified.name":        {"en": "Fortified",       "de": "Gestärkt"},
+    "perk.fortified.desc":        {"en": "+60 max HP.  Take 10% less damage from all sources.",
+                                   "de": "+60 max. LP.  10% weniger Schaden."},
+    "perk.gold_rush.name":        {"en": "Gold Rush",       "de": "Goldrausch"},
+    "perk.gold_rush.desc":        {"en": "+30% gold find.  Enemies drop loot 15% more often.",
+                                   "de": "+30% Goldsuche.  15% mehr Beute."},
+    "perk.warlord.name":          {"en": "Warlord",         "de": "Kriegsherr"},
+    "perk.warlord.desc":          {"en": "+12 ATK, +8% crit chance.",
+                                   "de": "+12 Angriff, +8% Krit.-Chance."},
+    "perk.undying.name":          {"en": "Undying",         "de": "Unsterblich"},
+    "perk.undying.desc":          {"en": "+80 max HP.  Regenerate +2 HP per second.",
+                                   "de": "+80 max. LP.  +2 LP/Sekunde regenerieren."},
+    "perk.avatar_of_war.name":    {"en": "Avatar of War",   "de": "Kriegsavatar"},
+    "perk.avatar_of_war.desc":    {"en": "Deal +25% damage.  Also take 10% more damage.",
+                                   "de": "+25% Schaden.  Aber auch 10% mehr Schaden erleiden."},
+    "perk.arcane_overflow.name":  {"en": "Arcane Overflow", "de": "Arkane Überflutung"},
+    "perk.arcane_overflow.desc":  {"en": "When at full mana, spells deal +50% damage.",
+                                   "de": "Bei vollem Mana: Zauber +50% Schaden."},
+    "perk.eternal_warrior.name":  {"en": "Eternal Warrior", "de": "Ewiger Krieger"},
+    "perk.eternal_warrior.desc":  {"en": "+3 ATK and +3 DEF for every level above 30.",
+                                   "de": "+3 Angriff und +3 Abwehr pro Level über 30."},
+
+    # ── Quest type labels ─────────────────────────────────────────────────────
+    "quest.type.kill":    {"en": "KILL",    "de": "TÖTEN"},
+    "quest.type.fetch":   {"en": "FETCH",   "de": "HOLEN"},
+    "quest.type.clear":   {"en": "CLEAR",   "de": "ERKUNDEN"},
+    "quest.type.bounty":  {"en": "BOUNTY",  "de": "KOPFGELD"},
+    "quest.type.collect": {"en": "COLLECT", "de": "SAMMELN"},
+    "quest.type.reach":   {"en": "REACH",   "de": "ERREICHEN"},
+
+    # ── NPC quest names & descriptions ────────────────────────────────────────
+    "quest.npc_kill.goblin.name":    {"en": "Goblin Bounty",   "de": "Goblin-Kopfgeld"},
+    "quest.npc_kill.goblin.desc":    {"en": "Kill {req} Goblins for {giver}.",
+                                      "de": "{req} Goblins für {giver} töten."},
+    "quest.npc_kill.skeleton.name":  {"en": "Skeleton Patrol", "de": "Skelett-Patrouille"},
+    "quest.npc_kill.skeleton.desc":  {"en": "Kill {req} Skeletons for {giver}.",
+                                      "de": "{req} Skelette für {giver} töten."},
+    "quest.npc_kill.orc.name":       {"en": "Orc Culling",     "de": "Ork-Auslese"},
+    "quest.npc_kill.orc.desc":       {"en": "Kill {req} Orcs for {giver}.",
+                                      "de": "{req} Orks für {giver} töten."},
+    "quest.npc_kill.demon.name":     {"en": "Demon Contract",  "de": "Dämonenvertrag"},
+    "quest.npc_kill.demon.desc":     {"en": "Kill {req} Demons for {giver}.",
+                                      "de": "{req} Dämonen für {giver} töten."},
+    "quest.npc_fetch.name":          {"en": "Retrieve the {relic}", "de": "{relic} beschaffen"},
+    "quest.npc_fetch.desc":          {"en": "Find the {relic} on floor {floor} and return to town.",
+                                      "de": "{relic} auf Etage {floor} finden und zur Stadt zurückkehren."},
+    "quest.npc_clear.name":          {"en": "Scout Floor {floor}",  "de": "Etage {floor} erkunden"},
+    "quest.npc_clear.desc":          {"en": "Reach floor {floor} and return to town.",
+                                      "de": "Etage {floor} erreichen und zur Stadt zurückkehren."},
+    "quest.npc_bounty.name":         {"en": "Floor {floor} Bounty", "de": "Etage {floor} Kopfgeld"},
+    "quest.npc_bounty.desc":         {"en": "Slay the marked elite on floor {floor}.",
+                                      "de": "Die markierte Elite auf Etage {floor} besiegen."},
+    # Relic names for fetch quests
+    "quest.relic.ancient_relic":  {"en": "Ancient Relic",  "de": "Altes Relikt"},
+    "quest.relic.lost_tome":      {"en": "Lost Tome",      "de": "Verlorenes Buch"},
+    "quest.relic.dungeon_sigil":  {"en": "Dungeon Sigil",  "de": "Kerker-Siegel"},
+    "quest.relic.cursed_idol":    {"en": "Cursed Idol",    "de": "Verfluchtes Idol"},
+    "quest.relic.forgotten_key":  {"en": "Forgotten Key",  "de": "Vergessener Schlüssel"},
 
     # ── Item modifier descriptions ─────────────────────────────────────────────
     "mod.atk":             {"en": "+{v} to Attack",         "de": "+{v} auf Angriff"},

@@ -26,6 +26,7 @@ class Quest:
     completed:   bool = False
     giver:       str = ""   # NPC title who assigned this quest
     floor:       int = 0    # target floor (fetch / clear / bounty)
+    relic:       str = ""   # locale key slug for fetch quests (e.g. "ancient_relic")
 
     def progress_text(self) -> str:
         return f"{self.current}/{self.required}"
@@ -37,7 +38,7 @@ class Quest:
             "required": self.required, "current": self.current,
             "reward_xp": self.reward_xp, "reward_gold": self.reward_gold,
             "completed": self.completed,
-            "giver": self.giver, "floor": self.floor,
+            "giver": self.giver, "floor": self.floor, "relic": self.relic,
         }
 
     @classmethod
@@ -151,11 +152,12 @@ class QuestLog:
         relic_names = ["Ancient Relic", "Lost Tome", "Dungeon Sigil",
                        "Cursed Idol", "Forgotten Key"]
         relic = random.choice(relic_names)
+        relic_key = relic.lower().replace(" ", "_")
         qid = f"npc_fetch_{giver[:4]}_{f}"
         if qid not in self._all_ids:
             offered.append(Quest(
                 id=qid, name=f"Retrieve the {relic}", giver=giver,
-                floor=fetch_floor,
+                floor=fetch_floor, relic=relic_key,
                 desc=f"Find the {relic} on floor {fetch_floor} and return to town.",
                 type="fetch", target=qid, required=1,
                 reward_xp=250 * f, reward_gold=80 * f,
@@ -204,7 +206,7 @@ class QuestLog:
                 self.completed.append(q)
                 done.append(q)
                 self._pending.append(
-                    f"{t('quest.complete')}: {t_quest_name(q.id, q.name)}!")
+                    f"{t('quest.complete')}: {t_quest_name(q.id, q.name, floor=q.floor, giver=q.giver, relic=q.relic)}!")
         return done
 
     # ── Notifying ─────────────────────────────────────────────────────────────
@@ -224,7 +226,7 @@ class QuestLog:
                     self.completed.append(q)
                     done.append(q)
                     self._pending.append(
-                        f"{t('quest.complete')}: {t_quest_name(q.id, q.name)}!")
+                        f"{t('quest.complete')}: {t_quest_name(q.id, q.name, floor=q.floor, giver=q.giver, relic=q.relic)}!")
         return done
 
     def pop_notifications(self) -> list[str]:

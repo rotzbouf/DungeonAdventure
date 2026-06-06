@@ -14,6 +14,7 @@ from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT,
 from src.items.item import (EquipItem, HealthPotion,
                              SLOT_ORDER, SLOT_LABELS, Q_COLOR, QUALITY_NORMAL)
 from src.locale import t, get_slot_label
+from src.ui.pager import draw_pager
 
 # ── Panel geometry ─────────────────────────────────────────────────────────────
 _PW = 1060
@@ -113,6 +114,8 @@ class InventoryScreen:
 
         self._hov_equip_key: str | None = None
         self._hov_bag_idx:   int        = -1
+        self._pg_prev: pygame.Rect | None = None
+        self._pg_next: pygame.Rect | None = None
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -132,6 +135,13 @@ class InventoryScreen:
         self._hov_bag_idx   = self._bag_idx_at(mx, my)
 
     def handle_click(self, mx: int, my: int, player) -> bool:
+        if self._pg_prev and self._pg_prev.collidepoint(mx, my):
+            self._scroll = max(0, self._scroll - _BAG_ROWS)
+            return True
+        if self._pg_next and self._pg_next.collidepoint(mx, my):
+            max_scroll = max(0, _BAG_CAP // _BAG_COLS - _BAG_ROWS)
+            self._scroll = min(max_scroll, self._scroll + _BAG_ROWS)
+            return True
         key = self._equip_key_at(mx, my)
         if key is not None and player.equipment.get(key) is not None:
             old = player.equipment[key]
@@ -459,23 +469,14 @@ class InventoryScreen:
 
         surface.set_clip(old_clip)
 
-        # ── Scroll indicator ──────────────────────────────────────────────────
-        total_rows = _BAG_CAP // _BAG_COLS
-        max_scroll = max(0, total_rows - _BAG_ROWS)
-        si_y = gt + gh + 5
-        if max_scroll > 0:
-            row0 = self._scroll + 1
-            row1 = min(self._scroll + _BAG_ROWS, total_rows)
-            dim_up   = (55, 44, 30) if self._scroll == 0          else (160, 140, 100)
-            dim_down = (55, 44, 30) if self._scroll >= max_scroll  else (160, 140, 100)
-            arr_up   = self._font_xs.render("▲", True, dim_up)
-            arr_down = self._font_xs.render("▼", True, dim_down)
-            pos_txt  = self._font_xs.render(
-                f"rows {row0}–{row1} of {total_rows}  (scroll)", True, (90, 78, 60))
-            surface.blit(arr_up,   (bx, si_y))
-            surface.blit(pos_txt,  (bx + arr_up.get_width() + 6, si_y))
-            surface.blit(arr_down, (bx + arr_up.get_width() + 6 + pos_txt.get_width() + 6, si_y))
-            si_y += arr_up.get_height() + 4
+        # ── Page controls ─────────────────────────────────────────────────────
+        total_rows  = _BAG_CAP // _BAG_COLS   # 10
+        total_pages = (total_rows + _BAG_ROWS - 1) // _BAG_ROWS   # 2
+        page        = self._scroll // _BAG_ROWS + 1
+        cx = _RIGHT_X + _PAD + (_BAG_COLS * (_BAG_CELL + _BAG_GAP) - _BAG_GAP) // 2
+        self._pg_prev, self._pg_next = draw_pager(
+            surface, cx, gt + gh + 5, page, total_pages, self._font_xs)
+        si_y = gt + gh + 5 + (26 if total_pages > 1 else 0)
 
         # ── Potion count + extra stats ────────────────────────────────────────
         pc = len(player.potions)

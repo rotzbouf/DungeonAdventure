@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import pygame
 from src.settings import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, WHITE
+from src.ui.pager import draw_pager
 from src.items.item import EquipItem, HealthPotion, Q_COLOR, QUALITY_NORMAL
 from src import save as savesys
 
@@ -30,14 +31,15 @@ _PK_COLS = 5    # backpack: 5 cols × 10 rows = 50 slots
 _ST_CAP  = 80
 _PK_CAP  = 50
 
-_HDR_H  = 52    # title bar height
-_FOOT_H = 68    # footer height
-_PAD    = 12
-_GRID_Y0 = _HDR_H + 24   # grid rows start here (below sub-header label)
+_HDR_H        = 52    # title bar height
+_FOOT_H       = 68    # footer height
+_PAD          = 12
+_GRID_Y0      = _HDR_H + 24   # grid rows start here (below sub-header label)
+_PAGER_RESERVE = 32   # vertical space reserved below each grid for pager buttons
 
 
 def _vis_rows(panel_h: int) -> int:
-    available = panel_h - _FOOT_H - _GRID_Y0
+    available = panel_h - _FOOT_H - _GRID_Y0 - _PAGER_RESERVE
     return available // _STRIDE
 
 
@@ -51,11 +53,15 @@ class HouseScreen:
         self._fs  = pygame.font.SysFont("monospace", 19)
         self._fxs = pygame.font.SysFont("monospace", 15, bold=True)
 
-        self._vis = _vis_rows(self.H)   # 9
+        self._vis = _vis_rows(self.H)   # 8 (reserves 32 px below each grid for pager)
         self._stash_scroll = 0
         self._pack_scroll  = 0
         self._hov_stash    = -1
         self._hov_pack     = -1
+        self._stash_prev: pygame.Rect | None = None
+        self._stash_next: pygame.Rect | None = None
+        self._pack_prev:  pygame.Rect | None = None
+        self._pack_next:  pygame.Rect | None = None
         self._msg          = ""
         self._msg_timer    = 0.0
         self._msg_ok       = True
@@ -158,6 +164,24 @@ class HouseScreen:
     def _handle_click(self, lx: int, ly: int, player):
         stash = getattr(player, "stash", [])
 
+        # ── Pager buttons ─────────────────────────────────────────────────────
+        stash_rows = math.ceil(_ST_CAP / _ST_COLS)
+        pack_rows  = math.ceil(_PK_CAP / _PK_COLS)
+        max_st = max(0, stash_rows - self._vis)
+        max_pk = max(0, pack_rows  - self._vis)
+        if self._stash_prev and self._stash_prev.collidepoint(lx, ly):
+            self._stash_scroll = max(0, self._stash_scroll - self._vis)
+            return
+        if self._stash_next and self._stash_next.collidepoint(lx, ly):
+            self._stash_scroll = min(max_st, self._stash_scroll + self._vis)
+            return
+        if self._pack_prev and self._pack_prev.collidepoint(lx, ly):
+            self._pack_scroll = max(0, self._pack_scroll - self._vis)
+            return
+        if self._pack_next and self._pack_next.collidepoint(lx, ly):
+            self._pack_scroll = min(max_pk, self._pack_scroll + self._vis)
+            return
+
         # Stash → take item into backpack
         si = self._stash_idx_at(lx, ly)
         if si >= 0 and si < len(stash):
@@ -259,8 +283,8 @@ class HouseScreen:
                 pygame.draw.rect(surf, _SLOT_SEP, r, 1)
 
         surf.set_clip(old)
-        self._draw_scroll_indicator(surf, _PAD, stash, _ST_CAP, _ST_COLS,
-                                    self._stash_scroll)
+        self._draw_pager_grid(surf, _ST_CAP, _ST_COLS, self._stash_scroll,
+                              self._grid_clip_left(), "_stash_prev", "_stash_next")
 
     # ── Backpack grid ─────────────────────────────────────────────────────────
 
@@ -289,8 +313,8 @@ class HouseScreen:
                 pygame.draw.rect(surf, _SLOT_SEP, r, 1)
 
         surf.set_clip(old)
-        self._draw_scroll_indicator(surf, self.W // 2 + _PAD, pack, _PK_CAP,
-                                    _PK_COLS, self._pack_scroll)
+        self._draw_pager_grid(surf, _PK_CAP, _PK_COLS, self._pack_scroll,
+                              self._grid_clip_right(), "_pack_prev", "_pack_next")
 
     # ── Cell renderer (shared) ────────────────────────────────────────────────
 
@@ -327,25 +351,17 @@ class HouseScreen:
             lbl = self._fs.render("HP", True, _POTION_COL)
             surf.blit(lbl, lbl.get_rect(center=r.center))
 
-    # ── Scroll indicator ──────────────────────────────────────────────────────
+    # ── Page controls ─────────────────────────────────────────────────────────
 
-    def _draw_scroll_indicator(self, surf, bx, items, cap, cols, scroll):
-        total_rows = math.ceil(cap / cols)
-        max_scroll = max(0, total_rows - self._vis)
-        clip_rect  = self._grid_clip_left() if bx == _PAD else self._grid_clip_right()
-        si_y = clip_rect.bottom + 4
-        if max_scroll > 0:
-            row0 = scroll + 1
-            row1 = min(scroll + self._vis, total_rows)
-            dim_up   = (55, 44, 30) if scroll == 0           else (160, 140, 100)
-            dim_down = (55, 44, 30) if scroll >= max_scroll  else (160, 140, 100)
-            au = self._fxs.render("▲", True, dim_up)
-            ad = self._fxs.render("▼", True, dim_down)
-            pt = self._fxs.render(f"rows {row0}–{row1} of {total_rows}  (scroll)",
-                                  True, (90, 78, 60))
-            surf.blit(au, (bx, si_y))
-            surf.blit(pt, (bx + au.get_width() + 4, si_y))
-            surf.blit(ad, (bx + au.get_width() + 4 + pt.get_width() + 4, si_y))
+    def _draw_pager_grid(self, surf, cap, cols, scroll, clip_rect, btn_prev_attr, btn_next_attr):
+        total_rows  = math.ceil(cap / cols)
+        total_pages = max(1, math.ceil(total_rows / self._vis))
+        page        = scroll // self._vis + 1
+        cx          = clip_rect.centerx
+        y           = clip_rect.bottom + 5
+        prev_r, next_r = draw_pager(surf, cx, y, page, total_pages, self._fxs)
+        setattr(self, btn_prev_attr, prev_r)
+        setattr(self, btn_next_attr, next_r)
 
     # ── Footer ────────────────────────────────────────────────────────────────
 

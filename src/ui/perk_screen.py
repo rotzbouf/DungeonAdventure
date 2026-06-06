@@ -13,6 +13,7 @@ import pygame
 
 from src.settings import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT
 from src.perks import Perk, CATEGORY_COLORS
+from src.locale import t
 
 # ── Layout ────────────────────────────────────────────────────────────────────
 _CARD_W  = 290
@@ -83,7 +84,7 @@ class PerkScreen:
         surface.blit(ov, (0, 0))
 
         # Title
-        title_txt = f"LEVEL {self._level}  —  CHOOSE A PERK"
+        title_txt = t("perk.screen.title", n=self._level)
         pulse     = 0.85 + 0.15 * math.sin(self._time * 3.0)
         tcol      = tuple(int(c * pulse) for c in _GOLD)
         title_s   = self._fl.render(title_txt, True, tcol)
@@ -93,7 +94,7 @@ class PerkScreen:
         surface.blit(title_s, title_s.get_rect(centerx=SCREEN_WIDTH // 2, centery=ty))
 
         subtitle = self._fs.render(
-            "Click a card to claim your perk  —  this cannot be skipped",
+            t("perk.screen.subtitle"),
             True, _DIM)
         surface.blit(subtitle, subtitle.get_rect(
             centerx=SCREEN_WIDTH // 2, centery=ty + 30))
@@ -146,7 +147,7 @@ class PerkScreen:
         y   = r.top + 22
 
         # Category badge
-        badge_txt = perk.category.upper()
+        badge_txt = t(f"perk.cat.{perk.category}")
         badge_s   = self._fxs.render(badge_txt, True, cat_col)
         badge_bg  = pygame.Surface((badge_s.get_width() + 10,
                                      badge_s.get_height() + 4), pygame.SRCALPHA)
@@ -156,10 +157,11 @@ class PerkScreen:
         y += badge_s.get_height() + 12
 
         # Perk name
-        name_col = cat_col if hov else _WHITE
-        name_s   = self._fm.render(perk.name, True, name_col)
+        name_col  = cat_col if hov else _WHITE
+        perk_name = t(f"perk.{perk.id}.name")
+        name_s    = self._fm.render(perk_name, True, name_col)
         # Shadow
-        sh_n = self._fm.render(perk.name, True, (0, 0, 0))
+        sh_n = self._fm.render(perk_name, True, (0, 0, 0))
         surface.blit(sh_n, (r.left + pad + 1, y + 1))
         surface.blit(name_s, (r.left + pad, y))
         y += name_s.get_height() + 14
@@ -170,20 +172,20 @@ class PerkScreen:
         y += 10
 
         # Description (word-wrapped)
-        for line in _wrap(perk.desc, r.width - pad * 2, self._fs):
+        for line in _wrap(t(f"perk.{perk.id}.desc"), r.width - pad * 2, self._fs):
             ls = self._fs.render(line, True, _WHITE if hov else _DIM)
             surface.blit(ls, (r.left + pad, y))
             y += ls.get_height() + 3
 
         # Tier indicator (bottom-right)
-        tier_txt = f"TIER {perk.tier}"
+        tier_txt = t("perk.screen.tier", n=perk.tier)
         tier_s   = self._fxs.render(tier_txt, True, tuple(c // 2 for c in cat_col))
         surface.blit(tier_s, (r.right - tier_s.get_width() - pad,
                                r.bottom - tier_s.get_height() - 8))
 
         # "CLICK" hint at bottom centre when hovered
         if hov:
-            hint_s = self._fxs.render("CLICK TO CLAIM", True, cat_col)
+            hint_s = self._fxs.render(t("perk.screen.click"), True, cat_col)
             hint_p = hint_s.get_rect(centerx=r.centerx,
                                       centery=r.bottom - 18)
             surface.blit(hint_s, hint_p)

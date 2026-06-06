@@ -59,7 +59,7 @@ class SessionLayer:
                 self.dungeon.rng,
             )
             if BossClass:
-                room = self.dungeon.rooms[-1]
+                room = self.dungeon.boss_room
                 bx   = room.center[0] * TILE_SIZE + TILE_SIZE // 2
                 by   = room.center[1] * TILE_SIZE + TILE_SIZE // 2
                 boss = BossClass(float(bx), float(by))

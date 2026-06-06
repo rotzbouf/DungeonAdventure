@@ -924,8 +924,19 @@ class TownRenderer:
             (PLAZA_CX - 210,   210),
             (PLAZA_CX + 210,   210),
         ]
-        for i, (tx, ty) in enumerate(tree_positions):
-            _draw_tree(surf, tx, ty, seed=i * 37)
+        # Check DCSS tree availability once — if present they replace the
+        # procedural circles entirely (drawing both causes the green-orb artifact)
+        _dcss_trees_available = False
+        try:
+            from src.world.decorations import _TREE_VARIANTS
+            _dcss_trees_available = any(
+                not v.startswith("trees/mangrove") for v in _TREE_VARIANTS
+            )
+        except Exception:
+            pass
+        if not _dcss_trees_available:
+            for i, (tx, ty) in enumerate(tree_positions):
+                _draw_tree(surf, tx, ty, seed=i * 37)
 
         # ── 5. Merchant buildings ─────────────────────────────────────────────
         for title, specialty, px, py in MERCHANT_SPECS:

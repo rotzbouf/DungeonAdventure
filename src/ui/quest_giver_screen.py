@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pygame
 from src.settings import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT
-from src.locale import t
+from src.locale import t, t_quest_name, t_quest_desc
 
 _BG_FILL    = (8,   6,  4, 220)
 _BORDER     = (130, 105, 60)
@@ -102,9 +102,11 @@ class QuestGiverScreen:
             pygame.draw.rect(surface, border_col, (px + 12, y, pw - 24, card_h), 1)
 
             # Quest name + type badge
-            name_s = self._font_md.render(q.name, True, _TEXT_COL)
+            name_s = self._font_md.render(
+                t_quest_name(q.id, q.name, floor=q.floor, giver=q.giver, relic=q.relic),
+                True, _TEXT_COL)
             surface.blit(name_s, (px + 20, y + 6))
-            badge_txt = q.type.upper()
+            badge_txt = t(f"quest.type.{q.type}")
             badge_col = {"fetch": (80, 160, 80), "clear": (80, 120, 200),
                          "bounty": (200, 80, 80), "kill": (200, 100, 40)}.get(q.type, _DIM_COL)
             badge_s = self._font_sm.render(badge_txt, True, badge_col)
@@ -116,13 +118,16 @@ class QuestGiverScreen:
                 surface.blit(giv_s, (px + 20, y + 26))
 
             # Description
-            desc_s = self._font_sm.render(q.desc, True, _DIM_COL)
+            desc_s = self._font_sm.render(
+                t_quest_desc(q.id, q.required, q.target,
+                             floor=q.floor, giver=q.giver, relic=q.relic) or q.desc,
+                True, _DIM_COL)
             surface.blit(desc_s, (px + 20, y + 44))
 
             # Reward line
-            rwd = f"XP: {q.reward_xp}"
+            rwd = t("quest.reward_xp", xp=q.reward_xp)
             if q.reward_gold:
-                rwd += f"  Gold: {q.reward_gold}"
+                rwd += t("quest.reward_gold", gold=q.reward_gold)
             rwd_s = self._font_sm.render(rwd, True, _REWARD_COL)
             surface.blit(rwd_s, (px + 20, y + 64))
 

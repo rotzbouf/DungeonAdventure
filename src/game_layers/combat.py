@@ -8,6 +8,14 @@ from src.entities.enemy import Skeleton, Orc, Demon
 from src.locale import t, t_quest_name
 
 
+def _nearest_enemy(player, enemies):
+    """Return the closest alive enemy to *player*, or None."""
+    alive = [e for e in enemies if e.alive]
+    if not alive:
+        return None
+    return min(alive, key=lambda e: math.hypot(e.x - player.x, e.y - player.y))
+
+
 class CombatLayer:
     """Melee, arrows, whirlwind, damage resolution, loot drops, kill handling."""
 
@@ -23,13 +31,12 @@ class CombatLayer:
         self.player._attack_timer = self.player.effective_cooldown
         self.player._attack_anim  = 0.2
 
-        mx, my = pygame.mouse.get_pos()
-        wx, wy = mx + self.camera.x, my + self.camera.y
-        dx, dy = wx - self.player.x, wy - self.player.y
-        dist   = math.hypot(dx, dy)
-        if dist < 1.0:
-            dx, dy, dist = (math.cos(self.player.attack_angle),
-                            math.sin(self.player.attack_angle), 1.0)
+        target = _nearest_enemy(self.player, self.enemies)
+        if target is not None:
+            dx, dy = target.x - self.player.x, target.y - self.player.y
+        else:
+            dx, dy = math.cos(self.player.attack_angle), math.sin(self.player.attack_angle)
+        dist = math.hypot(dx, dy) or 1.0
         nx, ny = dx / dist, dy / dist
         angle  = math.atan2(ny, nx)
         self.player.attack_angle = angle
