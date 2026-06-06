@@ -944,7 +944,20 @@ class TownRenderer:
 
         # ── 7. Dungeon entrance gate ──────────────────────────────────────────
         ex, ey = DUNGEON_ENTRANCE_POS
-        _draw_dungeon_gate(surf, ex, ey)
+        _gate_drawn = False
+        try:
+            import pathlib
+            _gp = pathlib.Path("assets/dungeon_entrance.png")
+            if _gp.exists():
+                _raw = pygame.image.load(str(_gp)).convert_alpha()
+                _SZ  = 160
+                _spr = pygame.transform.smoothscale(_raw, (_SZ, _SZ))
+                surf.blit(_spr, (ex - _SZ // 2, ey - _SZ + 60))
+                _gate_drawn = True
+        except Exception:
+            pass
+        if not _gate_drawn:
+            _draw_dungeon_gate(surf, ex, ey)
 
         # ── 8. Wall torch sconces (static bracket; flame animated in draw()) ──
         torch_rng = random.Random(31)

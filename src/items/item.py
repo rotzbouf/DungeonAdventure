@@ -1203,64 +1203,87 @@ class TreasureChest:
         gold._reposition(self.x, self.y + 10)
         item_list.append(gold)
 
+    # Cache loaded sprites at class level to avoid re-loading every frame
+    _spr_closed: "pygame.Surface | None" = None
+    _spr_open:   "pygame.Surface | None" = None
+    _SPR_SIZE = 32
+
+    @classmethod
+    def _load_sprites(cls):
+        import pathlib
+        if cls._spr_closed is None:
+            try:
+                p = pathlib.Path("assets/chest_closed.png")
+                raw = pygame.image.load(str(p)).convert_alpha()
+                cls._spr_closed = pygame.transform.scale(
+                    raw, (cls._SPR_SIZE, cls._SPR_SIZE))
+            except Exception:
+                cls._spr_closed = False   # sentinel: no sprite available
+        if cls._spr_open is None:
+            try:
+                p = pathlib.Path("assets/chest_open.png")
+                raw = pygame.image.load(str(p)).convert_alpha()
+                cls._spr_open = pygame.transform.scale(
+                    raw, (cls._SPR_SIZE, cls._SPR_SIZE))
+            except Exception:
+                cls._spr_open = False
+
     def draw(self, surface: pygame.Surface, camera):
         ox = int(self.x - camera.x)
         oy = int(self.y - camera.y)
 
+        self._load_sprites()
+        spr = self._spr_open if self.opened else self._spr_closed
+        if spr:
+            sz = self._SPR_SIZE
+            surface.blit(spr, (ox - sz // 2, oy - sz // 2))
+            if not self.opened:
+                # Pulsing gold glow
+                pulse = abs(math.sin(pygame.time.get_ticks() * 0.003)) * 0.5 + 0.5
+                gw = int(18 * pulse)
+                if gw > 1:
+                    gsurf = pygame.Surface((gw * 2, gw * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(gsurf, (220, 175, 40, 50), (gw, gw), gw)
+                    surface.blit(gsurf, (ox - gw, oy - gw))
+            return
+
+        # ── Procedural fallback ───────────────────────────────────────────────
         if self.opened:
-            # Draw an open chest (lid tilted back)
             _WOOD  = (120,  70,  20)
             _WOOD_D= ( 70,  38,   8)
             _GOLD  = (220, 175,  40)
             _BLACK = (  0,   0,   0)
             hw = self.SIZE // 2
-            # Base
             pygame.draw.rect(surface, _BLACK, (ox - hw - 1, oy - 2, self.SIZE + 2, 12))
             pygame.draw.rect(surface, _WOOD_D,(ox - hw,     oy - 1, self.SIZE,     11))
             pygame.draw.line(surface, _GOLD,  (ox - hw, oy - 1), (ox + hw - 1, oy - 1))
-            # Open lid (rotated back)
             lid_pts = [
-                (ox - hw, oy - 2),
-                (ox + hw, oy - 2),
-                (ox + hw - 2, oy - 11),
-                (ox - hw + 2, oy - 11),
+                (ox - hw, oy - 2), (ox + hw, oy - 2),
+                (ox + hw - 2, oy - 11), (ox - hw + 2, oy - 11),
             ]
             pygame.draw.polygon(surface, _WOOD,  lid_pts)
             pygame.draw.polygon(surface, _BLACK, lid_pts, 1)
             return
 
-        # Closed chest
         _WOOD  = (140,  80,  22)
         _WOOD_D= ( 80,  42,   8)
         _GOLD  = (220, 175,  40)
         _BLACK = (  0,   0,   0)
-        hw  = self.SIZE // 2
-        hh  = self.SIZE // 2
-
-        # Shadow
+        hw = self.SIZE // 2
+        hh = self.SIZE // 2
         sh = pygame.Surface((self.SIZE + 4, 4), pygame.SRCALPHA)
         sh.fill((0, 0, 0, 50))
         surface.blit(sh, (ox - hw - 2, oy + hh - 1))
-
-        # Body
         pygame.draw.rect(surface, _BLACK, (ox - hw - 1, oy - hh + 3, self.SIZE + 2, hh + 1))
         pygame.draw.rect(surface, _WOOD_D,(ox - hw,     oy - hh + 4, self.SIZE,     hh - 1))
-        # Lid
         pygame.draw.rect(surface, _BLACK, (ox - hw - 1, oy - hh - 2, self.SIZE + 2, hh - 2))
         pygame.draw.rect(surface, _WOOD,  (ox - hw,     oy - hh - 1, self.SIZE,     hh - 3))
-        # Gold latch
         pygame.draw.rect(surface, _GOLD,  (ox - 3, oy - 5, 6, 5))
         pygame.draw.rect(surface, _BLACK, (ox - 3, oy - 5, 6, 5), 1)
-        # Planks
         for bx in (ox - hw + 4, ox - hw + 10, ox - hw + 16):
-            pygame.draw.line(surface, _WOOD_D, (bx, oy - hh + 4),
-                             (bx, oy + hh - 3), 1)
-        # Gold trim top-edge
-        pygame.draw.line(surface, _GOLD, (ox - hw, oy - hh - 1),
-                         (ox + hw - 1, oy - hh - 1))
-        pygame.draw.line(surface, _GOLD, (ox - hw, oy - 5),
-                         (ox + hw - 1, oy - 5))
-        # Glow hint
+            pygame.draw.line(surface, _WOOD_D, (bx, oy - hh + 4), (bx, oy + hh - 3), 1)
+        pygame.draw.line(surface, _GOLD, (ox - hw, oy - hh - 1), (ox + hw - 1, oy - hh - 1))
+        pygame.draw.line(surface, _GOLD, (ox - hw, oy - 5),      (ox + hw - 1, oy - 5))
         pulse = abs(math.sin(pygame.time.get_ticks() * 0.003)) * 0.5 + 0.5
         gw = int(14 * pulse)
         if gw > 1:
