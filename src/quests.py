@@ -77,8 +77,8 @@ class QuestLog:
         ]
         for target, name, desc, req, min_floor in enemy_quests:
             if floor >= min_floor:
-                xp   = req * 80 * floor
-                gold = req * 20 * floor
+                xp   = req * 12 * floor
+                gold = req * 5 * floor
                 pool.append(Quest(
                     id=f"{target.lower()}_f{cycle}",
                     name=name, desc=desc,
@@ -95,7 +95,7 @@ class QuestLog:
             desc=f"Collect {need} gold on this run.",
             type="collect", target="gold",
             required=need,
-            reward_xp=100 * floor, reward_gold=0,
+            reward_xp=25 * floor, reward_gold=0,
         ))
 
         # Descent quest
@@ -105,7 +105,7 @@ class QuestLog:
             desc=f"Descend to floor {floor + 1}.",
             type="reach", target=f"floor_{floor + 1}",
             required=1,
-            reward_xp=200 * floor, reward_gold=50 * floor,
+            reward_xp=40 * floor, reward_gold=15 * floor,
         ))
 
         available = [q for q in pool if q.id not in self._all_ids]
@@ -144,7 +144,7 @@ class QuestLog:
                     id=qid, name=name, giver=giver, floor=f,
                     desc=f"Kill {req} {target}s for {giver}.",
                     type="kill", target=target, required=req,
-                    reward_xp=req * 120 * f, reward_gold=req * 30 * f,
+                    reward_xp=req * 15 * f, reward_gold=req * 8 * f,
                 ))
 
         # Fetch quest — go to floor+1 or +2, pick up a relic
@@ -160,7 +160,7 @@ class QuestLog:
                 floor=fetch_floor, relic=relic_key,
                 desc=f"Find the {relic} on floor {fetch_floor} and return to town.",
                 type="fetch", target=qid, required=1,
-                reward_xp=250 * f, reward_gold=80 * f,
+                reward_xp=50 * f, reward_gold=25 * f,
             ))
 
         # Clear quest — explore a deeper floor and return to town
@@ -173,7 +173,7 @@ class QuestLog:
                     floor=clear_floor,
                     desc=f"Reach floor {clear_floor} and return to town.",
                     type="clear", target=f"floor_{clear_floor}", required=1,
-                    reward_xp=300 * f, reward_gold=100 * f,
+                    reward_xp=60 * f, reward_gold=30 * f,
                 ))
 
         # Bounty — on floor f, kill a named elite
@@ -183,7 +183,7 @@ class QuestLog:
                 id=qid, name=f"Floor {f} Bounty", giver=giver, floor=f,
                 desc=f"Slay the marked elite on floor {f}.",
                 type="bounty", target=qid, required=1,
-                reward_xp=400 * f, reward_gold=150 * f,
+                reward_xp=100 * f, reward_gold=40 * f,
             ))
 
         return offered[:3]  # offer at most 3

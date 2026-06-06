@@ -1232,7 +1232,7 @@ class TreasureChest:
                                depth_mult=depth_mult)
             itm._reposition(self.x + ox, self.y + oy)
             item_list.append(itm)
-        gold = GoldPile(0, 0, random.randint(20, 50) * max(1, level))
+        gold = GoldPile(0, 0, random.randint(8, 18) * max(1, level))
         gold._reposition(self.x, self.y + 10)
         item_list.append(gold)
 

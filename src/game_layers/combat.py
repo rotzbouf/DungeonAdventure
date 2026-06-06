@@ -172,9 +172,9 @@ class CombatLayer:
             extra = random_equip(0, 0, ilvl, quality=QUALITY_RARE, depth_mult=depth_mult)
             extra._reposition(px + random.uniform(-24, 24), py + random.uniform(-24, 24))
             self.items.append(extra)
-        # Big gold scatter
-        for _ in range(5):
-            gold = GoldPile(0, 0, int(random.randint(40, 100) * lvl * gf))
+        # Gold scatter
+        for _ in range(3):
+            gold = GoldPile(0, 0, int(random.randint(10, 25) * lvl * gf))
             gold._reposition(px + random.uniform(-28, 28), py + random.uniform(-28, 28))
             self.items.append(gold)
 
@@ -197,7 +197,7 @@ class CombatLayer:
             item._reposition(px + random.uniform(-14, 14),
                              py + random.uniform(-14, 14))
             self.items.append(item)
-        base_gold   = random.randint(2, 8) * lvl
+        base_gold   = random.randint(1, 4) * lvl
         gf_mult     = 1.0 + self.player.gold_find_bonus / 100
         gold        = GoldPile(0, 0, int(base_gold * gf_mult))
         gold._reposition(px + random.uniform(-10, 10),
