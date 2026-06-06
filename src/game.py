@@ -113,11 +113,12 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._net_floor: int       = 1        # server's current floor
         self._net_seed:  int | None = None    # server's current dungeon seed
 
-        self._dmg_nums: list = []
-        self.chests:    list = []
+        self._dmg_nums:   list = []
+        self.chests:      list = []
         self.projectiles: list = []
         self.merchants:   list = []
         self.wanderers:   list = []
+        self.decorations: list = []
 
         # ── Town ─────────────────────────────────────────────────────────────
         self.town_renderer    = TownRenderer()

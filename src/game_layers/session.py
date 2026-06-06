@@ -14,6 +14,7 @@ from src.quests import QuestLog
 from src import save as savesys
 from src.locale import t, t_quest_name
 from src.world.town import PLAYER_SPAWN as TOWN_PLAYER_SPAWN
+from src.world.decorations import generate_dungeon_decorations
 
 
 class SessionLayer:
@@ -115,6 +116,12 @@ class SessionLayer:
                     elites = [victim]
                 if elites:
                     elites[0].quest_id = q.target
+
+        # Dungeon decorations (statues, boulders, columns)
+        from src.world.tile import _current_theme_str as _theme
+        self.decorations = generate_dungeon_decorations(
+            self.dungeon, _theme, self.dungeon.rng
+        )
 
         self.projectiles    = []
         self._lightning_arcs = []

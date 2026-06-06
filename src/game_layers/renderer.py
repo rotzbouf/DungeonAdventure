@@ -56,6 +56,10 @@ class RendererLayer:
                 hint = self._font_sm.render(t("game.descend"), True, YELLOW)
                 self.screen.blit(hint, (int(dsx)-hint.get_width()//2, max(4,int(dsy)-32)))
 
+        for deco in getattr(self, 'decorations', []):
+            if self._is_visible(deco.x, deco.y):
+                deco.draw(self.screen, self.camera)
+
         for item in self.items:
             if self._is_visible(item.x, item.y):
                 item.draw(self.screen, self.camera)

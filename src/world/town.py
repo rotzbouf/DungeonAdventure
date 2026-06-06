@@ -963,7 +963,42 @@ class TownRenderer:
         if not _gate_drawn:
             _draw_dungeon_gate(surf, ex, ey)
 
-        # ── 8. Wall torch sconces (static bracket; flame animated in draw()) ──
+        # ── 8. DCSS decorations ───────────────────────────────────────────────
+        try:
+            from src.world.decorations import blit_town_decoration, _TOWN_STATUE_POOL, _TREE_VARIANTS, _FOUNTAIN_SPRITES
+            import random as _rnd
+
+            # Statues flanking dungeon entrance (left and right of gate columns)
+            _gate_x, _gate_y = DUNGEON_ENTRANCE_POS
+            for _sx, _sy, _statue in [
+                (_gate_x - 76, _gate_y + 62, _TOWN_STATUE_POOL[0]),
+                (_gate_x + 76, _gate_y + 62, _TOWN_STATUE_POOL[1]),
+            ]:
+                blit_town_decoration(surf, _statue, _sx, _sy, size=72, shadow=True)
+
+            # DCSS fountain at plaza centre (drawn over procedural one)
+            blit_town_decoration(surf, _FOUNTAIN_SPRITES[0], PLAZA_CX, PLAZA_CY,
+                                 size=96, shadow=False)
+
+            # DCSS trees at the same tree_positions used for procedural trees
+            # Use a deterministic rng so the build is reproducible
+            _trng = _rnd.Random(99)
+            _dcss_tree_variants = [v for v in _TREE_VARIANTS if not v.startswith("trees/mangrove")]
+            for _i, (_tx, _ty) in enumerate(tree_positions):
+                _trel = _dcss_tree_variants[_i % len(_dcss_tree_variants)]
+                blit_town_decoration(surf, _trel, _tx, _ty, size=80, shadow=True)
+
+            # A few decorative statues near lower-area merchants (jeweler/alchemist)
+            _extra_statues = [
+                (650,  1170, _TOWN_STATUE_POOL[2]),
+                (1300, 1170, _TOWN_STATUE_POOL[3]),
+            ]
+            for _sx, _sy, _srel in _extra_statues:
+                blit_town_decoration(surf, _srel, _sx, _sy, size=64, shadow=True)
+        except Exception:
+            pass
+
+        # ── 9. Wall torch sconces (static bracket; flame animated in draw()) ──
         torch_rng = random.Random(31)
         wall_torches = []
         ex_ = DUNGEON_ENTRANCE_POS[0]
