@@ -45,7 +45,7 @@ MERCHANT_SPECS: list[tuple[str, str, int, int]] = [
     ("Enchanter",     "enchant",  2030,  820),   # right of plaza
     ("Jeweler",       "jewelry",  650,   1300),  # lower-left
     ("Alchemist",     "potions",  1300,  1300),  # lower-centre
-    ("Guild Master",  "guild",    1900,  1300),  # lower-right: quest giver
+    ("Guild Master",  "guild",    1700,  1060),  # mid-right, clear of house (1900,1300)
 ]
 
 GUILD_MASTER_SPEC = MERCHANT_SPECS[-1]   # convenience alias
