@@ -40,8 +40,9 @@ from src.ui.skillscreen    import SkillScreen
 from src.ui.enchant_screen  import EnchantScreen
 from src.ui.craft_screen    import CraftScreen
 from src.ui.house_screen    import HouseScreen
-from src.ui.settings_screen import SettingsScreen
-from src.ui.perk_screen     import PerkScreen
+from src.ui.settings_screen     import SettingsScreen
+from src.ui.perk_screen         import PerkScreen
+from src.ui.quest_giver_screen  import QuestGiverScreen
 from src.settings_manager   import game_settings
 from src.quests            import QuestLog
 from src import save as savesys
@@ -98,8 +99,11 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._house_screen      = HouseScreen()
         self.settings_open      = False
         self._settings_screen   = SettingsScreen()
-        self.perk_open          = False
-        self._perk_screen       = PerkScreen()
+        self.perk_open              = False
+        self._perk_screen           = PerkScreen()
+        self.quest_giver_open       = False
+        self._quest_giver_screen    = QuestGiverScreen()
+        self._active_wanderer       = None   # WandererNPC | TownMerchant (guild)
         self._active_merchant: Merchant | None = None
 
         # ── Multiplayer ───────────────────────────────────────────────────────
@@ -113,6 +117,7 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self.chests:    list = []
         self.projectiles: list = []
         self.merchants:   list = []
+        self.wanderers:   list = []
 
         # ── Town ─────────────────────────────────────────────────────────────
         self.town_renderer    = TownRenderer()
@@ -194,6 +199,40 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._pending_net_client = nc
         return nc
 
+    # ─── Quest giver ─────────────────────────────────────────────────────────────
+
+    def _open_quest_giver(self, npc) -> None:
+        """Open the quest giver screen for a wanderer or the Guild Master."""
+        floor = self.dungeon_level
+        quests = self.quest_log.add_npc_quests(floor, npc.title)
+        if not quests:
+            return
+        self._quest_giver_screen.open(quests, npc.title)
+        self._active_wanderer   = npc
+        self.quest_giver_open   = True
+        self.inv_open = self.shop_open = self.char_open = False
+        self.quest_open = self.skill_open = False
+
+    def _close_quest_giver(self) -> None:
+        """Accept chosen quests and close the quest giver screen."""
+        accepted_ids = self._quest_giver_screen.accepted_ids
+        all_offered  = self._quest_giver_screen._quests
+        for q in all_offered:
+            if q.id in accepted_ids:
+                self.quest_log.add_quest(q)
+                self.hud.notify_quest(t("quest_giver.accepted_msg", name=q.name))
+        self.quest_giver_open = False
+        self._active_wanderer = None
+
+    def _try_open_wanderer(self) -> None:
+        """Check if player is near a wanderer NPC; open quest screen if so."""
+        if self.player is None:
+            return
+        for w in getattr(self, 'wanderers', []):
+            if w.near_player(self.player):
+                self._open_quest_giver(w)
+                return
+
     # ─── Net HUD ─────────────────────────────────────────────────────────────────
 
     def _draw_net_badge(self):
@@ -244,15 +283,16 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 if k == pygame.K_ESCAPE:
                     if self.settings_open and self._settings_screen.is_listening:
                         self._settings_screen.handle_event(event)
-                    elif self.settings_open: self.settings_open = False
-                    elif self.house_open:    self.house_open   = False
-                    elif self.enchant_open:  self.enchant_open = False
-                    elif self.craft_open:    self.craft_open   = False
-                    elif self.inv_open:      self.inv_open     = False
-                    elif self.shop_open:     self.shop_open    = False
-                    elif self.char_open:     self.char_open    = False
-                    elif self.quest_open:    self.quest_open   = False
-                    elif self.skill_open:    self.skill_open   = False
+                    elif self.settings_open:       self.settings_open    = False
+                    elif self.house_open:          self.house_open       = False
+                    elif self.enchant_open:        self.enchant_open     = False
+                    elif self.craft_open:          self.craft_open       = False
+                    elif self.quest_giver_open:    self._close_quest_giver()
+                    elif self.inv_open:            self.inv_open         = False
+                    elif self.shop_open:           self.shop_open        = False
+                    elif self.char_open:           self.char_open        = False
+                    elif self.quest_open:          self.quest_open       = False
+                    elif self.skill_open:          self.skill_open       = False
                     elif self.state == STATE_PLAYING:
                         self.state = STATE_MENU
                     elif self.state == STATE_TOWN:
@@ -289,12 +329,14 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     continue
 
                 any_overlay = (self.inv_open or self.shop_open or self.char_open
-                               or self.quest_open or self.skill_open)
+                               or self.quest_open or self.skill_open
+                               or self.quest_giver_open)
 
                 # ── Town keys ──────────────────────────────────────────────
                 if self.state == STATE_TOWN:
                     any_town_overlay = (self.shop_open or self.enchant_open
-                                        or self.craft_open or self.house_open)
+                                        or self.craft_open or self.house_open
+                                        or self.quest_giver_open)
                     _ki = game_settings.key("interact")
                     if k == _ki and not any_town_overlay:
                         self._try_open_town_shop()
@@ -307,6 +349,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     elif k == _ki and self.craft_open:
                         self.craft_open = False
                         self._active_merchant = None
+                    elif k == _ki and self.quest_giver_open:
+                        self._close_quest_giver()
                     if k == game_settings.key("descend") and not any_town_overlay:
                         if math.hypot(self.player.x - DUNGEON_ENTRANCE_POS[0],
                                       self.player.y - DUNGEON_ENTRANCE_POS[1]) < DUNGEON_INTERACT_R:
@@ -320,6 +364,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                         self.skill_open = not self.skill_open
                         if self.skill_open:
                             self.inv_open = self.shop_open = self.char_open = False
+                    if k == game_settings.key("quests") and not any_town_overlay:
+                        self.quest_open = not self.quest_open
 
                 # ── Dungeon keys ───────────────────────────────────────────
                 if self.state == STATE_PLAYING and not any_overlay:
@@ -364,8 +410,12 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     if k == game_settings.key("interact"):
                         if self.shop_open:
                             self.shop_open = False
+                        elif self.quest_giver_open:
+                            self._close_quest_giver()
                         elif not any_overlay:
                             self._try_open_shop()
+                            if not self.shop_open:
+                                self._try_open_wanderer()
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self.perk_open:
@@ -403,7 +453,11 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                             break
 
             if event.type == pygame.MOUSEBUTTONDOWN and self.state in (STATE_PLAYING, STATE_TOWN):
-                if self.house_open:
+                if self.quest_giver_open:
+                    result = self._quest_giver_screen.handle_event(event)
+                    if result == "close":
+                        self._close_quest_giver()
+                elif self.house_open:
                     self._house_screen.handle_event(event, self.player)
                 elif self.enchant_open:
                     self._enchant_screen.handle_event(event, self.player)
@@ -754,6 +808,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
 
         for merchant in self.merchants:
             merchant.update(dt)
+        for wanderer in getattr(self, 'wanderers', []):
+            wanderer.update(dt)
 
         prev_hp = self.player.hp
         for enemy in self.enemies:
@@ -778,12 +834,17 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 item.update(dt)
                 if self.player.rect.colliderect(item.rect):
                     # Quest: gold collection
-                    from src.items.item import GoldPile as _GP
+                    from src.items.item import GoldPile as _GP, QuestItem as _QI
                     if isinstance(item, _GP):
                         done = self.quest_log.notify("collect", "gold", item.amount)
                         self._apply_quest_rewards(done)
                     if item.collect(self.player):
                         self._spawn_pickup_sparkle(item.x, item.y)
+                        # Quest: fetch item collected
+                        if isinstance(item, _QI) and item.quest_trigger:
+                            ev, tag = item.quest_trigger
+                            done = self.quest_log.notify(ev, tag)
+                            self._apply_quest_rewards(done)
                     else:
                         if self._inv_full_cd <= 0:
                             self.hud.notify(t("inv.full"), color=(255, 120, 40))
@@ -836,7 +897,9 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     rp.draw(self.screen, self.camera)
                 # Multiplayer HUD badge (top-left corner)
                 self._draw_net_badge()
-            if self.inv_open:
+            if self.quest_giver_open:
+                self._quest_giver_screen.draw(self.screen)
+            elif self.inv_open:
                 self.inventory.draw(self.screen, self.player)
             elif self.shop_open and self._active_merchant:
                 self.shop.draw(self.screen, self._active_merchant, self.player)

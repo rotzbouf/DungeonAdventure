@@ -383,9 +383,9 @@ _T: dict[str, dict[str, str]] = {
     "town.shop_hint":     {"en": "F — Shop",           "de": "F — Laden"},
     "town.rested":        {"en": "Rested at the inn — HP and MP fully restored",
                            "de": "Gerastet — LP und Mana vollständig aufgefüllt"},
-    "town.footer":        {"en": "F: Shop   I: Inventory   C: Character   K: Skills"
+    "town.footer":        {"en": "F: Shop   I: Inventory   J: Quests   C: Character   K: Skills"
                                  "   E: Enter Dungeon (floor {n})   ESC: Menu",
-                           "de": "F: Laden   I: Inventar   C: Charakter   K: Fähigkeiten"
+                           "de": "F: Laden   I: Inventar   J: Quests   C: Charakter   K: Fähigkeiten"
                                  "   E: Dungeon betreten (Etage {n})   ESC: Menü"},
     # Merchant display names (town specialists)
     "merchant.blacksmith": {"en": "Blacksmith",       "de": "Schmied"},
@@ -414,6 +414,22 @@ _T: dict[str, dict[str, str]] = {
                             "de": "⚠  BOSS NAHT  ⚠"},
     "game.boss_defeated":  {"en": "{name} defeated!",
                             "de": "{name} besiegt!"},
+    "game.wanderer_found": {"en": "A wanderer is here — speak with them  (F)",
+                            "de": "Ein Wanderer ist hier — sprich mit ihm  (F)"},
+
+    # ── Quest giver NPC ───────────────────────────────────────────────────────
+    "quest_giver.title":         {"en": "{name} — Available Quests",
+                                  "de": "{name} — Verfügbare Quests"},
+    "quest_giver.subtitle":      {"en": "Accept quests to earn extra rewards.",
+                                  "de": "Nimm Quests an, um Belohnungen zu erhalten."},
+    "quest_giver.accept":        {"en": "Accept",  "de": "Annehmen"},
+    "quest_giver.accepted":      {"en": "Accepted","de": "Angenommen"},
+    "quest_giver.close":         {"en": "Close  [ESC]", "de": "Schließen  [ESC]"},
+    "quest_giver.interact_hint": {"en": "[F] Talk",    "de": "[F] Sprechen"},
+    "quest_giver.accepted_msg":  {"en": "Quest accepted: {name}",
+                                  "de": "Quest angenommen: {name}"},
+    "quest_giver.no_quests":     {"en": "I have no new quests for you right now.",
+                                  "de": "Ich habe gerade keine neuen Quests für dich."},
 
     # ── Item modifier descriptions ─────────────────────────────────────────────
     "mod.atk":             {"en": "+{v} to Attack",         "de": "+{v} auf Angriff"},

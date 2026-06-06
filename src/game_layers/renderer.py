@@ -74,6 +74,15 @@ class RendererLayer:
                 if 0 < mx_s < SCREEN_WIDTH and 4 < my_s < play_h:
                     hint = self._font_sm.render(t("town.shop_hint"), True, (180,110,255))
                     self.screen.blit(hint, (mx_s-hint.get_width()//2, max(4,my_s-40)))
+        for wanderer in getattr(self, 'wanderers', []):
+            if self._is_visible(wanderer.x, wanderer.y):
+                wanderer.draw(self.screen, self.camera)
+            if wanderer.near_player(self.player):
+                wx_s = int(wanderer.x - self.camera.x)
+                wy_s = int(wanderer.y - self.camera.y)
+                if 0 < wx_s < SCREEN_WIDTH and 4 < wy_s < play_h:
+                    hint = self._font_sm.render(t("quest_giver.interact_hint"), True, (180, 200, 255))
+                    self.screen.blit(hint, (wx_s - hint.get_width() // 2, max(4, wy_s - 56)))
 
         self.player.draw(self.screen, self.camera)
 

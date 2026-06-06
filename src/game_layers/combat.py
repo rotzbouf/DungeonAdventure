@@ -145,6 +145,8 @@ class CombatLayer:
         done = self.quest_log.notify("kill", type(enemy).__name__)
         if getattr(enemy, 'is_elite', False):
             done += self.quest_log.notify("kill", "Elite")
+        if getattr(enemy, 'quest_id', None):
+            done += self.quest_log.notify("bounty", enemy.quest_id)
         self._apply_quest_rewards(done)
 
     def _drop_boss_loot(self, enemy):

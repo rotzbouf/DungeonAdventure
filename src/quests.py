@@ -17,13 +17,15 @@ class Quest:
     id:          str
     name:        str
     desc:        str
-    type:        str    # "kill" | "collect" | "reach"
-    target:      str    # enemy class name, "gold", "floor_N" …
+    type:        str    # "kill" | "collect" | "reach" | "fetch" | "clear" | "bounty"
+    target:      str    # enemy class, "gold", "floor_N", quest_item_id, bounty_id
     required:    int
     current:     int = 0
     reward_xp:   int = 0
     reward_gold: int = 0
     completed:   bool = False
+    giver:       str = ""   # NPC title who assigned this quest
+    floor:       int = 0    # target floor (fetch / clear / bounty)
 
     def progress_text(self) -> str:
         return f"{self.current}/{self.required}"
@@ -35,19 +37,22 @@ class Quest:
             "required": self.required, "current": self.current,
             "reward_xp": self.reward_xp, "reward_gold": self.reward_gold,
             "completed": self.completed,
+            "giver": self.giver, "floor": self.floor,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "Quest":
-        return cls(**d)
+        known = {f.name for f in cls.__dataclass_fields__.values()}
+        return cls(**{k: v for k, v in d.items() if k in known})
 
 
 class QuestLog:
     def __init__(self):
-        self.active:    list[Quest] = []
-        self.completed: list[Quest] = []
-        self._all_ids:  set[str]   = set()
-        self._pending:  list[str]  = []    # notification strings for the HUD
+        self.active:         list[Quest] = []
+        self.completed:      list[Quest] = []
+        self._all_ids:       set[str]   = set()
+        self._pending:       list[str]  = []    # notification strings for the HUD
+        self.floors_visited: set[int]   = set() # for "clear" quest tracking
 
     # ── Adding quests ─────────────────────────────────────────────────────────
 
@@ -114,6 +119,94 @@ class QuestLog:
         for q in guaranteed + random_pool[:2]:
             self.add_quest(q)
 
+    def add_npc_quests(self, floor: int, giver: str) -> list[Quest]:
+        """
+        Build 2-3 quests from a quest-giver NPC scaled to *floor*.
+        Returns the new Quest objects (NOT yet added — player must accept them).
+        """
+        offered: list[Quest] = []
+        f = max(1, floor)
+
+        # Kill quest — random enemy tier appropriate for the floor
+        kill_opts = [
+            ("Goblin",   "Goblin Bounty",   5, 1),
+            ("Skeleton", "Skeleton Patrol", 4, 2),
+            ("Orc",      "Orc Culling",     3, 3),
+            ("Demon",    "Demon Contract",  2, 5),
+        ]
+        eligible = [o for o in kill_opts if f >= o[3]]
+        if eligible:
+            target, name, req, _ = random.choice(eligible)
+            qid = f"npc_kill_{target.lower()}_{giver[:4]}_{f}"
+            if qid not in self._all_ids:
+                offered.append(Quest(
+                    id=qid, name=name, giver=giver, floor=f,
+                    desc=f"Kill {req} {target}s for {giver}.",
+                    type="kill", target=target, required=req,
+                    reward_xp=req * 120 * f, reward_gold=req * 30 * f,
+                ))
+
+        # Fetch quest — go to floor+1 or +2, pick up a relic
+        fetch_floor = f + random.randint(1, 2)
+        relic_names = ["Ancient Relic", "Lost Tome", "Dungeon Sigil",
+                       "Cursed Idol", "Forgotten Key"]
+        relic = random.choice(relic_names)
+        qid = f"npc_fetch_{giver[:4]}_{f}"
+        if qid not in self._all_ids:
+            offered.append(Quest(
+                id=qid, name=f"Retrieve the {relic}", giver=giver,
+                floor=fetch_floor,
+                desc=f"Find the {relic} on floor {fetch_floor} and return to town.",
+                type="fetch", target=qid, required=1,
+                reward_xp=250 * f, reward_gold=80 * f,
+            ))
+
+        # Clear quest — explore a deeper floor and return to town
+        if f >= 2:
+            clear_floor = f + random.randint(1, 3)
+            qid = f"npc_clear_{giver[:4]}_{f}"
+            if qid not in self._all_ids:
+                offered.append(Quest(
+                    id=qid, name=f"Scout Floor {clear_floor}", giver=giver,
+                    floor=clear_floor,
+                    desc=f"Reach floor {clear_floor} and return to town.",
+                    type="clear", target=f"floor_{clear_floor}", required=1,
+                    reward_xp=300 * f, reward_gold=100 * f,
+                ))
+
+        # Bounty — on floor f, kill a named elite
+        qid = f"npc_bounty_{giver[:4]}_{f}"
+        if f >= 3 and qid not in self._all_ids:
+            offered.append(Quest(
+                id=qid, name=f"Floor {f} Bounty", giver=giver, floor=f,
+                desc=f"Slay the marked elite on floor {f}.",
+                type="bounty", target=qid, required=1,
+                reward_xp=400 * f, reward_gold=150 * f,
+            ))
+
+        return offered[:3]  # offer at most 3
+
+    def track_floor(self, floor: int) -> None:
+        """Record that the player has visited this floor (clears 'clear' quests)."""
+        self.floors_visited.add(floor)
+
+    def on_town_return(self) -> list[Quest]:
+        """
+        Check clear quests: if the required floor was visited, complete them.
+        Returns newly completed quests for reward distribution.
+        """
+        done: list[Quest] = []
+        for q in list(self.active):
+            if q.type == "clear" and q.floor in self.floors_visited:
+                q.current = q.required
+                q.completed = True
+                self.active.remove(q)
+                self.completed.append(q)
+                done.append(q)
+                self._pending.append(
+                    f"{t('quest.complete')}: {t_quest_name(q.id, q.name)}!")
+        return done
+
     # ── Notifying ─────────────────────────────────────────────────────────────
 
     def notify(self, event: str, tag: str, amount: int = 1) -> list[Quest]:
@@ -143,9 +236,10 @@ class QuestLog:
 
     def to_dict(self) -> dict:
         return {
-            "active":    [q.to_dict() for q in self.active],
-            "completed": [q.to_dict() for q in self.completed],
-            "all_ids":   list(self._all_ids),
+            "active":         [q.to_dict() for q in self.active],
+            "completed":      [q.to_dict() for q in self.completed],
+            "all_ids":        list(self._all_ids),
+            "floors_visited": list(self.floors_visited),
         }
 
     @classmethod
@@ -155,5 +249,6 @@ class QuestLog:
             ql.active.append(Quest.from_dict(qd))
         for qd in data.get("completed", []):
             ql.completed.append(Quest.from_dict(qd))
-        ql._all_ids = set(data.get("all_ids", []))
+        ql._all_ids       = set(data.get("all_ids", []))
+        ql.floors_visited = set(data.get("floors_visited", []))
         return ql

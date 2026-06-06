@@ -67,8 +67,12 @@ class QuestLogScreen:
             line(t("quest.no_active"), _DIM_COL, 8)
         else:
             for q in quest_log.active:
-                line(f"▶ {t_quest_name(q.id)}", _ACTIVE_COL)
-                line(t_quest_desc(q.id, q.required, q.target), _DIM_COL, 12)
+                name_str = t_quest_name(q.id, q.name)
+                line(f"▶ {name_str}", _ACTIVE_COL)
+                desc_str = t_quest_desc(q.id, q.required, q.target) or q.desc
+                if q.giver:
+                    line(f"  [{q.giver}]", _DIM_COL, 12)
+                line(desc_str, _DIM_COL, 12)
 
                 # Progress bar
                 bar_x  = px + 26

@@ -800,6 +800,38 @@ class HealthPotion(Item):
             surface.set_at((cx + 2, bub_y), _HI)
 
 
+# ── Quest item ────────────────────────────────────────────────────────────────
+
+class QuestItem(Item):
+    """
+    A special floor item tied to a fetch quest.  When collected it sets
+    `self.quest_trigger = ("fetch", quest_id)` so the game loop can fire
+    quest_log.notify() without a circular import.
+    """
+
+    _GLOW = (160, 120, 255)
+    _FILL = (100,  70, 200)
+
+    def __init__(self, tx: int, ty: int, quest_id: str, label: str = "Relic"):
+        super().__init__(tx, ty)
+        self.quest_id     = quest_id
+        self.label        = label
+        self.quest_trigger: tuple | None = None  # set on collect
+
+    def collect(self, player) -> bool:
+        self.quest_trigger = ("fetch", self.quest_id)
+        self.collected     = True
+        return True
+
+    def _draw_shape(self, surface: pygame.Surface, rect: pygame.Rect) -> None:
+        cx, cy = rect.centerx, rect.centery
+        r = rect.width // 2 + 1
+        pygame.draw.circle(surface, (0, 0, 0),       (cx, cy), r + 1)
+        pygame.draw.circle(surface, self._FILL,      (cx, cy), r)
+        pygame.draw.circle(surface, self._GLOW,      (cx, cy), r, 2)
+        pygame.draw.circle(surface, (220, 200, 255), (cx - 2, cy - 2), 2)
+
+
 # ── Equipment item ────────────────────────────────────────────────────────────
 
 class EquipItem(Item):

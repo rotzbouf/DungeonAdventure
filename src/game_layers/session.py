@@ -8,7 +8,8 @@ from src.entities.player import Player
 from src.entities.enemy import get_enemy_types
 from src.boss_pool import pick_boss, boss_cr_hint
 from src.entities.merchant import Merchant
-from src.items.item import random_item, TreasureChest
+from src.entities.wanderer import WandererNPC
+from src.items.item import random_item, TreasureChest, QuestItem
 from src.quests import QuestLog
 from src import save as savesys
 from src.locale import t, t_quest_name
@@ -85,6 +86,36 @@ class SessionLayer:
         self.chests = [TreasureChest(tx, ty)
                        for tx, ty in self.dungeon.chest_positions]
 
+        # Wandering NPC: 0-1 per floor, from floor 3+
+        self.wanderers = []
+        if level >= 3 and random.random() < 0.55 and len(self.dungeon.rooms) >= 4:
+            room = random.choice(self.dungeon.rooms[1:-1])
+            self.wanderers.append(WandererNPC(room.center[0], room.center[1], level))
+            self.hud.notify_quest(t("game.wanderer_found"))
+
+        # Spawn quest items for active fetch quests targeting this floor
+        for q in self.quest_log.active:
+            if q.type == "fetch" and q.floor == level:
+                if self.dungeon.rooms:
+                    room = random.choice(self.dungeon.rooms[1:])
+                    tx_q = room.center[0]
+                    ty_q = room.center[1]
+                    relic_label = q.name.replace("Retrieve the ", "").strip()
+                    self.items.append(QuestItem(tx_q, ty_q, q.target, relic_label))
+
+        # Tag one elite enemy per active bounty quest targeting this floor
+        for q in self.quest_log.active:
+            if q.type == "bounty" and q.floor == level:
+                elites = [e for e in self.enemies
+                          if getattr(e, "is_elite", False) and
+                          not getattr(e, "quest_id", None)]
+                if not elites and self.enemies:
+                    victim = random.choice(self.enemies)
+                    victim.make_elite()
+                    elites = [victim]
+                if elites:
+                    elites[0].quest_id = q.target
+
         self.projectiles    = []
         self._lightning_arcs = []
         # Reset per-floor perk flags on the player
@@ -99,6 +130,7 @@ class SessionLayer:
 
         # Floor quests
         self.quest_log.add_floor_quests(level)
+        self.quest_log.track_floor(level)
 
     def _new_game(self):
         self.dungeon_level = 1

@@ -34,6 +34,11 @@ class TownLayer:
         self.craft_open = self.house_open = False
         self._active_merchant = None
 
+        # Check "clear" quests completed by visiting floors in the dungeon
+        clear_done = self.quest_log.on_town_return()
+        if clear_done:
+            self._apply_quest_rewards(clear_done)
+
         if rest:
             self.player.hp   = float(self.player.max_hp_total)
             self.player.mana = float(self.player.max_mana_total)
@@ -90,7 +95,9 @@ class TownLayer:
         for m in self.town_merchants:
             if m.near_player(self.player):
                 self._active_merchant = m
-                if m.specialty == "enchant":
+                if m.specialty == "guild":
+                    self._open_quest_giver(m)
+                elif m.specialty == "enchant":
                     self._enchant_screen.open()
                     self.enchant_open = True
                 elif m.specialty == "craft":
@@ -193,7 +200,9 @@ class TownLayer:
             _ = alpha  # alpha already baked into draw_return_notice
 
         # Overlays (house, inventory, shop, enchant, craft, char screen, skill tree)
-        if self.house_open:
+        if self.quest_giver_open:
+            self._quest_giver_screen.draw(self.screen)
+        elif self.house_open:
             self._house_screen.draw(self.screen, self.player)
         elif self.enchant_open:
             self._enchant_screen.draw(self.screen, self.player)
@@ -207,6 +216,8 @@ class TownLayer:
             self.charscreen.draw(self.screen, self.player)
         elif self.skill_open:
             self.skillscreen.draw(self.screen, self.player)
+        elif self.quest_open:
+            self.questlog_ui.draw(self.screen, self.quest_log)
 
         # Key hints footer
         hint_line = self._font_sm.render(

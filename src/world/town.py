@@ -39,13 +39,16 @@ HOUSE_INTERACT_R = TILE_SIZE * 2.8
 
 # (display_title, specialty_key, px, py)
 MERCHANT_SPECS: list[tuple[str, str, int, int]] = [
-    ("Blacksmith",  "weapons",  750,   340),   # upper-left,  between gate and plaza
-    ("Armourer",    "armor",    1650,  340),   # upper-right, between gate and plaza
-    ("Craftsman",   "craft",    370,   820),   # left of plaza
-    ("Enchanter",   "enchant",  2030,  820),   # right of plaza
-    ("Jeweler",     "jewelry",  650,   1300),  # lower-left
-    ("Alchemist",   "potions",  1300,  1300),  # lower-centre
+    ("Blacksmith",    "weapons",  750,   340),   # upper-left,  between gate and plaza
+    ("Armourer",      "armor",    1650,  340),   # upper-right, between gate and plaza
+    ("Craftsman",     "craft",    370,   820),   # left of plaza
+    ("Enchanter",     "enchant",  2030,  820),   # right of plaza
+    ("Jeweler",       "jewelry",  650,   1300),  # lower-left
+    ("Alchemist",     "potions",  1300,  1300),  # lower-centre
+    ("Guild Master",  "guild",    1900,  1300),  # lower-right: quest giver
 ]
+
+GUILD_MASTER_SPEC = MERCHANT_SPECS[-1]   # convenience alias
 
 TOWN_INTERACT_R = TILE_SIZE * 3.0
 
@@ -59,6 +62,7 @@ _STALL: dict[str, dict] = {
     "potions":  {"bg": (20,  56, 20),  "hi": ( 60, 200,  60), "awning": (30, 120, 30)},
     "enchant":  {"bg": (36,   8, 72),  "hi": (160,  80, 255), "awning": (80, 20, 150)},
     "craft":    {"bg": (48,  28,   8), "hi": (200, 130,  40), "awning": (140, 80, 20)},
+    "guild":    {"bg": (28,  28,  56), "hi": (180, 160, 255), "awning": (60, 60, 140)},
 }
 
 

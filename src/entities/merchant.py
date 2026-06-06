@@ -27,13 +27,15 @@ else:
     _DCSS = Path(__file__).parent.parent.parent / "assets" / "Dungeon Crawl Stone Soup Full"
 
 _NPC_SPRITE_PATHS: dict[str, Path] = {
-    "weapons": _DCSS / "monster/unique/norris.png",
-    "armor":   _DCSS / "monster/unique/jozef.png",
-    "jewelry": _DCSS / "monster/unique/eustachio.png",
-    "potions": _DCSS / "monster/unique/jessica.png",
-    "enchant": _DCSS / "monster/unique/enchantress.png",
-    "craft":   _DCSS / "monster/deep_dwarf_artificer.png",
-    "dungeon": _DCSS / "monster/human.png",
+    "weapons":  _DCSS / "monster/unique/norris.png",
+    "armor":    _DCSS / "monster/unique/jozef.png",
+    "jewelry":  _DCSS / "monster/unique/eustachio.png",
+    "potions":  _DCSS / "monster/unique/jessica.png",
+    "enchant":  _DCSS / "monster/unique/enchantress.png",
+    "craft":    _DCSS / "monster/deep_dwarf_artificer.png",
+    "dungeon":  _DCSS / "monster/human.png",
+    "guild":    _DCSS / "monster/unique/harold.png",
+    "wanderer": _DCSS / "monster/human_new.png",
 }
 
 _sprite_cache: dict[str, pygame.Surface] = {}
@@ -237,6 +239,7 @@ _SPECIALTY_SLOTS: dict[str, list[str] | None] = {
     "potions": None,   # mixed — handled separately
     "enchant": None,   # no traditional stock — handled by EnchantScreen
     "craft":   None,   # no traditional stock — handled by CraftScreen
+    "guild":   None,   # no stock — handled by QuestGiverScreen
 }
 
 # Visual palette per specialty
@@ -253,6 +256,8 @@ _SPECIALTY_PALETTE: dict[str, dict] = {
                 "robe_h": (160, 80, 255), "gem": (200, 100, 255), "gem_h": (230, 180, 255)},
     "craft":   {"robe": (100, 58, 16), "robe_d": (56, 30, 6),
                 "robe_h": (200, 130, 50), "gem": (220, 150, 40), "gem_h": (255, 200, 100)},
+    "guild":   {"robe": (60, 50, 120), "robe_d": (30, 24, 70),
+                "robe_h": (140, 120, 230), "gem": (160, 140, 255), "gem_h": (210, 200, 255)},
 }
 
 
@@ -313,8 +318,8 @@ class TownMerchant(Merchant):
 
         slots = _SPECIALTY_SLOTS[self.specialty]
 
-        if self.specialty in ("enchant", "craft"):
-            return []   # handled by EnchantScreen / CraftScreen
+        if self.specialty in ("enchant", "craft", "guild"):
+            return []   # handled by dedicated screens
         if self.specialty == "potions":
             # Alchemist: lots of potions + a few mixed-slot items
             for _ in range(5):
