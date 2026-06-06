@@ -81,7 +81,10 @@ class SettingsManager:
         self.player_name:    str   = "Adventurer"
         self.language:       str   = "en"
         self.keybindings:    dict  = dict(_DEFAULTS)
-        self._pending_resize: "tuple[int,int] | None" = None
+        self._windowed_size: "tuple[int,int] | None" = None
+        self._scale_x:       float                  = 1.0
+        self._scale_y:       float                  = 1.0
+        self._orig_get_pos                          = None
         self.load()
 
     # ── Keybinding helpers ─────────────────────────────────────────────────────
@@ -139,45 +142,66 @@ class SettingsManager:
     def apply_display(self) -> pygame.Surface:
         """
         Apply the current fullscreen / windowed setting.
-        Returns the new display Surface (caller must update game.screen).
+        Returns the Surface that game code should draw to (game.screen).
+
+        Fullscreen  → draw directly to the display surface (1920×1080).
+        Windowed    → draw to a logical 1920×1080 Surface; _draw() scales it
+                      onto the physical window each frame.  This avoids the
+                      SDL2-SCALED async-init segfault entirely.
         """
         if self.fullscreen:
             surf = pygame.display.set_mode(
                 (SCREEN_WIDTH, SCREEN_HEIGHT),
                 pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF,
             )
+            self._windowed_size = None
+            self._scale_x       = 1.0
+            self._scale_y       = 1.0
+            self._restore_mouse_get_pos()
         else:
             ww, wh = WINDOW_PRESETS[
                 max(0, min(self.window_preset, len(WINDOW_PRESETS) - 1))
             ]
-            # Keep the logical surface at the game's native 1920×1080 so all
-            # coordinate math stays valid.  pygame.SCALED tells SDL2 to scale
-            # the rendering to fit the physical window and translates mouse
-            # events back to logical coords automatically.
-            surf = pygame.display.set_mode(
-                (SCREEN_WIDTH, SCREEN_HEIGHT),
-                pygame.SCALED | pygame.DOUBLEBUF,
-            )
-            # Defer the physical window resize to the next event-loop iteration.
-            # Calling SDL_SetWindowSize directly from here races with the SCALED
-            # renderer's internal state and causes a segfault in pygame.event.get().
-            self._pending_resize = (ww, wh)
+            pygame.display.set_mode((ww, wh), pygame.DOUBLEBUF)
+            self._windowed_size = (ww, wh)
+            self._scale_x       = SCREEN_WIDTH  / ww
+            self._scale_y       = SCREEN_HEIGHT / wh
+            self._patch_mouse_get_pos()
+            # Return a logical surface — all game rendering goes here
+            surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)).convert()
         self.save()
         return surf
 
+    # ── Mouse-coordinate helpers ───────────────────────────────────────────────
+
+    def scale_pos(self, pos: "tuple[int,int]") -> "tuple[int,int]":
+        """Convert physical-window coords to logical (1920×1080) coords."""
+        if self._windowed_size is None:
+            return pos
+        return (int(pos[0] * self._scale_x), int(pos[1] * self._scale_y))
+
+    def _patch_mouse_get_pos(self) -> None:
+        """Replace pygame.mouse.get_pos with a version that returns logical coords."""
+        if getattr(self, "_orig_get_pos", None) is not None:
+            return  # already patched
+        sx, sy = self._scale_x, self._scale_y
+        orig    = pygame.mouse.get_pos
+
+        def _scaled():
+            x, y = orig()
+            return (int(x * sx), int(y * sy))
+
+        self._orig_get_pos    = orig
+        pygame.mouse.get_pos  = _scaled  # type: ignore[assignment]
+
+    def _restore_mouse_get_pos(self) -> None:
+        orig = getattr(self, "_orig_get_pos", None)
+        if orig is not None:
+            pygame.mouse.get_pos = orig  # type: ignore[assignment]
+            self._orig_get_pos   = None
+
     def apply_pending_resize(self) -> None:
-        """Apply a deferred window resize safely from within the game loop."""
-        if self._pending_resize is None:
-            return
-        ww, wh = self._pending_resize
-        self._pending_resize = None
-        try:
-            import pygame._sdl2.video as _sdl2
-            win = _sdl2.Window.from_display_module()
-            win.size = (ww, wh)
-            win.position = _sdl2.WINDOWPOS_CENTERED
-        except Exception:
-            pass
+        """No-op — kept for call-site compatibility; resize now handled by apply_display."""
 
     @property
     def window_size_label(self) -> str:

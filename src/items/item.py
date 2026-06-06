@@ -746,9 +746,10 @@ class GoldPile(Item):
         self.amount = amount if amount else random.randint(5, 25)
         self.size   = ITEM_SIZE - 2
 
-    def collect(self, player):
+    def collect(self, player) -> bool:
         player.gold += self.amount
         self.collected = True
+        return True
 
     def _draw_shape(self, surface: pygame.Surface, rect: pygame.Rect):
         cx, cy = rect.centerx, rect.centery

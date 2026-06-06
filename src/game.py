@@ -259,9 +259,24 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
 
     # ─── Events ──────────────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _scale_event(event: pygame.event.Event) -> pygame.event.Event:
+        """Re-map event.pos from physical-window to logical (1920×1080) coords."""
+        if game_settings._windowed_size is None:
+            return event
+        if event.type not in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP,
+                               pygame.MOUSEMOTION):
+            return event
+        pos = getattr(event, "pos", None)
+        if pos is None:
+            return event
+        sp = game_settings.scale_pos(pos)
+        return pygame.event.Event(event.type, {**event.__dict__, "pos": sp})
+
     def _handle_events(self):
         game_settings.apply_pending_resize()
-        for event in pygame.event.get():
+        for _raw_event in pygame.event.get():
+            event = self._scale_event(_raw_event)
             if event.type == pygame.QUIT:
                 pygame.quit(); sys.exit()
 
@@ -924,4 +939,7 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 self.screen.fill((0, 0, 0))
             self._draw_overlay(t("game.game_over"), t("game.press_enter"), RED)
 
+        if game_settings._windowed_size:
+            pygame.transform.scale(self.screen, game_settings._windowed_size,
+                                   pygame.display.get_surface())
         pygame.display.flip()
