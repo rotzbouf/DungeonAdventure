@@ -1,7 +1,9 @@
 """Player homestead screen — stash chest, manual save and load."""
 from __future__ import annotations
+import math
 import pygame
 from src.settings import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, WHITE
+from src.items.item import EquipItem, HealthPotion, Q_COLOR, QUALITY_NORMAL
 from src import save as savesys
 
 # ── Palette ───────────────────────────────────────────────────────────────────
@@ -10,37 +12,57 @@ _PANEL     = (18,  13,   8)
 _BORDER    = (160, 110,  50)
 _BORDER_LO = ( 80,  55,  25)
 _HDR       = (230, 185,  80)
-_SEL       = ( 50,  34,  14)
 _DIM       = (110,  90,  60)
 _GREEN     = ( 60, 200,  80)
 _RED       = (200,  50,  50)
+_POTION_COL = (60, 200, 100)
+_SLOT_COL   = (32,  24,  14)
+_SLOT_H_COL = (55,  42,  22)
+_SLOT_SEP   = (55,  42,  22)
 
-_Q_COLOR = {
-    0: (188, 188, 188),
-    1: ( 80,  80, 255),
-    2: (252, 188,   0),
-    3: (200, 115,   0),
-}
+# ── Grid constants ────────────────────────────────────────────────────────────
+_CELL   = 62
+_GAP    = 6
+_STRIDE = _CELL + _GAP   # 68 px per cell
 
-_STASH_LIMIT = 80
+_ST_COLS = 8    # stash: 8 cols × 10 rows = 80 slots
+_PK_COLS = 5    # backpack: 5 cols × 10 rows = 50 slots
+_ST_CAP  = 80
+_PK_CAP  = 50
+
+_HDR_H  = 52    # title bar height
+_FOOT_H = 68    # footer height
+_PAD    = 12
+_GRID_Y0 = _HDR_H + 24   # grid rows start here (below sub-header label)
+
+
+def _vis_rows(panel_h: int) -> int:
+    available = panel_h - _FOOT_H - _GRID_Y0
+    return available // _STRIDE
 
 
 class HouseScreen:
-    W = 1100
-    H = 680
+    W = 1200
+    H = 760
 
     def __init__(self):
-        self._fl = pygame.font.SysFont("monospace", 28, bold=True)
-        self._fm = pygame.font.SysFont("monospace", 25, bold=True)
-        self._fs = pygame.font.SysFont("monospace", 25)
+        self._fl  = pygame.font.SysFont("monospace", 26, bold=True)
+        self._fm  = pygame.font.SysFont("monospace", 21, bold=True)
+        self._fs  = pygame.font.SysFont("monospace", 19)
+        self._fxs = pygame.font.SysFont("monospace", 15, bold=True)
 
+        self._vis = _vis_rows(self.H)   # 9
         self._stash_scroll = 0
         self._pack_scroll  = 0
+        self._hov_stash    = -1
+        self._hov_pack     = -1
         self._msg          = ""
         self._msg_timer    = 0.0
         self._msg_ok       = True
         self._save_fn      = None
         self._load_fn      = None
+
+    # ── Public API ────────────────────────────────────────────────────────────
 
     def open(self, save_fn=None, load_fn=None):
         self._stash_scroll = 0
@@ -54,9 +76,15 @@ class HouseScreen:
         if self._msg_timer > 0:
             self._msg_timer = max(0.0, self._msg_timer - dt)
 
+        # Update hover from current mouse pos
+        ox, oy = self._origin()
+        mx, my = pygame.mouse.get_pos()
+        lx, ly = mx - ox, my - oy
+        self._hov_stash = self._stash_idx_at(lx, ly)
+        self._hov_pack  = self._pack_idx_at(lx, ly)
+
     def handle_event(self, event: pygame.event.Event, player) -> bool:
-        ox = SCREEN_WIDTH  // 2 - self.W // 2
-        oy = (SCREEN_HEIGHT - HUD_HEIGHT) // 2 - self.H // 2
+        ox, oy = self._origin()
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             lx, ly = event.pos[0] - ox, event.pos[1] - oy
@@ -65,53 +93,97 @@ class HouseScreen:
 
         if event.type == pygame.MOUSEWHEEL:
             lx = pygame.mouse.get_pos()[0] - ox
+            stash_rows = math.ceil(_ST_CAP / _ST_COLS)
+            pack_rows  = math.ceil(_PK_CAP / _PK_COLS)
             if lx < self.W // 2:
-                self._stash_scroll = max(0, self._stash_scroll - event.y)
+                ms = max(0, stash_rows - self._vis)
+                self._stash_scroll = max(0, min(self._stash_scroll - event.y, ms))
             else:
-                self._pack_scroll = max(0, self._pack_scroll - event.y)
+                ms = max(0, pack_rows - self._vis)
+                self._pack_scroll = max(0, min(self._pack_scroll - event.y, ms))
             return True
 
         return False
 
-    # ─── Internal click handling ──────────────────────────────────────────────
+    # ── Geometry helpers ──────────────────────────────────────────────────────
+
+    def _origin(self) -> tuple[int, int]:
+        ox = SCREEN_WIDTH  // 2 - self.W // 2
+        oy = (SCREEN_HEIGHT - HUD_HEIGHT) // 2 - self.H // 2
+        return ox, oy
+
+    def _stash_cell_rect(self, idx: int) -> pygame.Rect:
+        col = idx % _ST_COLS
+        row = idx // _ST_COLS
+        x   = _PAD + col * _STRIDE
+        y   = _GRID_Y0 + (row - self._stash_scroll) * _STRIDE
+        return pygame.Rect(x, y, _CELL, _CELL)
+
+    def _pack_cell_rect(self, idx: int) -> pygame.Rect:
+        col = idx % _PK_COLS
+        row = idx // _PK_COLS
+        x   = self.W // 2 + _PAD + col * _STRIDE
+        y   = _GRID_Y0 + (row - self._pack_scroll) * _STRIDE
+        return pygame.Rect(x, y, _CELL, _CELL)
+
+    def _grid_clip_left(self) -> pygame.Rect:
+        grid_h = self._vis * _STRIDE - _GAP
+        return pygame.Rect(_PAD, _GRID_Y0, self.W // 2 - _PAD, grid_h)
+
+    def _grid_clip_right(self) -> pygame.Rect:
+        grid_h = self._vis * _STRIDE - _GAP
+        rx = self.W // 2 + _PAD
+        return pygame.Rect(rx, _GRID_Y0, self.W - rx - _PAD, grid_h)
+
+    def _stash_idx_at(self, lx: int, ly: int) -> int:
+        clip = self._grid_clip_left()
+        if not clip.collidepoint(lx, ly):
+            return -1
+        for i in range(_ST_CAP):
+            if self._stash_cell_rect(i).collidepoint(lx, ly):
+                return i
+        return -1
+
+    def _pack_idx_at(self, lx: int, ly: int) -> int:
+        clip = self._grid_clip_right()
+        if not clip.collidepoint(lx, ly):
+            return -1
+        for i in range(_PK_CAP):
+            if self._pack_cell_rect(i).collidepoint(lx, ly):
+                return i
+        return -1
+
+    # ── Click handling ────────────────────────────────────────────────────────
 
     def _handle_click(self, lx: int, ly: int, player):
-        hdr_h    = 62
-        pad      = 14
-        row_h    = 36
-        split_x  = self.W // 2
-        list_y0  = hdr_h + pad
-        clip_h   = self.H - 80 - list_y0
+        stash = getattr(player, "stash", [])
 
-        # ── Left panel: stash items ───────────────────────────────────────────
-        if lx < split_x:
-            stash = getattr(player, "stash", [])
-            for i, item in enumerate(stash):
-                iy = list_y0 + (i - self._stash_scroll) * row_h
-                if list_y0 <= iy <= list_y0 + clip_h - row_h:
-                    if iy <= ly <= iy + row_h - 2:
-                        player.backpack.append(item)
-                        player.stash.remove(item)
-                        self._notify(f"Took {_item_name(item)}.", ok=True)
-                        return
+        # Stash → take item into backpack
+        si = self._stash_idx_at(lx, ly)
+        if si >= 0 and si < len(stash):
+            item = stash[si]
+            if player.inventory_full():
+                self._notify("Backpack is full!", ok=False)
+                return
+            player.backpack.append(item)
+            player.stash.remove(item)
+            self._notify(f"Took {_item_name(item)}.", ok=True)
+            return
 
-        # ── Right panel: backpack items ───────────────────────────────────────
-        if lx >= split_x:
-            for i, item in enumerate(player.backpack):
-                iy = list_y0 + (i - self._pack_scroll) * row_h
-                if list_y0 <= iy <= list_y0 + clip_h - row_h:
-                    if iy <= ly <= iy + row_h - 2:
-                        stash = getattr(player, "stash", [])
-                        if len(stash) >= _STASH_LIMIT:
-                            self._notify("Chest is full!", ok=False)
-                            return
-                        player.stash = stash
-                        player.stash.append(item)
-                        player.backpack.remove(item)
-                        self._notify(f"Stored {_item_name(item)}.", ok=True)
-                        return
+        # Backpack → store item in stash
+        pi = self._pack_idx_at(lx, ly)
+        if pi >= 0 and pi < len(player.backpack):
+            item = player.backpack[pi]
+            if len(stash) >= _ST_CAP:
+                self._notify("Chest is full!", ok=False)
+                return
+            player.stash = stash
+            player.stash.append(item)
+            player.backpack.remove(item)
+            self._notify(f"Stored {_item_name(item)}.", ok=True)
+            return
 
-        # ── Footer buttons ────────────────────────────────────────────────────
+        # Footer buttons
         if self._save_btn_rect().collidepoint(lx, ly):
             if self._save_fn:
                 self._save_fn()
@@ -121,25 +193,23 @@ class HouseScreen:
                 self._load_fn()
 
     def _save_btn_rect(self) -> pygame.Rect:
-        bw, bh = 200, 38
-        return pygame.Rect(self.W // 4 - bw // 2, self.H - 58, bw, bh)
+        bw, bh = 200, 36
+        return pygame.Rect(self.W // 4 - bw // 2, self.H - 52, bw, bh)
 
     def _load_btn_rect(self) -> pygame.Rect:
-        bw, bh = 200, 38
-        return pygame.Rect(3 * self.W // 4 - bw // 2, self.H - 58, bw, bh)
+        bw, bh = 200, 36
+        return pygame.Rect(3 * self.W // 4 - bw // 2, self.H - 52, bw, bh)
 
     def _notify(self, msg: str, ok: bool = True):
         self._msg       = msg
         self._msg_ok    = ok
         self._msg_timer = 3.0
 
-    # ─── Draw ─────────────────────────────────────────────────────────────────
+    # ── Draw ──────────────────────────────────────────────────────────────────
 
     def draw(self, surface: pygame.Surface, player):
-        ox = SCREEN_WIDTH  // 2 - self.W // 2
-        oy = (SCREEN_HEIGHT - HUD_HEIGHT) // 2 - self.H // 2
+        ox, oy = self._origin()
 
-        # Dim backdrop
         ov = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT), pygame.SRCALPHA)
         ov.fill((0, 0, 0, 185))
         surface.blit(ov, (0, 0))
@@ -150,109 +220,156 @@ class HouseScreen:
 
         self._draw_header(panel)
         pygame.draw.line(panel, _BORDER_LO,
-                         (self.W // 2, 62), (self.W // 2, self.H - 80), 1)
+                         (self.W // 2, _HDR_H), (self.W // 2, self.H - _FOOT_H), 1)
         self._draw_stash(panel, player)
         self._draw_backpack(panel, player)
-        self._draw_footer(panel, player)
+        self._draw_footer(panel)
 
         surface.blit(panel, (ox, oy))
 
     def _draw_header(self, surf: pygame.Surface):
-        pygame.draw.rect(surf, _PANEL, (0, 0, self.W, 62))
-        pygame.draw.line(surf, _BORDER, (0, 62), (self.W, 62), 1)
+        pygame.draw.rect(surf, _PANEL, (0, 0, self.W, _HDR_H))
+        pygame.draw.line(surf, _BORDER, (0, _HDR_H), (self.W, _HDR_H), 1)
         title = self._fl.render("YOUR  HOMESTEAD", True, _HDR)
-        surf.blit(title, title.get_rect(centerx=self.W // 2, centery=31))
+        surf.blit(title, title.get_rect(centerx=self.W // 2, centery=_HDR_H // 2))
+
+    # ── Stash grid ────────────────────────────────────────────────────────────
 
     def _draw_stash(self, surf: pygame.Surface, player):
-        pad      = 14
-        row_h    = 36
-        list_y0  = 62 + pad
-        clip_h   = self.H - 80 - list_y0
-        split_x  = self.W // 2
-
-        hdr = self._fm.render("CHEST  STORAGE", True, _HDR)
-        surf.blit(hdr, (pad, 65))
-
         stash = getattr(player, "stash", [])
-        if not stash:
-            s = self._fs.render(
-                "Chest is empty  —  click backpack items to store them", True, _DIM)
-            surf.blit(s, (pad, list_y0 + 20))
-        else:
-            for i, item in enumerate(stash):
-                iy = list_y0 + (i - self._stash_scroll) * row_h
-                if iy < list_y0 or iy > list_y0 + clip_h - row_h:
-                    continue
-                bg = _SEL if i % 2 == 0 else _PANEL
-                pygame.draw.rect(surf, bg,
-                                 (pad - 2, iy, split_x - pad * 2, row_h - 2))
-                col = _q_col(item)
-                ns  = self._fm.render(_item_name(item), True, col)
-                surf.blit(ns, (pad + 4, iy + 8))
-                hint = self._fs.render("click to take", True, _DIM)
-                surf.blit(hint,
-                          (split_x - pad - hint.get_width() - 4, iy + 12))
 
-        count_s = self._fs.render(
-            f"{len(stash)} / {_STASH_LIMIT} items stored", True, _DIM)
-        surf.blit(count_s, (pad, self.H - 80 - 18))
+        # Sub-header
+        hdr = self._fm.render(f"CHEST STORAGE  —  {len(stash)} / {_ST_CAP}", True, _HDR)
+        surf.blit(hdr, (_PAD, _HDR_H + 4))
+
+        clip = self._grid_clip_left()
+        old  = surf.get_clip()
+        surf.set_clip(clip)
+
+        for i in range(_ST_CAP):
+            r   = self._stash_cell_rect(i)
+            if r.bottom <= clip.top or r.top >= clip.bottom:
+                continue
+            hov = (i == self._hov_stash)
+            pygame.draw.rect(surf, _SLOT_H_COL if hov else _SLOT_COL, r)
+
+            if i < len(stash):
+                self._draw_cell_item(surf, r, stash[i], hov)
+            else:
+                pygame.draw.rect(surf, _SLOT_SEP, r, 1)
+
+        surf.set_clip(old)
+        self._draw_scroll_indicator(surf, _PAD, stash, _ST_CAP, _ST_COLS,
+                                    self._stash_scroll)
+
+    # ── Backpack grid ─────────────────────────────────────────────────────────
 
     def _draw_backpack(self, surf: pygame.Surface, player):
-        pad      = 14
-        row_h    = 36
-        list_y0  = 62 + pad
-        clip_h   = self.H - 80 - list_y0
-        split_x  = self.W // 2
-        px       = split_x + pad
+        pack = player.backpack
 
-        hdr = self._fm.render("YOUR  BACKPACK", True, _HDR)
-        surf.blit(hdr, (px, 65))
+        # Sub-header
+        rx  = self.W // 2 + _PAD
+        hdr = self._fm.render(f"YOUR BACKPACK  —  {len(pack)} / {_PK_CAP}", True, _HDR)
+        surf.blit(hdr, (rx, _HDR_H + 4))
 
-        if not player.backpack:
-            s = self._fs.render("Backpack is empty", True, _DIM)
-            surf.blit(s, (px, list_y0 + 20))
-            return
+        clip = self._grid_clip_right()
+        old  = surf.get_clip()
+        surf.set_clip(clip)
 
-        for i, item in enumerate(player.backpack):
-            iy = list_y0 + (i - self._pack_scroll) * row_h
-            if iy < list_y0 or iy > list_y0 + clip_h - row_h:
+        for i in range(_PK_CAP):
+            r   = self._pack_cell_rect(i)
+            if r.bottom <= clip.top or r.top >= clip.bottom:
                 continue
-            bg = _SEL if i % 2 == 0 else _PANEL
-            pygame.draw.rect(surf, bg,
-                             (px - 2, iy, self.W - split_x - pad, row_h - 2))
-            col = _q_col(item)
-            ns  = self._fm.render(_item_name(item), True, col)
-            surf.blit(ns, (px + 4, iy + 8))
-            hint = self._fs.render("click to store", True, _DIM)
-            surf.blit(hint,
-                      (self.W - pad - hint.get_width() - 4, iy + 12))
+            hov = (i == self._hov_pack)
+            pygame.draw.rect(surf, _SLOT_H_COL if hov else _SLOT_COL, r)
 
-    def _draw_footer(self, surf: pygame.Surface, player):
-        fy  = self.H - 80
-        pad = 14
+            if i < len(pack):
+                self._draw_cell_item(surf, r, pack[i], hov)
+            else:
+                pygame.draw.rect(surf, _SLOT_SEP, r, 1)
+
+        surf.set_clip(old)
+        self._draw_scroll_indicator(surf, self.W // 2 + _PAD, pack, _PK_CAP,
+                                    _PK_COLS, self._pack_scroll)
+
+    # ── Cell renderer (shared) ────────────────────────────────────────────────
+
+    def _draw_cell_item(self, surf: pygame.Surface, r: pygame.Rect, item, hov: bool):
+        if isinstance(item, EquipItem):
+            bc = item.quality_color
+            pygame.draw.rect(surf, bc, r,
+                             1 if item.quality == QUALITY_NORMAL else 2)
+            icon_rect = r.inflate(-12, -12)
+            try:
+                from src.assets import assets
+                spr = assets.item_sprite(item.base_name,
+                                         size=(icon_rect.width, icon_rect.height))
+                if spr:
+                    surf.blit(spr, icon_rect.topleft)
+                elif item.slot == "weapon":
+                    item._draw_weapon_icon(surf, icon_rect, bc)
+                else:
+                    item._draw_armor_icon(surf, icon_rect, bc)
+            except Exception:
+                if item.slot == "weapon":
+                    item._draw_weapon_icon(surf, icon_rect, bc)
+                else:
+                    item._draw_armor_icon(surf, icon_rect, bc)
+
+            # Quality badge (top-right corner)
+            badge = {1: "M", 2: "R", 3: "U"}.get(item.quality, "")
+            if badge:
+                bs = self._fxs.render(badge, True, item.quality_color)
+                surf.blit(bs, (r.right - bs.get_width() - 2, r.top + 2))
+
+        elif isinstance(item, HealthPotion):
+            pygame.draw.rect(surf, _POTION_COL, r, 1)
+            lbl = self._fs.render("HP", True, _POTION_COL)
+            surf.blit(lbl, lbl.get_rect(center=r.center))
+
+    # ── Scroll indicator ──────────────────────────────────────────────────────
+
+    def _draw_scroll_indicator(self, surf, bx, items, cap, cols, scroll):
+        total_rows = math.ceil(cap / cols)
+        max_scroll = max(0, total_rows - self._vis)
+        clip_rect  = self._grid_clip_left() if bx == _PAD else self._grid_clip_right()
+        si_y = clip_rect.bottom + 4
+        if max_scroll > 0:
+            row0 = scroll + 1
+            row1 = min(scroll + self._vis, total_rows)
+            dim_up   = (55, 44, 30) if scroll == 0           else (160, 140, 100)
+            dim_down = (55, 44, 30) if scroll >= max_scroll  else (160, 140, 100)
+            au = self._fxs.render("▲", True, dim_up)
+            ad = self._fxs.render("▼", True, dim_down)
+            pt = self._fxs.render(f"rows {row0}–{row1} of {total_rows}  (scroll)",
+                                  True, (90, 78, 60))
+            surf.blit(au, (bx, si_y))
+            surf.blit(pt, (bx + au.get_width() + 4, si_y))
+            surf.blit(ad, (bx + au.get_width() + 4 + pt.get_width() + 4, si_y))
+
+    # ── Footer ────────────────────────────────────────────────────────────────
+
+    def _draw_footer(self, surf: pygame.Surface):
+        fy = self.H - _FOOT_H
         pygame.draw.line(surf, _BORDER_LO, (0, fy), (self.W, fy), 1)
 
-        # Feedback message
         if self._msg and self._msg_timer > 0:
             fade = min(1.0, self._msg_timer / 0.4)
             col  = tuple(int(c * fade) for c in (_GREEN if self._msg_ok else _RED))
             ms   = self._fm.render(self._msg, True, col)
-            surf.blit(ms, ms.get_rect(centerx=self.W // 2, centery=fy + 22))
+            surf.blit(ms, ms.get_rect(centerx=self.W // 2, centery=fy + 18))
 
-        # Save button (always enabled)
         _draw_btn(surf, self._save_btn_rect(), "SAVE GAME",
                   enabled=True,
                   col=(28, 78, 18), border=(55, 175, 38),
                   col_off=(14, 38, 9), border_off=_BORDER_LO)
 
-        # Load button (greyed out when no save exists)
         has_sv = savesys.has_save()
         _draw_btn(surf, self._load_btn_rect(), "LOAD GAME",
                   enabled=has_sv,
                   col=(20, 40, 82), border=(48, 100, 210),
                   col_off=(10, 20, 42), border_off=_BORDER_LO)
 
-        # Hint
         hs = self._fs.render(
             "Click items to move between chest and backpack  ·  ESC to close",
             True, _DIM)
@@ -262,19 +379,11 @@ class HouseScreen:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _item_name(item) -> str:
-    from src.items.item import EquipItem, HealthPotion
     if isinstance(item, EquipItem):
         return item.display_name
     if isinstance(item, HealthPotion):
         return f"Health Potion (+{item.heal_amount})"
     return str(item)
-
-
-def _q_col(item) -> tuple:
-    from src.items.item import EquipItem
-    if isinstance(item, EquipItem):
-        return _Q_COLOR.get(item.quality, (188, 188, 188))
-    return (160, 220, 160)
 
 
 def _draw_btn(surf, btn, label, enabled,
@@ -283,7 +392,6 @@ def _draw_btn(surf, btn, label, enabled,
     b = border if enabled else border_off
     pygame.draw.rect(surf, c, btn)
     pygame.draw.rect(surf, b, btn, 1)
-    font = pygame.font.SysFont("monospace", 24, bold=True)
-    col_txt = WHITE if enabled else _DIM
-    ts = font.render(label, True, col_txt)
+    font = pygame.font.SysFont("monospace", 22, bold=True)
+    ts = font.render(label, True, WHITE if enabled else _DIM)
     surf.blit(ts, ts.get_rect(center=btn.center))
