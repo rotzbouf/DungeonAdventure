@@ -419,8 +419,8 @@ class RendererLayer:
         # ── Decorative statues ────────────────────────────────────────────────
         DCSS = "assets/Dungeon Crawl Stone Soup Full"
         SPR_SIZE = 224
-        statue_left  = self._menu_spr(f"{DCSS}/dungeon/statues/granite_statue.png", SPR_SIZE)
-        statue_right = self._menu_spr(f"{DCSS}/dungeon/statues/statue_ancient_hero.png", SPR_SIZE)
+        statue_left  = self._menu_spr(f"{DCSS}/dungeon/statues/statue_iron.png", SPR_SIZE)
+        statue_right = self._menu_spr(f"{DCSS}/dungeon/statues/statue_angel.png", SPR_SIZE)
 
         BTN_W  = 400
         BTN_H  = 68
