@@ -12,6 +12,10 @@ from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT,
 from src.items.item import EquipItem, HealthPotion
 from src.entities.merchant import item_sell_price
 from src.locale import t
+from src.ui.inventory import (
+    _cmp_mods, _COL_SEP, _STAT_COL, _FLAVOR_COL,
+    _CMP_BETTER, _CMP_WORSE, _CMP_NEUTRAL, _CMP_NEW,
+)
 
 # ── Geometry ──────────────────────────────────────────────────────────────────
 _PW      = 880
@@ -45,9 +49,12 @@ class ShopScreen:
     def _init_fonts(self):
         if self._fonts_init:
             return
-        self._font_lg = pygame.font.SysFont("monospace", 25, bold=True)
-        self._font_md = pygame.font.SysFont("monospace", 24, bold=True)
-        self._font_sm = pygame.font.SysFont("monospace", 25)
+        self._font_lg    = pygame.font.SysFont("monospace", 25, bold=True)
+        self._font_md    = pygame.font.SysFont("monospace", 24, bold=True)
+        self._font_sm    = pygame.font.SysFont("monospace", 25)
+        self._font_tt    = pygame.font.SysFont("monospace", 24, bold=True)  # tooltip header
+        self._font_tt_sm = pygame.font.SysFont("monospace", 18, bold=True)  # tooltip stats
+        self._font_xs    = pygame.font.SysFont("monospace", 13)             # tooltip deltas
         self._fonts_init = True
 
     def notify(self, msg: str, duration: float = 2.5):
@@ -209,26 +216,170 @@ class ShopScreen:
 
         # ── Tooltip ───────────────────────────────────────────────────────────
         if tooltip_item:
-            self._draw_tooltip(surface, tooltip_item, (mx, my))
+            self._draw_tooltip(surface, tooltip_item, player, (mx, my))
 
-    def _draw_tooltip(self, surface: pygame.Surface, item, pos: tuple):
+    # ── Comparison helpers (mirrors inventory logic) ──────────────────────────
+
+    @staticmethod
+    def _equipped_for(item: EquipItem, player) -> EquipItem | None:
+        eq = player.equipment.get(item.slot)
+        if eq is None and item.slot == "ring":
+            eq = player.equipment.get("ring2")
+        return eq if eq is not None else None
+
+    def _build_comparison(self, item: EquipItem,
+                           equipped: EquipItem) -> list[tuple]:
+        from src.items.item import MOD_ATK, MOD_DEF
+        result = []
+        for mod_kind, label in _cmp_mods():
+            v1 = item.get_mod_total(mod_kind)
+            v2 = equipped.get_mod_total(mod_kind)
+            if mod_kind == MOD_ATK and item.slot == "weapon":
+                v1 += item.base_stat; v2 += equipped.base_stat
+            elif (mod_kind == MOD_DEF
+                  and item.slot not in ("weapon", "ring", "amulet")):
+                v1 += item.base_stat; v2 += equipped.base_stat
+            if v1 == 0 and v2 == 0:
+                continue
+            stat_txt = f"+{v1:.0f} {label}" if v1 > 0 else f"  — {label}"
+            stat_col = _STAT_COL if v1 > 0 else _CMP_NEUTRAL
+            if v2 == 0 and v1 > 0:
+                delta_txt, delta_col = "  ✦ new", _CMP_NEW
+            elif abs(v1 - v2) < 1:
+                delta_txt, delta_col = "  ≈",     _CMP_NEUTRAL
+            elif v1 > v2:
+                delta_txt, delta_col = f"  ▲ +{v1-v2:.0f}", _CMP_BETTER
+            else:
+                delta_txt, delta_col = f"  ▼ {v1-v2:.0f}",  _CMP_WORSE
+            result.append((stat_txt, stat_col, delta_txt, delta_col))
+        return result
+
+    def _draw_tooltip(self, surface: pygame.Surface, item, player, pos: tuple):
         if not isinstance(item, EquipItem):
             return
-        lines = item.stat_lines()
-        if not lines:
-            return
-        tw  = max(180, max(self._font_sm.size(l)[0] for l, _ in lines) + 20)
-        th  = len(lines) * 17 + 12
-        tx  = min(pos[0] + 14, SCREEN_WIDTH  - tw - 4)
-        ty  = max(4, min(pos[1] - th // 2,
-                         SCREEN_HEIGHT - HUD_HEIGHT - th - 4))
-        bg  = pygame.Surface((tw, th), pygame.SRCALPHA)
-        bg.fill((10, 5, 20, 225))
+
+        equipped = self._equipped_for(item, player)
+        LH  = self._font_tt_sm.get_height() + 3
+        PAD = 8
+
+        sections: list[tuple] = []
+        sections.append(("header", item.display_name, item.quality_color))
+        sections.append(("sub", f"{item.slot.title()}  ·  {item.base_name}", GRAY))
+        sections.append(("sep",))
+
+        if equipped is not None:
+            rows = self._build_comparison(item, equipped)
+            if rows:
+                for stat_txt, stat_col, delta_txt, delta_col in rows:
+                    sections.append(("cmp", stat_txt, stat_col,
+                                     delta_txt, delta_col))
+            else:
+                for txt, col in item.stat_lines():
+                    sections.append(("line", txt, col))
+        else:
+            for txt, col in item.stat_lines():
+                sections.append(("line", txt, col))
+
+        encs = getattr(item, "enchantments", [])
+        enc_slots = getattr(item, "enchant_slots", 0)
+        if enc_slots > 0 or encs:
+            sections.append(("sep",))
+            sections.append(("line",
+                              f"Slots: {'◆'*len(encs)}{'◇'*(enc_slots-len(encs))}",
+                              (160, 80, 255)))
+            for eid in encs:
+                try:
+                    from src.items.enchant import ENCHANTMENTS
+                    enc = ENCHANTMENTS.get(eid)
+                    if enc:
+                        sections.append(("line", f"  {enc.name}", (180, 100, 255)))
+                except Exception:
+                    pass
+
+        fl = getattr(item, "flavor", "")
+        if fl:
+            sections.append(("sep",))
+            sections.append(("line", f'"{fl}"', _FLAVOR_COL))
+
+        if equipped is not None:
+            sections.append(("sep",))
+            delta = item.primary_stat - equipped.primary_stat
+            if delta > 3:
+                verdict, vcol = f"▲  UPGRADE  vs {equipped.display_name}", _CMP_BETTER
+            elif delta < -3:
+                verdict, vcol = f"▼  DOWNGRADE  vs {equipped.display_name}", _CMP_WORSE
+            else:
+                verdict, vcol = f"≈  SIMILAR  vs {equipped.display_name}", _CMP_NEUTRAL
+            sections.append(("verdict", verdict, vcol))
+        else:
+            sections.append(("sep",))
+            sections.append(("line", "(nothing equipped in this slot)", _CMP_NEUTRAL))
+
+        # Measure width
+        max_w = 260
+        for sec in sections:
+            if sec[0] == "header":
+                max_w = max(max_w, self._font_tt.size(sec[1])[0])
+            elif sec[0] == "cmp":
+                max_w = max(max_w,
+                            self._font_tt_sm.size(sec[1])[0] +
+                            self._font_xs.size(sec[3])[0] + 20)
+            elif sec[0] in ("line", "sub", "verdict"):
+                max_w = max(max_w, self._font_tt_sm.size(sec[1])[0])
+        tw = max_w + PAD * 2
+
+        # Measure height
+        th = PAD
+        for sec in sections:
+            if sec[0] == "sep":       th += 6
+            elif sec[0] == "header":  th += self._font_tt.get_height() + 4
+            else:                     th += LH
+        th += PAD
+
+        mx, my = pos
+        tx = min(mx + 16, SCREEN_WIDTH  - tw - 4)
+        ty = min(my - 10, SCREEN_HEIGHT - HUD_HEIGHT - th - 4)
+        ty = max(ty, 4)
+
+        bg = pygame.Surface((tw, th), pygame.SRCALPHA)
+        bg.fill((6, 3, 14, 245))
         surface.blit(bg, (tx, ty))
-        pygame.draw.rect(surface, _BORDER, (tx, ty, tw, th), 1)
-        for i, (line, col) in enumerate(lines):
-            s = self._font_sm.render(line, True, col)
-            surface.blit(s, (tx + 10, ty + 6 + i * 17))
+        pygame.draw.rect(surface, item.quality_color, (tx, ty, tw, th), 1)
+
+        y = ty + PAD
+        for sec in sections:
+            kind = sec[0]
+            if kind == "sep":
+                pygame.draw.line(surface, _COL_SEP,
+                                 (tx + PAD, y + 3), (tx + tw - PAD, y + 3))
+                y += 6; continue
+            if kind == "header":
+                s = self._font_tt.render(sec[1], True, sec[2])
+                surface.blit(s, (tx + PAD, y))
+                y += s.get_height() + 4; continue
+            if kind == "sub":
+                surface.blit(self._font_xs.render(sec[1], True, sec[2]),
+                             (tx + PAD, y))
+                y += LH; continue
+            if kind == "cmp":
+                stat_s  = self._font_tt_sm.render(sec[1], True, sec[2])
+                delta_s = self._font_xs.render(sec[3], True, sec[4])
+                surface.blit(stat_s,  (tx + PAD, y))
+                surface.blit(delta_s, (tx + tw - delta_s.get_width() - PAD,
+                                       y + (stat_s.get_height() -
+                                            delta_s.get_height()) // 2))
+                y += LH; continue
+            if kind == "verdict":
+                vbg = pygame.Surface((tw - 2, LH + 4), pygame.SRCALPHA)
+                vbg.fill((*sec[2], 40))
+                surface.blit(vbg, (tx + 1, y - 2))
+                surface.blit(self._font_tt_sm.render(sec[1], True, sec[2]),
+                             (tx + PAD, y))
+                y += LH; continue
+            if kind == "line":
+                surface.blit(self._font_tt_sm.render(sec[1], True, sec[2]),
+                             (tx + PAD, y))
+                y += LH
 
     # ── Click handling ────────────────────────────────────────────────────────
 
