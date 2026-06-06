@@ -182,12 +182,25 @@ class HUD:
         # ── RIGHT SECTION: Floor + spells ─────────────────────────────────────
         fx = SCREEN_WIDTH - 380
 
-        fl_str = f"{t('hud.floor_prefix')}{dungeon_level}"
-        fl_txt = self._font_xl.render(fl_str, True, LIGHT_GRAY)
-        _shadow_blit(surface, fl_txt, (fx, hud_y + 8))
+        # Floor badge: "FLOOR" label + number in amber pill
+        _FL_LABEL_COL = (180, 140,  50)
+        _FL_NUM_COL   = (252, 210,  80)
+        fl_lbl = self._font_badge.render("FLOOR", True, _FL_LABEL_COL)
+        fl_num = self._font_xl.render(str(dungeon_level), True, _FL_NUM_COL)
+        pill_w = fl_lbl.get_width() + 6 + fl_num.get_width() + 12
+        pill_h = fl_num.get_height() + 6
+        pill_x, pill_y = fx, hud_y + 6
+        pygame.draw.rect(surface, (40, 28, 8),
+                         (pill_x, pill_y, pill_w, pill_h), border_radius=4)
+        pygame.draw.rect(surface, (120, 85, 25),
+                         (pill_x, pill_y, pill_w, pill_h), 1, border_radius=4)
+        surface.blit(fl_lbl, (pill_x + 6,
+                               pill_y + (pill_h - fl_lbl.get_height()) // 2))
+        surface.blit(fl_num, (pill_x + 6 + fl_lbl.get_width() + 6,
+                               pill_y + (pill_h - fl_num.get_height()) // 2))
 
-        # Pending point badges — compact, steady, right of the floor label
-        bx = fx + fl_txt.get_width() + 14
+        # Pending point badges — compact, steady, right of the floor badge
+        bx = fx + pill_w + 14
         by = hud_y + 13
         if player.stat_points > 0:
             lbl = self._font_badge.render(

@@ -153,7 +153,6 @@ _T: dict[str, dict[str, str]] = {
     "hud.mp":              {"en": "MP",     "de": "MP"},
     "hud.ready":           {"en": "READY",  "de": "BEREIT"},
     "hud.atk_lbl":         {"en": "ATK",    "de": "ANG"},
-    "hud.floor_prefix":    {"en": "B",      "de": "E"},
     "hud.level_up":        {"en": "LEVEL UP!  NOW LEVEL {n}",
                             "de": "AUFGESTIEGEN!  JETZT LEVEL {n}"},
     "hud.stat_pts":        {"en": "★ {n} STAT POINT{s}  [C]",
