@@ -191,6 +191,8 @@ _T: dict[str, dict[str, str]] = {
                             "de": "Trank benutzt  +{n} LP"},
     "inv.vs_equipped":     {"en": "vs. equipped:",
                             "de": "vs. ausgerüstet:"},
+    "inv.full":            {"en": "Inventory full!",
+                            "de": "Rucksack voll!"},
 
     # Slot labels
     "slot.weapon":  {"en": "WEAPON",  "de": "WAFFE"},

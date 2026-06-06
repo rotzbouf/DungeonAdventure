@@ -409,6 +409,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
 
             if event.type == pygame.MOUSEWHEEL and self.settings_open:
                 self._settings_screen.handle_event(event)
+            if event.type == pygame.MOUSEWHEEL and self.inv_open:
+                self.inventory.handle_scroll(event.y)
             if event.type == pygame.MOUSEWHEEL and self.house_open:
                 self._house_screen.handle_event(event, self.player)
             if event.type == pygame.MOUSEWHEEL and self.enchant_open:
@@ -764,8 +766,10 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     if isinstance(item, _GP):
                         done = self.quest_log.notify("collect", "gold", item.amount)
                         self._apply_quest_rewards(done)
-                    item.collect(self.player)
-                    self._spawn_pickup_sparkle(item.x, item.y)
+                    if item.collect(self.player):
+                        self._spawn_pickup_sparkle(item.x, item.y)
+                    else:
+                        self.inventory.notify(t("inv.full"))
         self.items = [i for i in self.items if not i.collected]
 
         for chest in self.chests:

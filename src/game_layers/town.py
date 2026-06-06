@@ -5,7 +5,8 @@ from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, LIGHT_GRAY,
 from src.world.town import (PLAYER_SPAWN as TOWN_PLAYER_SPAWN,
                               DUNGEON_ENTRANCE_POS, DUNGEON_INTERACT_R,
                               HOUSE_POS, HOUSE_INTERACT_R,
-                              TOWN_BOUNDS, MERCHANT_SPECS)
+                              TOWN_BOUNDS, MERCHANT_SPECS,
+                              TOWN_W, TOWN_H)
 from src.entities.merchant import TownMerchant
 from src import save as savesys
 from src.locale import t
@@ -39,9 +40,12 @@ class TownLayer:
             self._town_notice_msg = t("town.rested")
             self._town_notice_t   = 3.5
 
-        # Lock camera at (0,0) for the fixed-size town view
-        self.camera.x = 0.0
-        self.camera.y = 0.0
+        # Position camera so the player's spawn (near gate) is centred
+        play_w = SCREEN_WIDTH
+        play_h = SCREEN_HEIGHT - HUD_HEIGHT
+        sx, sy = TOWN_PLAYER_SPAWN
+        self.camera.x = max(0.0, min(sx - play_w / 2, float(TOWN_W - play_w)))
+        self.camera.y = max(0.0, min(sy - play_h / 2, float(TOWN_H - play_h)))
         self.state    = STATE_TOWN
 
     def _return_to_town(self):
@@ -104,6 +108,16 @@ class TownLayer:
     def _update_town(self, dt: float):
         if self.player is None:
             return
+        # Smooth-follow camera clamped to town map
+        play_w = SCREEN_WIDTH
+        play_h = SCREEN_HEIGHT - HUD_HEIGHT
+        tx = self.player.x - play_w / 2
+        ty = self.player.y - play_h / 2
+        tx = max(0.0, min(tx, float(TOWN_W - play_w)))
+        ty = max(0.0, min(ty, float(TOWN_H - play_h)))
+        lerp = min(1.0, 8.0 * dt)
+        self.camera.x += (tx - self.camera.x) * lerp
+        self.camera.y += (ty - self.camera.y) * lerp
         # Player walks around town; TOWN_BOUNDS acts as a minimal wall collider
         self.player.update(dt, TOWN_BOUNDS, self.camera)
         for m in self.town_merchants:
@@ -129,15 +143,19 @@ class TownLayer:
             math.hypot(self.player.x - HOUSE_POS[0],
                        self.player.y - HOUSE_POS[1]) < HOUSE_INTERACT_R
         )
+        cam_x = int(self.camera.x)
+        cam_y = int(self.camera.y)
+
         # Background + entrance + house + stall names
-        self.town_renderer.draw(self.screen, self._time, near_entrance, near_house)
+        self.town_renderer.draw(self.screen, self._time, near_entrance, near_house,
+                                cam_x, cam_y)
 
         # Merchant sprites and interaction hints
         for m in self.town_merchants:
-            m.draw(self.screen, self.camera)   # camera is zeroed in town
+            m.draw(self.screen, self.camera)
             if m.near_player(self.player):
-                hx = int(m.x)
-                hy = int(m.y) - 58
+                hx = int(m.x) - cam_x
+                hy = int(m.y) - 58 - cam_y
                 # ── High-contrast interaction badge ────────────────────────
                 key_lbl  = self._font_sm.render("[F]", True, (255, 235, 80))
                 act_lbl  = self._font_sm.render(t("town.shop_hint").replace("[F]", "").strip(" —").strip(),

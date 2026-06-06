@@ -16,8 +16,8 @@ from src.items.item import (EquipItem, HealthPotion,
 from src.locale import t, get_slot_label
 
 # ── Panel geometry ─────────────────────────────────────────────────────────────
-_PW = 1020
-_PH = 700
+_PW = 1060
+_PH = 720
 _PX = (SCREEN_WIDTH  - _PW) // 2
 _PY = (SCREEN_HEIGHT - HUD_HEIGHT - _PH) // 2
 
@@ -25,10 +25,11 @@ _LEFT_W  = 400          # character-silhouette column width
 _RIGHT_X = _PX + _LEFT_W + 10
 _PAD     = 10
 
-_BAG_COLS = 4
-_BAG_ROWS = 3
-_BAG_CELL = 70
-_BAG_GAP  = 8
+_BAG_COLS    = 5     # columns per row
+_BAG_ROWS    = 5     # visible rows at once
+_BAG_CAP     = 50   # total backpack capacity (slots)
+_BAG_CELL    = 70
+_BAG_GAP     = 8
 
 # ── Equipment slot dimensions & positions ─────────────────────────────────────
 # All (cx, cy) are relative to the TOP-LEFT of the character panel content area
@@ -108,11 +109,17 @@ class InventoryScreen:
 
         self._msg   = ""
         self._msg_t = 0.0
+        self._scroll = 0    # first visible row index
 
         self._hov_equip_key: str | None = None
         self._hov_bag_idx:   int        = -1
 
     # ── Public API ────────────────────────────────────────────────────────────
+
+    def handle_scroll(self, dy: int):
+        total_rows  = _BAG_CAP // _BAG_COLS
+        max_scroll  = max(0, total_rows - _BAG_ROWS)
+        self._scroll = max(0, min(self._scroll - dy, max_scroll))
 
     def notify(self, text: str):
         self._msg   = text
@@ -128,7 +135,9 @@ class InventoryScreen:
         key = self._equip_key_at(mx, my)
         if key is not None and player.equipment.get(key) is not None:
             old = player.equipment[key]
-            player.unequip(key)
+            if not player.unequip(key):
+                self.notify(t("inv.full"))
+                return True
             self.notify(t("inv.unequipped", name=old.display_name))
             return True
 
@@ -347,16 +356,27 @@ class InventoryScreen:
 
     # ── Backpack ──────────────────────────────────────────────────────────────
 
+    def _grid_top(self) -> int:
+        return _PY + 52
+
+    def _grid_height(self) -> int:
+        return _BAG_ROWS * (_BAG_CELL + _BAG_GAP)
+
     def _bag_cell_rect(self, idx: int) -> pygame.Rect:
         col = idx % _BAG_COLS
         row = idx // _BAG_COLS
         x   = _RIGHT_X + _PAD + col * (_BAG_CELL + _BAG_GAP)
-        y   = _PY + 52  + row * (_BAG_CELL + _BAG_GAP)
+        y   = self._grid_top() + (row - self._scroll) * (_BAG_CELL + _BAG_GAP)
         return pygame.Rect(x, y, _BAG_CELL, _BAG_CELL)
 
     def _bag_idx_at(self, mx: int, my: int) -> int:
-        for i in range(_BAG_COLS * _BAG_ROWS):
-            if self._bag_cell_rect(i).collidepoint(mx, my):
+        gt = self._grid_top()
+        gb = gt + self._grid_height()
+        if not (gt <= my < gb):
+            return -1
+        for i in range(_BAG_CAP):
+            r = self._bag_cell_rect(i)
+            if r.collidepoint(mx, my):
                 return i
         return -1
 
@@ -364,15 +384,29 @@ class InventoryScreen:
         return player.backpack + player.potions
 
     def _draw_backpack(self, surface: pygame.Surface, player, hdr_h: int):
-        bx = _RIGHT_X + _PAD
-
-        hdr = self._font_md.render(t("inv.backpack"), True, LIGHT_GRAY)
-        surface.blit(hdr, (bx, _PY + hdr_h + 6))
-
+        bx    = _RIGHT_X + _PAD
         items = self._bag_items(player)
+        used  = len(items)
 
-        for i in range(_BAG_COLS * _BAG_ROWS):
-            r   = self._bag_cell_rect(i)
+        # ── Header: "Backpack  12 / 50" ──────────────────────────────────────
+        hdr_txt = t("inv.backpack")
+        hdr = self._font_md.render(hdr_txt, True, LIGHT_GRAY)
+        surface.blit(hdr, (bx, _PY + hdr_h + 6))
+        cap_col = (220, 80, 80) if used >= _BAG_CAP else (120, 120, 120)
+        cap_s   = self._font_xs.render(f"{used} / {_BAG_CAP}", True, cap_col)
+        surface.blit(cap_s, (bx + hdr.get_width() + 8,
+                              _PY + hdr_h + 6 + (hdr.get_height() - cap_s.get_height()) // 2))
+
+        # ── Grid (clipped to visible rows) ────────────────────────────────────
+        gt = self._grid_top()
+        gh = self._grid_height()
+        old_clip = surface.get_clip()
+        surface.set_clip(pygame.Rect(_RIGHT_X, gt, _PW - _LEFT_W - 10, gh))
+
+        for i in range(_BAG_CAP):
+            r = self._bag_cell_rect(i)
+            if r.bottom <= gt or r.top >= gt + gh:
+                continue
             hov = (i == self._hov_bag_idx)
             pygame.draw.rect(surface, _COL_SLOT_H if hov else _COL_SLOT, r)
 
@@ -383,7 +417,6 @@ class InventoryScreen:
                     pygame.draw.rect(surface, bc, r,
                                      1 if item.quality == QUALITY_NORMAL else 2)
                     icon_rect = r.inflate(-14, -14)
-                    # Try PNG sprite first; fall back to procedural drawing
                     try:
                         from src.assets import assets
                         spr = assets.item_sprite(item.base_name,
@@ -401,14 +434,12 @@ class InventoryScreen:
                         else:
                             item._draw_armor_icon(surface, icon_rect, bc)
 
-                    # Quality badge (top-right)
                     badge_chars = {1: "M", 2: "R", 3: "U"}
                     bc_char = badge_chars.get(item.quality, "")
                     if bc_char:
                         bs = self._font_xs.render(bc_char, True, item.quality_color)
                         surface.blit(bs, (r.right - bs.get_width() - 2, r.top + 2))
 
-                    # Comparison badge (bottom-right)
                     verdict, vcol = self._quick_verdict(item, player)
                     if verdict:
                         vs  = self._font_xs.render(verdict, True, vcol)
@@ -426,15 +457,33 @@ class InventoryScreen:
             else:
                 pygame.draw.rect(surface, _COL_SEP, r, 1)
 
-        # Potion count
-        pot_y = _PY + 52 + _BAG_ROWS * (_BAG_CELL + _BAG_GAP) + 6
-        pc    = len(player.potions)
-        pt    = self._font_sm.render(t("inv.potions", n=pc), True,
-                                     _POTION_COL if pc else GRAY)
-        surface.blit(pt, (bx, pot_y))
+        surface.set_clip(old_clip)
 
-        # Extra character stats (right side)
-        sy = pot_y + pt.get_height() + 8
+        # ── Scroll indicator ──────────────────────────────────────────────────
+        total_rows = _BAG_CAP // _BAG_COLS
+        max_scroll = max(0, total_rows - _BAG_ROWS)
+        si_y = gt + gh + 5
+        if max_scroll > 0:
+            row0 = self._scroll + 1
+            row1 = min(self._scroll + _BAG_ROWS, total_rows)
+            dim_up   = (55, 44, 30) if self._scroll == 0          else (160, 140, 100)
+            dim_down = (55, 44, 30) if self._scroll >= max_scroll  else (160, 140, 100)
+            arr_up   = self._font_xs.render("▲", True, dim_up)
+            arr_down = self._font_xs.render("▼", True, dim_down)
+            pos_txt  = self._font_xs.render(
+                f"rows {row0}–{row1} of {total_rows}  (scroll)", True, (90, 78, 60))
+            surface.blit(arr_up,   (bx, si_y))
+            surface.blit(pos_txt,  (bx + arr_up.get_width() + 6, si_y))
+            surface.blit(arr_down, (bx + arr_up.get_width() + 6 + pos_txt.get_width() + 6, si_y))
+            si_y += arr_up.get_height() + 4
+
+        # ── Potion count + extra stats ────────────────────────────────────────
+        pc = len(player.potions)
+        pt = self._font_sm.render(t("inv.potions", n=pc), True,
+                                   _POTION_COL if pc else GRAY)
+        surface.blit(pt, (bx, si_y + 2))
+
+        sy = si_y + pt.get_height() + 10
         extras = []
         if player.crit_chance > 0:
             extras.append((f"Crit  {int(player.crit_chance)}%", (220, 220, 80)))

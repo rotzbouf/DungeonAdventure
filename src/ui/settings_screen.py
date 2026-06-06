@@ -396,7 +396,7 @@ class SettingsScreen:
         y += 14
         for line in [
             "The game renders at 1920×1080 internally.",
-            "Windowed mode uses pygame's SCALED flag — all coordinates stay correct.",
+            "Windowed mode scales the render to the chosen size; mouse coords are remapped.",
             "Changes apply immediately.",
         ]:
             s = self._fs.render(line, True, _DIM)

@@ -776,9 +776,11 @@ class HealthPotion(Item):
         super().__init__(tx, ty)
         self.heal_amount = heal if heal else random.randint(20, 40)
 
-    def collect(self, player):
-        player.add_item(self)
+    def collect(self, player) -> bool:
+        if not player.add_item(self):
+            return False
         self.collected = True
+        return True
 
     def _draw_shape(self, surface: pygame.Surface, rect: pygame.Rect):
         cx, cy = rect.centerx, rect.centery
@@ -905,9 +907,11 @@ class EquipItem(Item):
 
     # ── Inventory interaction ─────────────────────────────────────────────────
 
-    def collect(self, player):
-        player.add_item(self)
+    def collect(self, player) -> bool:
+        if not player.add_item(self):
+            return False
         self.collected = True
+        return True
 
     # ── Ground drawing ────────────────────────────────────────────────────────
 

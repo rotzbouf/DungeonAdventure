@@ -58,6 +58,7 @@ class Player(Entity):
         self.backpack:        list      = []
         self.stash:           list      = []   # house chest — persistent storage
         self.potions:         list      = []
+        self.backpack_cap:    int       = 50   # max combined backpack + potions slots
         self.defeated_bosses: set[str]  = set()  # boss class names beaten this run
         self.perks:           list[str] = []      # owned perk IDs
         self._perk_picks_pending: int   = 0       # how many perk picks are queued
@@ -268,9 +269,15 @@ class Player(Entity):
 
     # ─── Inventory ───────────────────────────────────────────────────────────────
 
-    def add_item(self, item):
+    def inventory_full(self) -> bool:
+        return len(self.backpack) + len(self.potions) >= self.backpack_cap
+
+    def add_item(self, item) -> bool:
+        """Add item to inventory. Returns False if backpack is at capacity."""
         from src.items.item import EquipItem, HealthPotion
         if isinstance(item, HealthPotion):
+            if self.inventory_full():
+                return False
             self.potions.append(item)
         elif isinstance(item, EquipItem):
             slot = item.slot
@@ -285,7 +292,10 @@ class Player(Entity):
             if key is not None and self.equipment.get(key) is None:
                 self.equipment[key] = item
             else:
+                if self.inventory_full():
+                    return False
                 self.backpack.append(item)
+        return True
 
     def equip(self, item, slot_key: str | None = None) -> object | None:
         from src.items.item import EquipItem
@@ -305,11 +315,15 @@ class Player(Entity):
             pass
         return old
 
-    def unequip(self, slot_key: str) -> None:
+    def unequip(self, slot_key: str) -> bool:
+        """Unequip item into backpack. Returns False if backpack is full."""
         item = self.equipment.get(slot_key)
-        if item is not None:
-            self.equipment[slot_key] = None
-            self.backpack.append(item)
+        if item is None:
+            return True
+        if self.inventory_full():
+            return False
+        self.equipment[slot_key] = None
+        self.backpack.append(item)
         try:
             from src.assets import assets
             assets.invalidate_player_cache()

@@ -42,11 +42,11 @@ _DEFAULTS: dict[str, int] = {
     "character":         pygame.K_c,
     "skills":            pygame.K_k,
     "quests":            pygame.K_j,
-    "spell_fireball":    pygame.K_z,
-    "spell_ice_nova":    pygame.K_x,
-    "spell_chain":       pygame.K_r,
-    "spell_blink":       pygame.K_v,
-    "spell_battle_cry":  pygame.K_b,
+    "spell_fireball":    pygame.K_0,
+    "spell_ice_nova":    pygame.K_9,
+    "spell_chain":       pygame.K_8,
+    "spell_blink":       pygame.K_7,
+    "spell_battle_cry":  pygame.K_6,
 }
 
 # Human-readable label for each action (used in the Controls tab)
@@ -142,12 +142,22 @@ class SettingsManager:
             ww, wh = WINDOW_PRESETS[
                 max(0, min(self.window_preset, len(WINDOW_PRESETS) - 1))
             ]
-            # pygame.SCALED keeps the internal 1920×1080 surface; the OS window
-            # is resized but all coordinates remain correct.
+            # Keep the logical surface at the game's native 1920×1080 so all
+            # coordinate math stays valid.  pygame.SCALED tells SDL2 to scale
+            # the rendering to fit the physical window and translates mouse
+            # events back to logical coords automatically.
             surf = pygame.display.set_mode(
-                (ww, wh),
-                pygame.SCALED | pygame.HWSURFACE | pygame.DOUBLEBUF,
+                (SCREEN_WIDTH, SCREEN_HEIGHT),
+                pygame.SCALED | pygame.DOUBLEBUF,
             )
+            # Resize the physical OS window to the chosen preset.
+            try:
+                import pygame._sdl2.video as _sdl2
+                win = _sdl2.Window.from_display_module()
+                win.size = (ww, wh)
+                win.position = _sdl2.WINDOWPOS_CENTERED
+            except Exception:
+                pass
         self.save()
         return surf
 

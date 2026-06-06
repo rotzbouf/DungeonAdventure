@@ -208,11 +208,11 @@ class HUD:
         # Spell icons
         st = player.skill_tree
         spells = [
-            ("Z",  t("spell.fireball"),   FIREBALL_MANA_COST,       0.0,        True),
-            ("X",  t("spell.ice_nova"),   ICE_NOVA_MANA_COST,        ice_nova_cd, st.has_ice_nova()),
-            ("R",  t("spell.chain_ltng"), CHAIN_LIGHTNING_MANA_COST, chain_cd,   st.has_chain_lightning()),
-            ("V",  t("spell.blink"),      BLINK_MANA_COST,           blink_cd,   st.has_blink()),
-            ("B",  t("spell.battle_cry"), BATTLE_CRY_MANA_COST,      0.0,        st.level("battle_cry") > 0),
+            ("0",  t("spell.fireball"),   FIREBALL_MANA_COST,       0.0,        True),
+            ("9",  t("spell.ice_nova"),   ICE_NOVA_MANA_COST,        ice_nova_cd, st.has_ice_nova()),
+            ("8",  t("spell.chain_ltng"), CHAIN_LIGHTNING_MANA_COST, chain_cd,   st.has_chain_lightning()),
+            ("7",  t("spell.blink"),      BLINK_MANA_COST,           blink_cd,   st.has_blink()),
+            ("6",  t("spell.battle_cry"), BATTLE_CRY_MANA_COST,      0.0,        st.level("battle_cry") > 0),
         ]
         icon_x = fx
         icon_y = hud_y + 42
