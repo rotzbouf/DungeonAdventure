@@ -139,6 +139,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._blink_cd         = 0.0
         self._battle_cry_timer = 0.0   # remaining active seconds
 
+        self._inv_full_cd = 0.0   # cooldown between "inventory full" notifications
+
         # Lightning arc segments for Chain Lightning visual
         self._lightning_arcs: list = []
 
@@ -697,6 +699,7 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._ice_nova_cd = max(0.0, self._ice_nova_cd - dt)
         self._chain_cd    = max(0.0, self._chain_cd    - dt)
         self._blink_cd    = max(0.0, self._blink_cd    - dt)
+        self._inv_full_cd = max(0.0, self._inv_full_cd - dt)
 
         # Battle cry countdown
         if self._battle_cry_timer > 0:
@@ -769,7 +772,10 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     if item.collect(self.player):
                         self._spawn_pickup_sparkle(item.x, item.y)
                     else:
-                        self.inventory.notify(t("inv.full"))
+                        if self._inv_full_cd <= 0:
+                            self.hud.notify(t("inv.full"), color=(255, 120, 40))
+                            self.inventory.notify(t("inv.full"))
+                            self._inv_full_cd = 3.0
         self.items = [i for i in self.items if not i.collected]
 
         for chest in self.chests:

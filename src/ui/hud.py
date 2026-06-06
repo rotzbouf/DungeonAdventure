@@ -61,6 +61,7 @@ class HUD:
         self._lvup_timer  = 0.0
         self._shop_timer  = 0.0
         self._quest_msgs: list[tuple[str, float]] = []
+        self._hud_msgs:   list[tuple[str, float, tuple]] = []
 
     def notify_level_up(self):
         self._lvup_timer = 2.8
@@ -68,10 +69,15 @@ class HUD:
     def notify_quest(self, text: str):
         self._quest_msgs.append((text, 3.5))
 
+    def notify(self, text: str, color: tuple = (255, 200, 80)):
+        """Show a fading centre-screen message (e.g. 'Inventory full!')."""
+        self._hud_msgs.append((text, 2.5, color))
+
     def update(self, dt: float):
         self._lvup_timer = max(0.0, self._lvup_timer - dt)
         self._shop_timer = max(0.0, self._shop_timer - dt)
-        self._quest_msgs = [(txt, timer - dt) for txt, timer in self._quest_msgs if timer - dt > 0]
+        self._quest_msgs = [(txt, t - dt) for txt, t in self._quest_msgs if t - dt > 0]
+        self._hud_msgs   = [(txt, t - dt, col) for txt, t, col in self._hud_msgs if t - dt > 0]
 
     def draw(self, surface: pygame.Surface, player, dungeon_level: int,
              battle_cry_active: bool = False,
@@ -252,6 +258,17 @@ class HUD:
             msg.set_alpha(alpha)
             pos = msg.get_rect(center=(SCREEN_WIDTH // 2, play_cy - 60))
             _shadow_blit(surface, msg, pos.topleft)
+
+        # General HUD messages (inventory full, etc.) — shown above quest msgs
+        my = play_cy - 30
+        for txt, timer, col in self._hud_msgs:
+            fade  = min(1.0, timer / 0.5)
+            alpha = int(fade * 230)
+            ms = self._font_lg.render(txt, True, col)
+            ms.set_alpha(alpha)
+            pos = ms.get_rect(center=(SCREEN_WIDTH // 2, my))
+            _shadow_blit(surface, ms, pos.topleft)
+            my += 30
 
         qy = play_cy + 10
         for txt, timer in self._quest_msgs:
