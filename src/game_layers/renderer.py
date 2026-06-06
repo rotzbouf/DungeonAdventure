@@ -8,6 +8,7 @@ from src.settings import (
 import src.locale as locale
 from src.locale import t
 from src import save as savesys
+from src.version import __version__
 
 
 class RendererLayer:
@@ -436,6 +437,11 @@ class RendererLayer:
 
         note = self._font_sm.render(t("menu.skill_note"), True, GRAY)
         self.screen.blit(note, note.get_rect(right=cx+240, y=SCREEN_HEIGHT-28))
+
+        # Version — bottom-right corner
+        ver_s = self._font_sm.render(f"v{__version__}", True, (70, 70, 90))
+        self.screen.blit(ver_s, ver_s.get_rect(right=SCREEN_WIDTH - 14,
+                                                bottom=SCREEN_HEIGHT - 8))
 
         # ── Language selector ─────────────────────────────────────────────────
         self._lang_btn_rects = {}
