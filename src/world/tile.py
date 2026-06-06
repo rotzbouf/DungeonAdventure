@@ -218,7 +218,7 @@ def get_tile_surface(tile_type: int, tx: int, ty: int) -> pygame.Surface:
     if key in _cache:
         return _cache[key]
 
-    # Try PNG asset first (floor and wall only)
+    # Try PNG asset first (floor, wall, stairs)
     if tile_type in (TILE_FLOOR, TILE_WALL):
         try:
             from src.assets import assets
@@ -229,6 +229,22 @@ def get_tile_surface(tile_type: int, tx: int, ty: int) -> pygame.Surface:
                 return tex
         except Exception:
             pass   # fall through to procedural
+
+    if tile_type in (TILE_STAIRS_DOWN, TILE_STAIRS_UP):
+        import pathlib
+        fname = "stairs_down.png" if tile_type == TILE_STAIRS_DOWN else "stairs_up.png"
+        path  = pathlib.Path("assets") / fname
+        if path.exists():
+            try:
+                raw  = pygame.image.load(str(path)).convert_alpha()
+                surf = pygame.transform.scale(raw, (TILE_SIZE, TILE_SIZE))
+                _cache[(tile_type, 0)] = surf   # same sprite for all variants
+                _cache[(tile_type, 1)] = surf
+                _cache[(tile_type, 2)] = surf
+                _cache[(tile_type, 3)] = surf
+                return surf
+            except Exception:
+                pass   # fall through to procedural
 
     surf = pygame.Surface((TILE_SIZE, TILE_SIZE))
 
