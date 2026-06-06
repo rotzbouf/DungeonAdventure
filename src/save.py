@@ -1,14 +1,18 @@
 """
 Save / load system — checkpoint save (roguelike style).
-Saved to ~/.dungeonadventure/save.json on stair descent.
-Deleted on death. Restored on "Continue" from the title screen.
+
+Legacy path: ~/.dungeonadventure/save.json  (migrated on first launch)
+Per-hero path: ~/.dungeonadventure/saves/{hero_id}.json
 """
 from __future__ import annotations
 
 import json
 import pathlib
+import time
 
-SAVE_PATH = pathlib.Path("~/.dungeonadventure/save.json").expanduser()
+_BASE_DIR  = pathlib.Path("~/.dungeonadventure").expanduser()
+SAVE_PATH  = _BASE_DIR / "save.json"          # legacy single-save
+SAVES_DIR  = _BASE_DIR / "saves"              # multi-hero directory
 
 
 # ── Item serialisation ────────────────────────────────────────────────────────
@@ -75,9 +79,12 @@ def item_from_dict(data: dict | None):
     return None
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+# ── Legacy compatibility ──────────────────────────────────────────────────────
 
 def has_save() -> bool:
+    """True if any save exists (hero or legacy)."""
+    if SAVES_DIR.exists() and any(SAVES_DIR.glob("*.json")):
+        return True
     return SAVE_PATH.exists()
 
 
@@ -85,21 +92,91 @@ def delete_save():
     SAVE_PATH.unlink(missing_ok=True)
 
 
+def migrate_legacy_save():
+    """Move ~/.dungeonadventure/save.json → saves/legacy.json (once)."""
+    if not SAVE_PATH.exists():
+        return
+    legacy_path = SAVES_DIR / "legacy.json"
+    if legacy_path.exists():
+        return
+    SAVES_DIR.mkdir(parents=True, exist_ok=True)
+    data = json.loads(SAVE_PATH.read_text())
+    data.setdefault("hero_id",    "legacy")
+    data.setdefault("hero_name",  "Hero")
+    data.setdefault("hero_class", "warrior")
+    data.setdefault("gender",     "male")
+    data.setdefault("last_played", time.time())
+    legacy_path.write_text(json.dumps(data, indent=2))
+    SAVE_PATH.unlink(missing_ok=True)
+
+
+# ── Multi-hero API ────────────────────────────────────────────────────────────
+
+def list_heroes() -> list[dict]:
+    """Return hero summary dicts sorted newest-first.  Empty list if none."""
+    if not SAVES_DIR.exists():
+        return []
+    heroes = []
+    for p in SAVES_DIR.glob("*.json"):
+        try:
+            d = json.loads(p.read_text())
+            heroes.append({
+                "hero_id":    d.get("hero_id", p.stem),
+                "hero_name":  d.get("hero_name", "Hero"),
+                "hero_class": d.get("hero_class", "warrior"),
+                "gender":     d.get("gender", "male"),
+                "level":      d.get("level", 1),
+                "dungeon_level": d.get("dungeon_level", 1),
+                "last_played":   d.get("last_played", 0.0),
+            })
+        except Exception:
+            pass
+    heroes.sort(key=lambda h: h["last_played"], reverse=True)
+    return heroes
+
+
+def has_hero(hero_id: str) -> bool:
+    return (SAVES_DIR / f"{hero_id}.json").exists()
+
+
+def delete_hero(hero_id: str):
+    (SAVES_DIR / f"{hero_id}.json").unlink(missing_ok=True)
+
+
+def load_hero(hero_id: str) -> dict | None:
+    p = SAVES_DIR / f"{hero_id}.json"
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text())
+    except Exception:
+        return None
+
+
+# ── Save / restore ────────────────────────────────────────────────────────────
+
 def save_game(player, dungeon_level: int, ng_plus: int = 0,
               quest_log=None, skill_tree=None):
     """Persist the current game state to disk."""
+    hero_id = getattr(player, "hero_id", "")
     data = {
-        "version":       2,
+        "version":       3,
         "dungeon_level": dungeon_level,
         "ng_plus":       ng_plus,
+        # ── Hero identity ──
+        "hero_id":    hero_id,
+        "hero_name":  getattr(player, "name",       "Hero"),
+        "hero_class": getattr(player, "hero_class", "warrior"),
+        "gender":     getattr(player, "gender",     "male"),
+        "last_played": time.time(),
         # ── Player core ──
         "level":         player.level,
         "xp":            player.xp,
         "xp_to_next":    player.xp_to_next,
         "hp":            player.hp,
-        "max_hp":        player.max_hp,      # grows +5 per level-up
+        "max_hp":        player.max_hp,
         "mana":          player.mana,
-        "max_mana":      player.max_mana,    # grows +3 per level-up
+        "max_mana":      player.max_mana,
         "gold":          player.gold,
         "materials":       dict(getattr(player, "materials", {})),
         "defeated_bosses": list(getattr(player, "defeated_bosses", set())),
@@ -122,11 +199,20 @@ def save_game(player, dungeon_level: int, ng_plus: int = 0,
         "skills":  skill_tree.to_dict() if skill_tree else {},
         "quests":  quest_log.to_dict() if quest_log else {},
     }
-    SAVE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SAVE_PATH.write_text(json.dumps(data, indent=2))
+    if hero_id:
+        SAVES_DIR.mkdir(parents=True, exist_ok=True)
+        (SAVES_DIR / f"{hero_id}.json").write_text(json.dumps(data, indent=2))
+    else:
+        # Fallback: legacy path (should not happen for new heroes)
+        SAVE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        SAVE_PATH.write_text(json.dumps(data, indent=2))
 
 
 def load_game() -> dict | None:
+    """Load the most-recently-played hero, or the legacy save."""
+    heroes = list_heroes()
+    if heroes:
+        return load_hero(heroes[0]["hero_id"])
     if not SAVE_PATH.exists():
         return None
     try:
@@ -154,6 +240,11 @@ def restore_player(player, data: dict):
     player.vit_pts     = data["vit_pts"]
     player.ene_pts     = data["ene_pts"]
     player.stat_points = data["stat_points"]
+
+    player.name       = data.get("hero_name",  getattr(player, "name",       "Hero"))
+    player.hero_class = data.get("hero_class",  getattr(player, "hero_class", "warrior"))
+    player.gender     = data.get("gender",      getattr(player, "gender",     "male"))
+    player.hero_id    = data.get("hero_id",     getattr(player, "hero_id",    ""))
 
     player.potions = [HealthPotion(0, 0, pd["heal"])
                       for pd in data.get("potions", [])]

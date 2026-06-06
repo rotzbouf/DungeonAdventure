@@ -136,9 +136,38 @@ _T: dict[str, dict[str, str]] = {
     # ── Main Menu ─────────────────────────────────────────────────────────────
     "menu.subtitle":       {"en": "A Classic Dungeon Crawler",
                             "de": "Ein klassisches Dungeon-Abenteuer"},
-    "menu.new_game":       {"en": "NEW  GAME",   "de": "NEUES SPIEL"},
-    "menu.continue":       {"en": "CONTINUE",    "de": "FORTSETZEN"},
+    "menu.new_game":       {"en": "NEW  HERO",   "de": "NEUER HELD"},
+    "menu.continue":       {"en": "LOAD  HERO",  "de": "HELD LADEN"},
     "menu.settings":       {"en": "SETTINGS",    "de": "EINSTELLUNGEN"},
+
+    # ── Hero Select screen ────────────────────────────────────────────────────
+    "hero_select.title":   {"en": "SELECT  HERO",    "de": "HELD WÄHLEN"},
+    "hero_select.create":  {"en": "CREATE  NEW  HERO", "de": "NEUEN HELD ERSTELLEN"},
+    "hero_select.delete":  {"en": "DELETE",            "de": "LÖSCHEN"},
+    "hero_select.confirm_delete": {
+        "en": "Delete {name}? This cannot be undone.",
+        "de": "{name} löschen? Dies kann nicht rückgängig gemacht werden.",
+    },
+    "hero_select.yes":     {"en": "YES, DELETE",  "de": "JA, LÖSCHEN"},
+    "hero_select.no":      {"en": "CANCEL",        "de": "ABBRECHEN"},
+    "hero_select.back":    {"en": "BACK",           "de": "ZURÜCK"},
+    "hero_select.floor":   {"en": "Floor {n}",      "de": "Etage {n}"},
+    "hero_select.level":   {"en": "Level {n}",      "de": "Level {n}"},
+
+    # ── Character Creation screen ─────────────────────────────────────────────
+    "char_create.title":   {"en": "CREATE  HERO",   "de": "HELD ERSTELLEN"},
+    "char_create.name":    {"en": "Hero Name",       "de": "Heldenname"},
+    "char_create.class":   {"en": "Class",           "de": "Klasse"},
+    "char_create.gender":  {"en": "Gender",          "de": "Geschlecht"},
+    "char_create.male":    {"en": "Male",             "de": "Männlich"},
+    "char_create.female":  {"en": "Female",           "de": "Weiblich"},
+    "char_create.stats":   {"en": "Starting Stats",  "de": "Startwerte"},
+    "char_create.confirm": {"en": "CREATE",           "de": "ERSTELLEN"},
+    "char_create.back":    {"en": "BACK",             "de": "ZURÜCK"},
+    "char_create.name_empty": {
+        "en": "Please enter a name.",
+        "de": "Bitte einen Namen eingeben.",
+    },
     "menu.press_enter":    {"en": "- PRESS  ENTER  TO  START -",
                             "de": "- ENTER  DRÜCKEN  ZUM  START -"},
     "menu.press_c":        {"en": "- PRESS  C  TO  CONTINUE -",

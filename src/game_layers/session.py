@@ -140,30 +140,62 @@ class SessionLayer:
         self.quest_log.track_floor(level)
 
     def _new_game(self):
+        """Legacy helper — kept for compatibility."""
+        import uuid
+        self._new_hero("Hero", "warrior", "male")
+
+    def _new_hero(self, name: str, hero_class: str, gender: str):
+        """Create a fresh hero with the given identity and enter town."""
+        import uuid
+        from src.entities.player import Player as _Player
+        from src.hero_classes import HERO_CLASSES
         self.dungeon_level = 1
-        self.quest_log  = QuestLog()
+        self.quest_log     = QuestLog()
         self._battle_cry_timer = 0.0
         self._ice_nova_cd = self._chain_cd = self._blink_cd = 0.0
-        # Create fresh player and enter town
-        from src.entities.player import Player as _Player
+
         self.player = _Player(TOWN_PLAYER_SPAWN[0], TOWN_PLAYER_SPAWN[1])
+        self.player.name       = name
+        self.player.hero_class = hero_class
+        self.player.gender     = gender
+        self.player.hero_id    = uuid.uuid4().hex[:12]
+
+        cls_data = HERO_CLASSES.get(hero_class, HERO_CLASSES["warrior"])
+        self.player.str_pts = cls_data["str_pts"]
+        self.player.dex_pts = cls_data["dex_pts"]
+        self.player.vit_pts = cls_data["vit_pts"]
+        self.player.ene_pts = cls_data["ene_pts"]
+
         self._enter_town(rest=False)
 
-    def _continue_game(self):
-        """Load a saved game and drop the player into town."""
-        data = savesys.load_game()
+    def _load_hero(self, hero_id: str):
+        """Load a specific hero by ID and drop into town."""
+        data = savesys.load_hero(hero_id)
         if not data:
-            self._new_game()
+            self._new_hero("Hero", "warrior", "male")
             return
+        self._restore_from_data(data)
+
+    def _continue_game(self):
+        """Load the most-recently-played hero (used by legacy key bindings)."""
+        heroes = savesys.list_heroes()
+        if heroes:
+            self._load_hero(heroes[0]["hero_id"])
+        else:
+            data = savesys.load_game()
+            if data:
+                self._restore_from_data(data)
+            else:
+                self._new_hero("Hero", "warrior", "male")
+
+    def _restore_from_data(self, data: dict):
         from src.skills import SkillTree
         from src.entities.player import Player as _Player
-        # Migrate old saves that used ng_plus: convert to absolute floor number
         ng_plus            = data.get("ng_plus", 0)
         raw_level          = data.get("dungeon_level", 1)
         self.dungeon_level = raw_level + ng_plus * 5
         self.quest_log     = QuestLog.from_dict(data.get("quests", {}))
 
-        # Build a bare player and restore saved state
         self.player = _Player(TOWN_PLAYER_SPAWN[0], TOWN_PLAYER_SPAWN[1])
         savesys.restore_player(self.player, data)
         self.player.skill_tree = SkillTree.from_dict(data.get("skills", {}))

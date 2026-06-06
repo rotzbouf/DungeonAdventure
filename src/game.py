@@ -7,6 +7,7 @@ from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, TILE_SIZE,
                            TITLE, FPS, VOID_COLOR, RED, YELLOW, WHITE,
                            LIGHT_GRAY, GRAY, GOLD_COLOR,
                            STATE_MENU, STATE_PLAYING, STATE_GAME_OVER, STATE_TOWN,
+                           STATE_HERO_SELECT, STATE_CHAR_CREATE,
                            ARROW_SPEED, ARROW_MAX_RANGE,
                            FIREBALL_MANA_COST, FIREBALL_SPEED, FIREBALL_MAX_RANGE,
                            FIREBALL_DAMAGE, FIREBALL_RADIUS, STATUS_BURN,
@@ -43,6 +44,8 @@ from src.ui.house_screen    import HouseScreen
 from src.ui.settings_screen     import SettingsScreen
 from src.ui.perk_screen         import PerkScreen
 from src.ui.quest_giver_screen  import QuestGiverScreen
+from src.ui.hero_select         import HeroSelectScreen
+from src.ui.char_create         import CharCreateScreen
 from src.settings_manager   import game_settings
 from src.quests            import QuestLog
 from src import save as savesys
@@ -103,8 +106,13 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._perk_screen           = PerkScreen()
         self.quest_giver_open       = False
         self._quest_giver_screen    = QuestGiverScreen()
+        self._hero_select           = HeroSelectScreen()
+        self._char_create           = CharCreateScreen()
         self._active_wanderer       = None   # WandererNPC | TownMerchant (guild)
         self._active_merchant: Merchant | None = None
+
+        # Migrate single legacy save → per-hero saves/ directory
+        savesys.migrate_legacy_save()
 
         # ── Multiplayer ───────────────────────────────────────────────────────
         self.net_client = net_client          # NetworkClient | None
@@ -309,6 +317,10 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     elif self.char_open:           self.char_open        = False
                     elif self.quest_open:          self.quest_open       = False
                     elif self.skill_open:          self.skill_open       = False
+                    elif self.state == STATE_HERO_SELECT:
+                        self._hero_select.handle_event(event)
+                    elif self.state == STATE_CHAR_CREATE:
+                        self._char_create.handle_event(event)
                     elif self.state == STATE_PLAYING:
                         self.state = STATE_MENU
                     elif self.state == STATE_TOWN:
@@ -320,14 +332,14 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     if self.craft_open:
                         self._craft_screen.handle_event(event, self.player)
                     elif self.state == STATE_MENU:
-                        self._new_game()
+                        self._open_char_create()
                     elif self.state == STATE_GAME_OVER:
                         self.state = STATE_MENU
 
-                # "Continue" from menu (only on title screen when save exists)
+                # "Load hero" from menu (only when saves exist)
                 if k == pygame.K_c and self.state == STATE_MENU:
                     if savesys.has_save():
-                        self._continue_game()
+                        self._open_hero_select()
 
                 # Language toggle — L key on menu
                 if k == pygame.K_l and self.state == STATE_MENU:
@@ -451,16 +463,20 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     for btn_id, brect in self._menu_btn_rects.items():
                         if brect.collidepoint(event.pos):
                             if btn_id == "new_game":
-                                self._new_game()
+                                self._open_char_create()
                             elif btn_id == "continue":
                                 if savesys.has_save():
-                                    self._continue_game()
+                                    self._open_hero_select()
                             elif btn_id == "settings":
                                 self.settings_open = True
                                 self._settings_screen.open(
                                     apply_display_fn=self._apply_display_settings,
                                     connect_fn=self._connect_to_server)
                             break
+                if self.state == STATE_HERO_SELECT:
+                    self._hero_select.handle_event(event)
+                if self.state == STATE_CHAR_CREATE:
+                    self._char_create.handle_event(event)
                     for code, rect in self._lang_btn_rects.items():
                         if rect.collidepoint(event.pos):
                             locale.set_lang(code)
@@ -740,10 +756,31 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._time   += dt
         self._shake_t = max(0.0, self._shake_t - dt)
 
-        if self.state == STATE_MENU:
+        if self.state in (STATE_MENU, STATE_HERO_SELECT, STATE_CHAR_CREATE):
             self._update_sparks(dt)
             if self.settings_open:
                 self._settings_screen.update(dt)
+
+            if self.state == STATE_HERO_SELECT:
+                r = self._hero_select.result()
+                if r == "back":
+                    self.state = STATE_MENU
+                elif r == "create":
+                    self._open_char_create()
+                elif r and r.startswith("load:"):
+                    hero_id = r[5:]
+                    self._load_hero(hero_id)
+                    self.state = STATE_TOWN
+
+            elif self.state == STATE_CHAR_CREATE:
+                r = self._char_create.result()
+                if r == "back":
+                    self.state = STATE_MENU
+                elif isinstance(r, tuple) and r[0] == "confirm":
+                    _, name, cls_id, gender, race = r
+                    self._new_hero(name, cls_id, gender)
+                    self.state = STATE_TOWN
+
             # Transition to multiplayer game once background connection succeeds
             if self._pending_net_client is not None:
                 nc = self._pending_net_client
@@ -890,8 +927,22 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._dmg_nums = [d for d in self._dmg_nums if d['timer'] > 0]
 
         if not self.player.is_alive():
-            savesys.delete_save()
+            hero_id = getattr(self.player, "hero_id", "")
+            if hero_id:
+                savesys.delete_hero(hero_id)
+            else:
+                savesys.delete_save()
             self.state = STATE_GAME_OVER
+
+    # ─── Hero flow helpers ────────────────────────────────────────────────────────
+
+    def _open_char_create(self):
+        self._char_create.open()
+        self.state = STATE_CHAR_CREATE
+
+    def _open_hero_select(self):
+        self._hero_select.open(savesys.list_heroes())
+        self.state = STATE_HERO_SELECT
 
     # ─── Draw ────────────────────────────────────────────────────────────────────
 
@@ -902,6 +953,12 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
             self._draw_menu()
             if self.settings_open:
                 self._settings_screen.draw(self.screen)
+        elif self.state == STATE_HERO_SELECT:
+            self._draw_menu()   # animated background
+            self._hero_select.draw(self.screen, self._time)
+        elif self.state == STATE_CHAR_CREATE:
+            self._draw_menu()   # animated background
+            self._char_create.draw(self.screen)
         elif self.state == STATE_TOWN:
             self._draw_town()
         elif self.state == STATE_PLAYING:

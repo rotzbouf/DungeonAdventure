@@ -35,6 +35,12 @@ class Player(Entity):
         self.gold       = 0
         self.materials: dict[str, int] = {}   # crafting materials inventory
 
+        # ── Hero identity ─────────────────────────────────────────────────────
+        self.name:       str = "Hero"
+        self.hero_class: str = "warrior"
+        self.gender:     str = "male"
+        self.hero_id:    str = ""
+
         # ── D2-style core attributes ─────────────────────────────────────────
         self.str_pts    = BASE_STR
         self.dex_pts    = BASE_DEX

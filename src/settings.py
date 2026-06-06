@@ -4,10 +4,12 @@ SCREEN_HEIGHT = 1080
 TILE_SIZE     = 40
 FPS           = 60
 
-STATE_MENU      = "menu"
-STATE_PLAYING   = "playing"
-STATE_GAME_OVER = "game_over"
-STATE_TOWN      = "town"
+STATE_MENU        = "menu"
+STATE_PLAYING     = "playing"
+STATE_GAME_OVER   = "game_over"
+STATE_TOWN        = "town"
+STATE_HERO_SELECT = "hero_select"
+STATE_CHAR_CREATE = "char_create"
 # STATE_WIN removed — replaced by the NG+ system (floor 5 descent loops back to floor 1)
 # STATE_SHOP removed — shop is an overlay flag (Game.shop_open), not a game state
 

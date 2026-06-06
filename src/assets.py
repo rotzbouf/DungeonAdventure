@@ -313,6 +313,13 @@ class AssetManager:
                     size: tuple | None = None) -> pygame.Surface | None:
         return self.item(base_name, size)
 
+    def portrait(self, race: str, gender: str,
+                 size: tuple = (160, 240)) -> pygame.Surface | None:
+        """Load a DCSS base portrait for the character creation screen."""
+        path = (_ASSETS / "Dungeon Crawl Stone Soup Full" /
+                "player" / "base" / f"{race}_{gender}.png")
+        return self._load(path, size)
+
     def clear_cache(self):
         self._cache.clear()
         self._composed_cache.clear()
