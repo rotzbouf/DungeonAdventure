@@ -216,24 +216,39 @@ class SettingsScreen:
         return False
 
     def _handle_display_click(self, lx: int, ly: int):
-        # Fullscreen toggle at ~150
-        if 110 <= ly <= 150:
+        pad = 20
+        # Fullscreen toggle (y=108–138)
+        if 108 <= ly <= 148:
             game_settings.fullscreen = not game_settings.fullscreen
             if self._apply_fn:
                 self._apply_fn()
             self._notify("Fullscreen " + ("ON" if game_settings.fullscreen else "OFF"), ok=True)
+            return
 
-        # Window preset buttons at ~240
-        if not game_settings.fullscreen and 220 <= ly <= 260:
-            pad = 20
-            btn_w = (self.W - pad * 2 - 180) // len(WINDOW_PRESETS)
+        # Window preset buttons (y=158–188)
+        if not game_settings.fullscreen and 158 <= ly <= 198:
+            btn_w = 130
             for i in range(len(WINDOW_PRESETS)):
-                bx = pad + 180 + i * btn_w
-                if bx <= lx <= bx + btn_w - 10:
+                bx = pad + 200 + i * (btn_w + 8)
+                if bx <= lx <= bx + btn_w - 2:
                     game_settings.window_preset = i
                     if self._apply_fn:
                         self._apply_fn()
                     self._notify(f"Window: {game_settings.window_size_label}", ok=True)
+                    return
+
+        # Language buttons (y=218–248)
+        if 218 <= ly <= 258:
+            lang_btn_w = 140
+            for i, code in enumerate(("en", "de")):
+                bx = pad + 200 + i * (lang_btn_w + 8)
+                if bx <= lx <= bx + lang_btn_w - 2:
+                    from src.locale import set_lang
+                    set_lang(code)
+                    game_settings.language = code
+                    game_settings.save()
+                    label = "English" if code == "en" else "Deutsch"
+                    self._notify(f"Language: {label}", ok=True)
                     return
 
     def _handle_controls_click(self, lx: int, ly: int):
@@ -390,6 +405,23 @@ class SettingsScreen:
             note = self._fs.render("(switch to windowed first)", True, _DIM)
             surf.blit(note, (pad + 200, y + 32))
         y += 60
+
+        # ── Language row ──────────────────────────────────────────────────────
+        lbl3 = self._fm.render("Language", True, _WHITE)
+        surf.blit(lbl3, (pad, y + 4))
+        lang_opts = [("en", "English"), ("de", "Deutsch")]
+        lang_btn_w = 140
+        for i, (code, label) in enumerate(lang_opts):
+            bx  = pad + 200 + i * (lang_btn_w + 8)
+            sel = (game_settings.language == code)
+            bc  = _SEL_HI if sel else _SEL
+            tc  = _HDR    if sel else _WHITE
+            br  = pygame.Rect(bx, y, lang_btn_w, 30)
+            pygame.draw.rect(surf, bc, br, border_radius=4)
+            pygame.draw.rect(surf, _BORDER if sel else _BORDER_LO, br, 1, border_radius=4)
+            ts  = self._fs.render(label, True, tc)
+            surf.blit(ts, ts.get_rect(center=br.center))
+        y += 50
 
         # ── Info box ──────────────────────────────────────────────────────────
         pygame.draw.line(surf, _BORDER_LO, (pad, y), (self.W - pad, y), 1)

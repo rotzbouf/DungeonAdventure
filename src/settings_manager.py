@@ -79,6 +79,7 @@ class SettingsManager:
         self.server_host:    str   = "localhost"
         self.server_port:    int   = 5555
         self.player_name:    str   = "Adventurer"
+        self.language:       str   = "en"
         self.keybindings:    dict  = dict(_DEFAULTS)
         self.load()
 
@@ -106,6 +107,7 @@ class SettingsManager:
             "server_host":   self.server_host,
             "server_port":   self.server_port,
             "player_name":   self.player_name,
+            "language":      self.language,
             "keybindings":   {k: v for k, v in self.keybindings.items()},
         }
         SETTINGS_PATH.write_text(json.dumps(data, indent=2))
@@ -120,11 +122,16 @@ class SettingsManager:
             self.server_host   = str(data.get("server_host",    self.server_host))
             self.server_port   = int(data.get("server_port",    self.server_port))
             self.player_name   = str(data.get("player_name",    self.player_name))[:24]
+            lang = str(data.get("language", self.language))
+            if lang in ("en", "de"):
+                self.language = lang
             for action, code in data.get("keybindings", {}).items():
                 if action in _DEFAULTS:
                     self.keybindings[action] = int(code)
         except Exception:
             pass   # corrupt file — keep defaults
+        from src.locale import set_lang
+        set_lang(self.language)
 
     # ── Display application ────────────────────────────────────────────────────
 
