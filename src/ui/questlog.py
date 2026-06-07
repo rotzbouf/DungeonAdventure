@@ -45,7 +45,7 @@ class QuestLogScreen:
         pygame.draw.line(surface, _BORDER, (px + 10, py + 38), (px + pw - 10, py + 38))
 
         y    = py + 52
-        lh   = 18
+        lh   = 26
         edge = px + pw - 10
 
         def line(text: str, color: tuple, indent: int = 0):
@@ -89,7 +89,7 @@ class QuestLogScreen:
                 prog_s = self._font_sm.render(
                     f" {q.progress_text()}", True, _ACTIVE_COL)
                 surface.blit(prog_s, (bar_x + bar_w + 4, y - 1))
-                y += bar_h + 4
+                y += lh
 
                 rwd = t("quest.reward_xp", xp=q.reward_xp)
                 if q.reward_gold:

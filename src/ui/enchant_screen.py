@@ -4,6 +4,7 @@ import pygame
 from src.settings import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, YELLOW, WHITE, LIGHT_GRAY
 from src.items.item import EquipItem, SLOT_ORDER, SLOT_LABELS
 from src.items.enchant import ENCHANTMENTS, SYNERGIES, RARITY_COLORS, RARITY_LABELS, active_synergies
+from src.locale import t
 from src.ui.pager import draw_pager
 
 _BG        = (6,   4,  18)
@@ -24,12 +25,15 @@ _OPEN_COL  = (100, 100, 160)
 class EnchantScreen:
     W  = 1100
     H  = 660
+    _ITEM_ROW_H = 58   # tall enough for item name + applied-enchantments line
+    _ENC_ROW_H  = 52   # tall enough for enchantment name + effect summary line
 
     def __init__(self):
         self._fxl  = pygame.font.SysFont("monospace", 28, bold=True)
         self._flg  = pygame.font.SysFont("monospace", 28, bold=True)
         self._fmd  = pygame.font.SysFont("monospace", 24, bold=True)
         self._fsm  = pygame.font.SysFont("monospace", 25)
+        self._fxs  = pygame.font.SysFont("monospace", 18)
 
         self._sel_item: EquipItem | None = None
         self._sel_enc:  str | None       = None   # enchantment ID
@@ -37,6 +41,7 @@ class EnchantScreen:
         self._enc_scroll  = 0
         self._msg         = ""
         self._msg_timer   = 0.0
+        self._msg_ok      = False
         self._item_prev: pygame.Rect | None = None
         self._item_next: pygame.Rect | None = None
         self._enc_prev:  pygame.Rect | None = None
@@ -51,6 +56,7 @@ class EnchantScreen:
         self._enc_scroll  = 0
         self._msg         = ""
         self._msg_timer   = 0.0
+        self._msg_ok      = False
 
     def update(self, dt: float):
         if self._msg_timer > 0:
@@ -109,8 +115,8 @@ class EnchantScreen:
         split_x  = self.W // 2
 
         # ── Pager button clicks ────────────────────────────────────────────────
-        _ITEM_VIS = (self.H - 80 - (header_h + pad) - 32) // 40  # items visible per page
-        _ENC_VIS  = (self.H - 120 - (header_h + pad)) // 36      # enchants visible per page
+        _ITEM_VIS = (self.H - 80 - (header_h + pad) - 32) // self._ITEM_ROW_H  # items visible per page
+        _ENC_VIS  = (self.H - 120 - (header_h + pad)) // self._ENC_ROW_H       # enchants visible per page
         if self._item_prev and self._item_prev.collidepoint(lx, ly):
             self._item_scroll = max(0, self._item_scroll - _ITEM_VIS)
             return
@@ -130,7 +136,7 @@ class EnchantScreen:
         # ── Left panel click (item selection) ────────────────────────────────
         if lx < split_x:
             items = self._enchantable_items(player)
-            row_h = 40
+            row_h = self._ITEM_ROW_H
             list_y0 = header_h + pad
             for i, (label, item) in enumerate(items):
                 iy = list_y0 + (i - self._item_scroll) * row_h
@@ -143,7 +149,7 @@ class EnchantScreen:
         # ── Right panel click (enchantment selection) ─────────────────────────
         if lx >= split_x and self._sel_item:
             enc_list = list(ENCHANTMENTS.values())
-            row_h = 36
+            row_h = self._ENC_ROW_H
             list_y0 = header_h + pad
             for i, enc in enumerate(enc_list):
                 iy = list_y0 + (i - self._enc_scroll) * row_h
@@ -172,16 +178,19 @@ class EnchantScreen:
         if not enc:
             return
         if self._sel_item.open_slots <= 0:
-            self._msg = "No open slots!"
+            self._msg = t("enchant.no_open_slots")
+            self._msg_ok = False
             self._msg_timer = 2.5
             return
         if player.gold < enc.cost:
-            self._msg = "Not enough gold!"
+            self._msg = t("enchant.not_enough_gold")
+            self._msg_ok = False
             self._msg_timer = 2.5
             return
         player.gold -= enc.cost
         self._sel_item.add_enchantment(self._sel_enc)
-        self._msg = f"Applied: {enc.name}!"
+        self._msg = t("enchant.applied", name=enc.name)
+        self._msg_ok = True
         self._msg_timer = 3.0
         self._sel_enc = None
         if self._sel_item.open_slots <= 0:
@@ -217,22 +226,22 @@ class EnchantScreen:
     def _draw_header(self, surf: pygame.Surface):
         pygame.draw.rect(surf, _PANEL, (0, 0, self.W, 50))
         pygame.draw.line(surf, _BORDER, (0, 50), (self.W, 50), 1)
-        title = self._fxl.render("✦  ENCHANTMENT FORGE  ✦", True, _HDR)
+        title = self._fxl.render(t("enchant.title"), True, _HDR)
         surf.blit(title, title.get_rect(centerx=self.W // 2, centery=25))
 
     def _draw_item_panel(self, surf: pygame.Surface, player, split_x: int):
         pad     = 14
-        row_h   = 40
+        row_h   = self._ITEM_ROW_H
         list_y0 = 52 + pad
         clip_h  = self.H - 80 - list_y0 - 32   # 32 px reserved for pager
 
         # Column header
-        hdr = self._fmd.render("ITEMS WITH OPEN SLOTS", True, _HDR)
+        hdr = self._fmd.render(t("enchant.items_header"), True, _HDR)
         surf.blit(hdr, (pad, 54))
 
         items = self._enchantable_items(player)
         if not items:
-            msg = self._fsm.render("No items with open slots.", True, _DIM)
+            msg = self._fsm.render(t("enchant.no_items"), True, _DIM)
             surf.blit(msg, (pad, list_y0 + 20))
             return
 
@@ -269,7 +278,7 @@ class EnchantScreen:
                     if eid in ENCHANTMENTS
                 )
                 enc_s = self._fsm.render(enc_names, True, _HDR)
-                surf.blit(enc_s, (pad + 2, iy + 22))
+                surf.blit(enc_s, (pad + 2, iy + 32))
 
         # ── Item pager ────────────────────────────────────────────────────────
         vis_per_page = max(1, clip_h // row_h)
@@ -281,16 +290,16 @@ class EnchantScreen:
 
     def _draw_enchant_panel(self, surf: pygame.Surface, player, split_x: int):
         pad     = 14
-        row_h   = 36
+        row_h   = self._ENC_ROW_H
         list_y0 = 52 + pad
         clip_h  = self.H - 120 - list_y0
         px      = split_x + pad
 
-        hdr = self._fmd.render("ENCHANTMENTS", True, _HDR)
+        hdr = self._fmd.render(t("enchant.enc_header"), True, _HDR)
         surf.blit(hdr, (px, 54))
 
         if self._sel_item is None:
-            hint = self._fsm.render("← Select an item first", True, _DIM)
+            hint = self._fsm.render(t("enchant.select_hint"), True, _DIM)
             surf.blit(hint, (px, list_y0 + 20))
             return
 
@@ -319,12 +328,12 @@ class EnchantScreen:
                 from src.items.item import Modifier
                 m = Modifier(enc.mods[0][0], enc.mods[0][1])
                 eff_s = self._fsm.render(m.describe(), True, _DIM)
-                surf.blit(eff_s, (px + 16, iy + 18))
+                surf.blit(eff_s, (px + 16, iy + 27))
 
             # Cost
             cost_col = _GOLD_COL if can_afford else _RED
             cost_s = self._fmd.render(f"♦{enc.cost}", True, cost_col)
-            surf.blit(cost_s, (self.W - pad - cost_s.get_width() - 4, iy + 8))
+            surf.blit(cost_s, (self.W - pad - cost_s.get_width() - 4, iy + 14))
 
         # ── Enchantment pager ─────────────────────────────────────────────────
         enc_list     = list(ENCHANTMENTS.values())
@@ -351,20 +360,20 @@ class EnchantScreen:
         # Full effect lines
         y = ty + 4
         rarity_col = RARITY_COLORS.get(enc.rarity, WHITE)
-        rlbl = self._fsm.render(
+        rlbl = self._fxs.render(
             f"{enc.name}  [{RARITY_LABELS.get(enc.rarity, enc.rarity)}]",
             True, rarity_col)
         surf.blit(rlbl, (split_x + pad, y))
-        y += 18
+        y += 20
 
         for desc in enc.describe_lines():
-            ds = self._fsm.render(desc, True, (120, 230, 120))
+            ds = self._fxs.render(desc, True, (120, 230, 120))
             surf.blit(ds, (split_x + pad + 8, y))
-            y += 15
+            y += 19
 
         # Tags / synergy hint
-        tag_str = "Tags: " + ", ".join(enc.tags)
-        ts = self._fsm.render(tag_str, True, (100, 100, 160))
+        tag_str = t("enchant.tags", tags=", ".join(enc.tags))
+        ts = self._fxs.render(tag_str, True, (100, 100, 160))
         surf.blit(ts, (split_x + pad, y))
 
     def _draw_footer(self, surf: pygame.Surface, player):
@@ -378,9 +387,9 @@ class EnchantScreen:
         syns     = active_synergies(all_tags)
         if syns:
             syn_names = "  ✦  ".join(n for n, _ in syns)
-            label = self._fsm.render(f"Active synergies: {syn_names}", True, (200, 150, 255))
+            label = self._fsm.render(t("enchant.synergies", names=syn_names), True, (200, 150, 255))
         else:
-            label = self._fsm.render("No active synergies.", True, _DIM)
+            label = self._fsm.render(t("enchant.no_synergies"), True, _DIM)
         surf.blit(label, (pad, fy + 10))
 
         # Gold counter
@@ -390,7 +399,7 @@ class EnchantScreen:
         # Message area
         if self._msg and self._msg_timer > 0:
             fade  = min(1.0, self._msg_timer / 0.4)
-            mcol  = tuple(int(c * fade) for c in (_GREEN if "Applied" in self._msg else _RED))
+            mcol  = tuple(int(c * fade) for c in (_GREEN if self._msg_ok else _RED))
             ms    = self._flg.render(self._msg, True, mcol)
             surf.blit(ms, ms.get_rect(centerx=self.W // 2, centery=fy + 22))
 
@@ -402,6 +411,6 @@ class EnchantScreen:
             bcol    = (60, 180, 60) if can_pay else (80, 30, 30)
             pygame.draw.rect(surf, bcol, btn)
             pygame.draw.rect(surf, _BORDER_LO, btn, 1)
-            lbl = f"Apply  ♦{enc.cost}" if enc else "Apply"
+            lbl = t("enchant.apply", cost=enc.cost) if enc else t("enchant.apply_plain")
             bs  = self._fmd.render(lbl, True, WHITE)
             surf.blit(bs, bs.get_rect(center=btn.center))

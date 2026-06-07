@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 import pygame
 from src.settings import TILE_SIZE
+from src.world.tile import TILE_FLOOR, TILE_WALL
 
 # ── DCSS bundle path ──────────────────────────────────────────────────────────
 if getattr(sys, "frozen", False):
@@ -120,6 +121,48 @@ class Decoration:
         surface.blit(spr, (sx, sy))
 
 
+def _wall_backed_spots(dungeon, room) -> list[tuple[int, int]]:
+    """
+    Floor tiles along a room's edge that have a solid wall directly behind
+    them *and* solid wall to both flanking sides — i.e. a flat wall section
+    rather than a doorway/corridor mouth. Rooms are carved as solid floor
+    rectangles with the wall ring one tile *outside* the room bounds, so
+    "backed by a wall" means the neighbouring tile just past the room's edge.
+    These are the only spots where a statue or pillar looks like it's
+    actually resting against something, instead of floating in open floor.
+    """
+    x0, y0 = room.x, room.y
+    x1, y1 = room.x + room.w - 1, room.y + room.h - 1
+    if room.w < 5 or room.h < 5:
+        return []
+
+    def is_wall(tx, ty):
+        return (0 <= ty < dungeon.height and 0 <= tx < dungeon.width
+                and dungeon.grid[ty][tx] == TILE_WALL)
+
+    def is_floor(tx, ty):
+        return (0 <= ty < dungeon.height and 0 <= tx < dungeon.width
+                and dungeon.grid[ty][tx] == TILE_FLOOR)
+
+    spots: list[tuple[int, int]] = []
+
+    # Top and bottom edges (skip corner tiles — flanking checks cover them)
+    for tx in range(x0 + 1, x1):
+        for ty, dy in ((y0, -1), (y1, 1)):
+            if (is_floor(tx, ty) and is_wall(tx, ty + dy)
+                    and is_wall(tx - 1, ty + dy) and is_wall(tx + 1, ty + dy)):
+                spots.append((tx, ty))
+
+    # Left and right edges
+    for ty in range(y0 + 1, y1):
+        for tx, dx in ((x0, -1), (x1, 1)):
+            if (is_floor(tx, ty) and is_wall(tx + dx, ty)
+                    and is_wall(tx + dx, ty - 1) and is_wall(tx + dx, ty + 1)):
+                spots.append((tx, ty))
+
+    return spots
+
+
 def generate_dungeon_decorations(dungeon, theme: str,
                                  rng: random.Random) -> list[Decoration]:
     """
@@ -128,20 +171,19 @@ def generate_dungeon_decorations(dungeon, theme: str,
     Rules:
     - Skip start room (rooms[0]) and stair room (rooms[-1]).
     - Each eligible room has a 45 % chance of getting a decoration.
-    - Statues and extras from the theme pool are used.
-    - Decorations are placed in room corners / near walls, not at the centre
-      (which is kept clear for combat).
+    - Statues are the common case; pillars/boulders ("extras") are rare —
+      they read as structural clutter when overused, so they only show up
+      occasionally for variety.
+    - Decorations are only placed on floor tiles that are backed by a solid
+      wall section (not a doorway or corridor mouth), so they always read as
+      "standing against the wall" rather than floating in a walkway.
     """
     if not dungeon.rooms or len(dungeon.rooms) < 3:
         return []
 
-    pool = _THEME_STATUES.get(theme, _THEME_STATUES["dungeon"]).copy()
-    pool += [f"statues/{f}" for f in []]   # no stray extras at statues level
-    # Also include top-level extras (boulder, zot_pillar)
-    for rel in _THEME_EXTRAS.get(theme, []):
-        pool.append(rel)
-
-    if not pool:
+    statue_pool = _THEME_STATUES.get(theme, _THEME_STATUES["dungeon"])
+    extra_pool  = _THEME_EXTRAS.get(theme, [])
+    if not statue_pool and not extra_pool:
         return []
 
     decos: list[Decoration] = []
@@ -151,14 +193,22 @@ def generate_dungeon_decorations(dungeon, theme: str,
         if rng.random() > 0.45:
             continue
 
-        rel = rng.choice(pool)
-        # Place near a random inner wall corner (1 tile in from edges)
-        cx, cy = room.center
-        # Offset into a corner quadrant so the centre aisle stays free
-        qx = rng.choice([-1, 1]) * rng.randint(TILE_SIZE, max(TILE_SIZE, (room.w - 2) * TILE_SIZE // 2 - TILE_SIZE))
-        qy = rng.choice([-1, 1]) * rng.randint(TILE_SIZE, max(TILE_SIZE, (room.h - 2) * TILE_SIZE // 2 - TILE_SIZE))
-        px = cx * TILE_SIZE + TILE_SIZE // 2 + qx
-        py = cy * TILE_SIZE + TILE_SIZE // 2 + qy
+        spots = _wall_backed_spots(dungeon, room)
+        if not spots:
+            continue
+
+        # Statues are the logical choice for a lone wall-niche; pillars and
+        # boulders are reserved for the rare "structural" accent.
+        if extra_pool and rng.random() < 0.12:
+            rel = rng.choice(extra_pool)
+        elif statue_pool:
+            rel = rng.choice(statue_pool)
+        else:
+            rel = rng.choice(extra_pool)
+
+        tx, ty = rng.choice(spots)
+        px = tx * TILE_SIZE + TILE_SIZE // 2
+        py = ty * TILE_SIZE + TILE_SIZE // 2
         decos.append(Decoration(float(px), float(py), rel, size=56))
 
     return decos

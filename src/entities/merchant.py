@@ -29,8 +29,8 @@ else:
 _NPC_SPRITE_PATHS: dict[str, Path] = {
     "weapons":  _DCSS / "monster/unique/norris.png",
     "armor":    _DCSS / "monster/unique/jozef.png",
-    "jewelry":  _DCSS / "monster/unique/eustachio.png",
-    "potions":  _DCSS / "monster/unique/jessica.png",
+    "jewelry":  _DCSS / "monster/unique/eustachio_new.png",
+    "potions":  _DCSS / "monster/unique/jessica_new.png",
     "enchant":  _DCSS / "monster/unique/enchantress.png",
     "craft":    _DCSS / "monster/deep_dwarf_artificer.png",
     "dungeon":  _DCSS / "monster/human.png",

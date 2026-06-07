@@ -254,11 +254,18 @@ class Dungeon:
                     break
 
     def _place_pillars(self):
-        """Add stone pillar pairs inside large rooms for tactical cover."""
+        """Add stone pillar pairs inside large rooms for tactical cover.
+
+        Only a fraction of eligible rooms get them — pillars in every large
+        room read as repetitive structural clutter rather than a deliberate
+        tactical feature.
+        """
         for room in self.rooms[1:]:   # skip starting room
             if room is self.boss_room:  # keep the boss arena open
                 continue
             if room.w < 9 or room.h < 9:
+                continue
+            if self.rng.random() > 0.35:
                 continue
             cx, cy = room.center
             # Four symmetric pillar positions offset from the room centre

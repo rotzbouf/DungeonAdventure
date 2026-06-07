@@ -271,6 +271,27 @@ _T: dict[str, dict[str, str]] = {
     "shop.health_pot":  {"en": "Health Potion  +{n} HP",
                          "de": "Heiltrank  +{n} LP"},
 
+    # ── Enchantment Forge ─────────────────────────────────────────────────────
+    "enchant.title":          {"en": "✦  ENCHANTMENT FORGE  ✦",
+                               "de": "✦  VERZAUBERUNGSSCHMIEDE  ✦"},
+    "enchant.items_header":   {"en": "ITEMS WITH OPEN SLOTS",
+                               "de": "GEGENSTÄNDE MIT FREIEN SLOTS"},
+    "enchant.no_items":       {"en": "No items with open slots.",
+                               "de": "Keine Gegenstände mit freien Slots."},
+    "enchant.enc_header":     {"en": "ENCHANTMENTS", "de": "VERZAUBERUNGEN"},
+    "enchant.select_hint":    {"en": "← Select an item first",
+                               "de": "← Zuerst Gegenstand wählen"},
+    "enchant.tags":           {"en": "Tags: {tags}", "de": "Merkmale: {tags}"},
+    "enchant.no_open_slots":  {"en": "No open slots!", "de": "Keine freien Slots!"},
+    "enchant.not_enough_gold":{"en": "Not enough gold!", "de": "Nicht genug Gold!"},
+    "enchant.applied":        {"en": "Applied: {name}!", "de": "Angewendet: {name}!"},
+    "enchant.synergies":      {"en": "Active synergies: {names}",
+                               "de": "Aktive Synergien: {names}"},
+    "enchant.no_synergies":   {"en": "No active synergies.",
+                               "de": "Keine aktiven Synergien."},
+    "enchant.apply":          {"en": "Apply  ♦{cost}", "de": "Anwenden  ♦{cost}"},
+    "enchant.apply_plain":    {"en": "Apply", "de": "Anwenden"},
+
     # ── Character Screen ──────────────────────────────────────────────────────
     "char.title":       {"en": "CHARACTER",     "de": "CHARAKTER"},
     "char.hero":        {"en": "Level {n}  Hero","de": "Level {n}  Held"},

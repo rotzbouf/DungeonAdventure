@@ -304,6 +304,11 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                             self._open_next_perk_pick()
                     continue   # block all other key handling while open
 
+                # Char-create screen owns all keyboard input (name typing, etc.)
+                if self.state == STATE_CHAR_CREATE and not self.settings_open:
+                    self._char_create.handle_event(event)
+                    continue
+
                 if k == pygame.K_ESCAPE:
                     if self.settings_open and self._settings_screen.is_listening:
                         self._settings_screen.handle_event(event)
@@ -319,8 +324,6 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     elif self.skill_open:          self.skill_open       = False
                     elif self.state == STATE_HERO_SELECT:
                         self._hero_select.handle_event(event)
-                    elif self.state == STATE_CHAR_CREATE:
-                        self._char_create.handle_event(event)
                     elif self.state == STATE_PLAYING:
                         self.state = STATE_MENU
                     elif self.state == STATE_TOWN:
