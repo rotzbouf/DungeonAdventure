@@ -5,7 +5,7 @@ Fight through an endless dungeon of escalating danger — collect loot, enchant 
 craft materials, master a deep skill tree, and see how far you can descend.
 Play solo or with up to four friends on a dedicated server.
 
-**Current version: 0.4.0**
+**Current version: 0.4.1**
 
 ---
 
