@@ -813,6 +813,7 @@ _STALL_PALETTES = {
     "potions":  dict(plaster=(100,148,100), timber=(16,60,16),  awning=(30,120,30)),
     "enchant":  dict(plaster=(128,100,160), timber=(36,10,72),  awning=(80,20,150)),
     "craft":    dict(plaster=(148,124,88),  timber=(50,28,8),   awning=(140,80,20)),
+    "guild":    dict(plaster=(124,120,160), timber=(28,28,56),  awning=(60,60,140)),
     "house":    dict(plaster=(170,155,122), timber=(54,34,12),  awning=(110,70,16)),
 }
 

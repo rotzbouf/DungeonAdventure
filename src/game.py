@@ -913,7 +913,7 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         for chest in self.chests:
             chest.update(dt)
             if not chest.opened and self.player.rect.colliderect(chest.rect):
-                chest.open(self.player, self.items, self.dungeon_level)
+                chest.open(self.player, self.items, self.dungeon_level, self.dungeon)
                 self._shake_t   = 0.18
                 self._shake_int = 5.0
 

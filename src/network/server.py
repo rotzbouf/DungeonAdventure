@@ -327,7 +327,7 @@ class ServerGame:
             if not chest.opened:
                 for player in alive_players:
                     if player.rect.colliderect(chest.rect):
-                        chest.open(player, self.items, self.floor)
+                        chest.open(player, self.items, self.floor, self.dungeon)
                         events.append({"k": "chest",
                                        "pid": getattr(player, "net_pid", -1)})
 

@@ -156,6 +156,20 @@ class CombatLayer:
             done += self.quest_log.notify("bounty", enemy.quest_id)
         self._apply_quest_rewards(done)
 
+    def _scatter_pos(self, px: float, py: float, spread: float) -> tuple[float, float]:
+        """
+        Pick a random offset position within *spread* pixels of (px, py) that
+        lands on a walkable tile, falling back to (px, py) itself — guaranteed
+        walkable since the enemy died there — if the offset would drop the
+        item inside a wall.
+        """
+        nx = px + random.uniform(-spread, spread)
+        ny = py + random.uniform(-spread, spread)
+        tx, ty = int(nx // TILE_SIZE), int(ny // TILE_SIZE)
+        if self.dungeon.is_walkable(tx, ty):
+            return nx, ny
+        return px, py
+
     def _drop_boss_loot(self, enemy):
         from src.items.item import _ilvl_and_mult
         px, py = enemy.x, enemy.y
@@ -170,12 +184,12 @@ class CombatLayer:
         # Two rare-quality bonus drops
         for _ in range(2):
             extra = random_equip(0, 0, ilvl, quality=QUALITY_RARE, depth_mult=depth_mult)
-            extra._reposition(px + random.uniform(-24, 24), py + random.uniform(-24, 24))
+            extra._reposition(*self._scatter_pos(px, py, 24))
             self.items.append(extra)
         # Gold scatter
         for _ in range(3):
             gold = GoldPile(0, 0, int(random.randint(10, 25) * lvl * gf))
-            gold._reposition(px + random.uniform(-28, 28), py + random.uniform(-28, 28))
+            gold._reposition(*self._scatter_pos(px, py, 28))
             self.items.append(gold)
 
         boss_name = getattr(enemy, 'BOSS_NAME', type(enemy).__name__)
@@ -194,17 +208,14 @@ class CombatLayer:
             q_bonus += 30
         if random.random() < enemy.LOOT_CHANCE:
             item = random_item(0, 0, lvl, quality_bonus=q_bonus, floor=lvl)
-            item._reposition(px + random.uniform(-14, 14),
-                             py + random.uniform(-14, 14))
+            item._reposition(*self._scatter_pos(px, py, 14))
             self.items.append(item)
         base_gold   = random.randint(1, 4) * lvl
         gf_mult     = 1.0 + self.player.gold_find_bonus / 100
         gold        = GoldPile(0, 0, int(base_gold * gf_mult))
-        gold._reposition(px + random.uniform(-10, 10),
-                         py + random.uniform(-10, 10))
+        gold._reposition(*self._scatter_pos(px, py, 10))
         self.items.append(gold)
         if isinstance(enemy, Demon) and random.random() < 0.45:
             extra = random_item(0, 0, lvl, quality_bonus=60, floor=lvl)
-            extra._reposition(px + random.uniform(-18, 18),
-                              py + random.uniform(-18, 18))
+            extra._reposition(*self._scatter_pos(px, py, 18))
             self.items.append(extra)

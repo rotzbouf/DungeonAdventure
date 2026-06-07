@@ -1216,7 +1216,20 @@ class TreasureChest:
         if self._anim_timer > 0:
             self._anim_timer = max(0.0, self._anim_timer - dt)
 
-    def open(self, player, item_list: list, level: int):
+    def _scatter_pos(self, ox: float, oy: float, dungeon=None) -> tuple[float, float]:
+        """
+        Offset (ox, oy) from the chest centre if that tile is walkable,
+        else the chest's own position — guaranteed walkable since the
+        chest sits on open floor.
+        """
+        nx, ny = self.x + ox, self.y + oy
+        if dungeon is not None:
+            tx, ty = int(nx // TILE_SIZE), int(ny // TILE_SIZE)
+            if not dungeon.is_walkable(tx, ty):
+                return self.x, self.y
+        return nx, ny
+
+    def open(self, player, item_list: list, level: int, dungeon=None):
         """Spawn 2-3 items + a gold pile into item_list."""
         if self.opened:
             return
@@ -1230,10 +1243,10 @@ class TreasureChest:
             itm = random_equip(0, 0, ilvl,
                                quality=_pick_quality(ilvl, quality_bonus=25),
                                depth_mult=depth_mult)
-            itm._reposition(self.x + ox, self.y + oy)
+            itm._reposition(*self._scatter_pos(ox, oy, dungeon))
             item_list.append(itm)
         gold = GoldPile(0, 0, random.randint(8, 18) * max(1, level))
-        gold._reposition(self.x, self.y + 10)
+        gold._reposition(*self._scatter_pos(0, 10, dungeon))
         item_list.append(gold)
 
     # Cache loaded sprites at class level to avoid re-loading every frame
