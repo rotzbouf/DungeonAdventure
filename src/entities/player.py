@@ -276,14 +276,16 @@ class Player(Entity):
     # ─── Inventory ───────────────────────────────────────────────────────────────
 
     def inventory_full(self) -> bool:
-        return len(self.backpack) + len(self.potions) >= self.backpack_cap
+        return len(self.backpack) >= self.backpack_cap
 
     def add_item(self, item) -> bool:
-        """Add item to inventory. Returns False if backpack is at capacity."""
+        """Add item to inventory. Returns False if backpack is at capacity.
+
+        Potions stack in their own dedicated slot and never count against
+        the backpack cap — they're always pickable up.
+        """
         from src.items.item import EquipItem, HealthPotion
         if isinstance(item, HealthPotion):
-            if self.inventory_full():
-                return False
             self.potions.append(item)
         elif isinstance(item, EquipItem):
             slot = item.slot

@@ -11,7 +11,7 @@ from __future__ import annotations
 import pygame
 from src.settings import (SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT,
                            GRAY, LIGHT_GRAY, YELLOW, RED, GREEN)
-from src.items.item import (EquipItem, HealthPotion,
+from src.items.item import (EquipItem,
                              SLOT_ORDER, SLOT_LABELS, Q_COLOR, QUALITY_NORMAL)
 from src.locale import t, get_slot_label
 from src.ui.pager import draw_pager
@@ -31,6 +31,13 @@ _BAG_ROWS    = 5     # visible rows at once
 _BAG_CAP     = 50   # total backpack capacity (slots)
 _BAG_CELL    = 70
 _BAG_GAP     = 8
+
+# Dedicated potion stack slot — sits in the character panel, below the stat
+# block. Potions live here instead of the backpack grid: they stack into a
+# single visual entry and don't count against _BAG_CAP.
+_POTION_SLOT_W = 150
+_POTION_SLOT_H = 64
+_POTION_SLOT_Y = 565   # offset from character-panel content top (oy)
 
 # ── Equipment slot dimensions & positions ─────────────────────────────────────
 # All (cx, cy) are relative to the TOP-LEFT of the character panel content area
@@ -114,6 +121,7 @@ class InventoryScreen:
 
         self._hov_equip_key: str | None = None
         self._hov_bag_idx:   int        = -1
+        self._hov_potion:    bool       = False
         self._pg_prev: pygame.Rect | None = None
         self._pg_next: pygame.Rect | None = None
 
@@ -133,6 +141,7 @@ class InventoryScreen:
         mx, my = pygame.mouse.get_pos()
         self._hov_equip_key = self._equip_key_at(mx, my)
         self._hov_bag_idx   = self._bag_idx_at(mx, my)
+        self._hov_potion    = self._potion_slot_rect().collidepoint(mx, my)
 
     def handle_click(self, mx: int, my: int, player) -> bool:
         if self._pg_prev and self._pg_prev.collidepoint(mx, my):
@@ -142,6 +151,16 @@ class InventoryScreen:
             max_scroll = max(0, _BAG_CAP // _BAG_COLS - _BAG_ROWS)
             self._scroll = min(max_scroll, self._scroll + _BAG_ROWS)
             return True
+        if self._potion_slot_rect().collidepoint(mx, my):
+            if player.potions:
+                if player.hp < player.max_hp_total:
+                    potion = player.potions.pop()
+                    player.heal(potion.heal_amount)
+                    self.notify(t("inv.used_potion", n=potion.heal_amount))
+                else:
+                    self.notify(t("inv.full_hp"))
+            return True
+
         key = self._equip_key_at(mx, my)
         if key is not None and player.equipment.get(key) is not None:
             old = player.equipment[key]
@@ -172,16 +191,16 @@ class InventoryScreen:
             if old:
                 player.backpack.append(old)
             self.notify(t("inv.equipped", name=item.display_name))
-        elif isinstance(item, HealthPotion):
-            if player.hp < player.max_hp_total:
-                player.potions.remove(item)
-                player.heal(item.heal_amount)
-                self.notify(t("inv.used_potion", n=item.heal_amount))
-            else:
-                self.notify(t("inv.full_hp"))
         return True
 
     # ── Slot geometry helpers ─────────────────────────────────────────────────
+
+    def _potion_slot_rect(self) -> pygame.Rect:
+        hdr_h = 34
+        ox, oy = _PX, _PY + hdr_h
+        return pygame.Rect(ox + (_LEFT_W - _POTION_SLOT_W) // 2,
+                           oy + _POTION_SLOT_Y,
+                           _POTION_SLOT_W, _POTION_SLOT_H)
 
     def _slot_rect(self, key: str, hdr_h: int) -> pygame.Rect | None:
         for sk, _lbl, cx, cy in _EQUIP_LAYOUT:
@@ -364,6 +383,32 @@ class InventoryScreen:
             sy = stats_y + (j // 2) * lh
             surface.blit(self._font_xs.render(txt, True, col), (sx, sy))
 
+        self._draw_potion_slot(surface, player)
+
+    # ── Potion stack slot ─────────────────────────────────────────────────────
+
+    def _draw_potion_slot(self, surface: pygame.Surface, player):
+        r   = self._potion_slot_rect()
+        n   = len(player.potions)
+        col = _POTION_COL if n else (90, 50, 50)
+
+        pygame.draw.rect(surface, _COL_SLOT_H if self._hov_potion else _COL_SLOT, r)
+        pygame.draw.rect(surface, col, r, 2 if n else 1)
+
+        lbl = self._font_xs.render(t("inv.potions"), True, col)
+        surface.blit(lbl, (r.left + 8, r.top + 6))
+
+        if n:
+            icon_rect = pygame.Rect(r.left + 20, r.centery - 8, 28, 28)
+            player.potions[0]._draw_shape(surface, icon_rect)
+
+            badge = self._font_md.render(f"×{n}", True, _POTION_COL)
+            surface.blit(badge, (r.right - badge.get_width() - 12,
+                                 r.bottom - badge.get_height() - 8))
+        else:
+            eh = self._font_xs.render(t("inv.empty_slot"), True, (55, 36, 36))
+            surface.blit(eh, eh.get_rect(center=(r.centerx, r.centery + 6)))
+
     # ── Backpack ──────────────────────────────────────────────────────────────
 
     def _grid_top(self) -> int:
@@ -391,7 +436,7 @@ class InventoryScreen:
         return -1
 
     def _bag_items(self, player) -> list:
-        return player.backpack + player.potions
+        return player.backpack
 
     def _draw_backpack(self, surface: pygame.Surface, player, hdr_h: int):
         bx    = _RIGHT_X + _PAD
@@ -460,10 +505,6 @@ class InventoryScreen:
                                            r.bottom - vs.get_height() - 3))
                         surface.blit(vs,  (r.right - vs.get_width() - 4,
                                            r.bottom - vs.get_height() - 2))
-                elif isinstance(item, HealthPotion):
-                    pygame.draw.rect(surface, _POTION_COL, r, 1)
-                    lbl = self._font_sm.render("HP", True, _POTION_COL)
-                    surface.blit(lbl, lbl.get_rect(center=r.center))
             else:
                 pygame.draw.rect(surface, _COL_SEP, r, 1)
 
@@ -478,13 +519,8 @@ class InventoryScreen:
             surface, cx, gt + gh + 5, page, total_pages, self._font_xs)
         si_y = gt + gh + 5 + (26 if total_pages > 1 else 0)
 
-        # ── Potion count + extra stats ────────────────────────────────────────
-        pc = len(player.potions)
-        pt = self._font_sm.render(t("inv.potions", n=pc), True,
-                                   _POTION_COL if pc else GRAY)
-        surface.blit(pt, (bx, si_y + 2))
-
-        sy = si_y + pt.get_height() + 10
+        # ── Extra stats ───────────────────────────────────────────────────────
+        sy = si_y + 6
         extras = []
         if player.crit_chance > 0:
             extras.append((f"Crit  {int(player.crit_chance)}%", (220, 220, 80)))
