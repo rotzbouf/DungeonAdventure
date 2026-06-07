@@ -18,8 +18,17 @@ TOWN_W = 2400
 TOWN_H = 1600
 
 # Building dimensions shared between _draw_building and the torch-bake loop
-BUILDING_W = 165
-BUILDING_H = 115
+BUILDING_W = 145
+BUILDING_H = 100
+
+# Player house dimensions — shared between _draw_house, the torch-bake loop
+# and the door-label placement, so they all stay in sync.
+HOUSE_W = 158
+HOUSE_H = 112
+
+# How far merchants stand from their building's wall, to the side of it
+# (rather than in front of the door, where their DCSS skin is hard to read).
+_MERCHANT_STAND_GAP = 50
 
 # ── Key positions (pixel coords) ──────────────────────────────────────────────
 
@@ -51,6 +60,20 @@ MERCHANT_SPECS: list[tuple[str, str, int, int]] = [
 GUILD_MASTER_SPEC = MERCHANT_SPECS[-1]   # convenience alias
 
 TOWN_INTERACT_R = TILE_SIZE * 3.0
+
+
+def merchant_stand_pos(px: int, py: int) -> tuple[int, int]:
+    """
+    Where a merchant NPC stands relative to their building's centre (px, py).
+
+    Buildings are drawn centred on (px, py); standing there puts the NPC
+    right on top of the facade/doorway, hiding their DCSS skin. Instead they
+    stand beside the wall, at ground level — on the side facing away from the
+    central plaza, which keeps them clear of the plaza's statues/fountain/
+    trees and the buildings clustered around it.
+    """
+    side = -1 if px < TOWN_W // 2 else 1
+    return (px + side * (BUILDING_W // 2 + _MERCHANT_STAND_GAP), py)
 
 
 # ── Stall colour palette per specialty ────────────────────────────────────────
@@ -593,7 +616,7 @@ def _draw_tower(surf, cx, cy, radius, n_sides=10):
 
 def _draw_house(surf, px, py):
     """Draw the player's cozy timber-frame cottage — door, windows, chimney, fence."""
-    BW, BH = 180, 128
+    BW, BH = HOUSE_W, HOUSE_H
     bx = px - BW // 2
     by = py - BH // 2 - 15   # shift up so player stands in front
 
@@ -1042,7 +1065,7 @@ class TownRenderer:
                 self._torch_positions.append((side_x, by + 20))
 
         # House door torches
-        _h_bw, _h_bh = 180, 128
+        _h_bw, _h_bh = HOUSE_W, HOUSE_H
         _h_door_w = 36
         _h_bx = HOUSE_POS[0] - _h_bw // 2
         _h_by = HOUSE_POS[1] - _h_bh // 2 - 15
@@ -1105,8 +1128,7 @@ class TownRenderer:
         # ── House label and interaction hint ──────────────────────────────────
         hpx, hpy    = HOUSE_POS
         shx, shy    = hpx - cam_x, hpy - cam_y
-        _h_bh = 128
-        _h_by = shy - _h_bh // 2 - 15
+        _h_by = shy - HOUSE_H // 2 - 15
         home_col = (220, 185, 80) if near_house else (160, 130, 55)
         home_lbl = self._font.render(t("town.your_home"), True, home_col)
         _blit_shadowed(surface, home_lbl,
@@ -1123,7 +1145,7 @@ class TownRenderer:
             spy   = py - cam_y
             display_name = t(f"merchant.{title.lower()}")
             name_s = self._font.render(display_name, True, pal["hi"])
-            nrect  = name_s.get_rect(centerx=spx, centery=spy - 115)
+            nrect  = name_s.get_rect(centerx=spx, centery=spy - (BUILDING_H // 2 + 58))
             _blit_shadowed(surface, name_s, nrect.topleft, shadow_off=(2, 2))
 
         # ── Dungeon entrance sign with shadow ─────────────────────────────────

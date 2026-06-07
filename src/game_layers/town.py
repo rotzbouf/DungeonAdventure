@@ -6,7 +6,7 @@ from src.world.town import (PLAYER_SPAWN as TOWN_PLAYER_SPAWN,
                               DUNGEON_ENTRANCE_POS, DUNGEON_INTERACT_R,
                               HOUSE_POS, HOUSE_INTERACT_R,
                               TOWN_BOUNDS, MERCHANT_SPECS,
-                              TOWN_W, TOWN_H)
+                              TOWN_W, TOWN_H, merchant_stand_pos)
 from src.entities.merchant import TownMerchant
 from src import save as savesys
 from src.locale import t
@@ -21,7 +21,7 @@ class TownLayer:
             return
         plvl = getattr(self.player, 'level', 1)
         self.town_merchants = [
-            TownMerchant(px, py, title, spec, plvl)
+            TownMerchant(*merchant_stand_pos(px, py), title, spec, plvl)
             for title, spec, px, py in MERCHANT_SPECS
         ]
         self.player.x = float(TOWN_PLAYER_SPAWN[0])
