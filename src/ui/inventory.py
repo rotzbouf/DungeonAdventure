@@ -37,7 +37,7 @@ _BAG_GAP     = 8
 # single visual entry and don't count against _BAG_CAP.
 _POTION_SLOT_W = 150
 _POTION_SLOT_H = 64
-_POTION_SLOT_Y = 565   # offset from character-panel content top (oy)
+_POTION_SLOT_Y = 580   # offset from character-panel content top (oy)
 
 # ── Equipment slot dimensions & positions ─────────────────────────────────────
 # All (cx, cy) are relative to the TOP-LEFT of the character panel content area
@@ -48,24 +48,27 @@ _SH = 52     # slot height
 # Silhouette is centred at x=200 within the 400px left column.
 _SIL_CX = 200
 
-# (slot_key, short_label, cx, cy)
+# (slot_key, short_label, cx, cy) — aligned to the body landmarks of the
+# silhouette drawn in _draw_silhouette (head ~98, shoulders ~150, torso
+# 150-270, hips 270-296, hands ~314, thighs/knees ~296-388, feet ~474).
 _EQUIP_LAYOUT = [
-    ("helm",   "HELM",    _SIL_CX,  40),    # head
-    ("amulet", "AMULET",  330,       95),    # neck right
-    ("chest",  "CHEST",   _SIL_CX, 215),    # torso centre
-    ("weapon", "WEAPON",   45,      195),    # left arm
-    ("shield", "SHIELD",  355,      195),    # right arm
-    ("belt",   "BELT",    _SIL_CX, 300),    # waist centre
-    ("gloves", "GLOVES",   45,      290),    # left wrist
-    ("ring",   "RING 1",   45,      370),    # left finger
-    ("ring2",  "RING 2",  355,      370),    # right finger
-    ("boots",  "BOOTS",   _SIL_CX, 430),    # feet centre
+    ("helm",   "HELM",    _SIL_CX,  50),    # resting on top of the head
+    ("amulet", "AMULET",  325,      170),    # collar / upper-chest, right
+    ("chest",  "CHEST",   _SIL_CX, 210),    # torso centre
+    ("weapon", "WEAPON",   70,      285),    # left forearm / hand
+    ("shield", "SHIELD",  330,      285),    # right forearm / hand
+    ("belt",   "BELT",    _SIL_CX, 280),    # waist / hips
+    ("gloves", "GLOVES",   70,      225),    # left upper-arm / wrist
+    ("ring",   "RING 1",   70,      350),    # left hand level
+    ("ring2",  "RING 2",  330,      350),    # right hand level
+    ("boots",  "BOOTS",   _SIL_CX, 470),    # feet centre
 ]
 
 # ── Silhouette parameters (relative to panel top-left + hdr_h) ────────────────
 # All expressed as offsets from (_PX, _PY + hdr_h)
 _SIL_COLOR    = (38, 30, 20)
 _SIL_OUTLINE  = (55, 44, 30)
+_SIL_HILIGHT  = (76, 62, 44)
 
 # ── Palette ────────────────────────────────────────────────────────────────────
 _COL_BG      = (12,  8,  4)
@@ -264,45 +267,69 @@ class InventoryScreen:
 
     def _draw_silhouette(self, surface: pygame.Surface, ox: int, oy: int):
         """
-        Draw a simple human silhouette centred at (ox + _SIL_CX, oy + ...).
-        ox = _PX, oy = _PY + hdr_h.
+        Draw a stylised human silhouette centred at (ox + _SIL_CX, oy + ...).
+        ox = _PX, oy = _PY + hdr_h. Built from tapered polygon limbs and
+        rounded joints — wider and taller than the old block figure so the
+        equipment slots in _EQUIP_LAYOUT can sit naturally against the body
+        instead of floating in empty space.
+
+        Body landmarks (offsets from oy): head ~98, shoulder line 150,
+        torso 150-270, hips 270-296, hands ~314, knees ~388, feet ~474.
         """
-        cx  = ox + _SIL_CX
-        sc  = _SIL_COLOR
-        so  = _SIL_OUTLINE
+        cx = ox + _SIL_CX
+        sc, so, hi = _SIL_COLOR, _SIL_OUTLINE, _SIL_HILIGHT
 
-        def rr(x, y, w, h, outline=True):
-            pygame.draw.rect(surface, sc, (cx + x, oy + y, w, h))
+        def poly(pts, fill=sc, outline=so):
+            abspts = [(cx + x, oy + y) for x, y in pts]
+            pygame.draw.polygon(surface, fill, abspts)
             if outline:
-                pygame.draw.rect(surface, so, (cx + x, oy + y, w, h), 1)
+                pygame.draw.polygon(surface, outline, abspts, 1)
 
-        # Head
-        pygame.draw.circle(surface, sc,  (cx, oy + 92), 26)
-        pygame.draw.circle(surface, so,  (cx, oy + 92), 26, 1)
+        def limb(rcx, top_y, w_top, w_bot, length):
+            poly([(rcx - w_top / 2, top_y), (rcx + w_top / 2, top_y),
+                  (rcx + w_bot / 2, top_y + length), (rcx - w_bot / 2, top_y + length)])
+
+        def joint(rcx, ry, r):
+            pygame.draw.circle(surface, sc, (cx + rcx, oy + ry), r)
+            pygame.draw.circle(surface, so, (cx + rcx, oy + ry), r, 1)
+
+        # Head, with a soft rim-light arc for a touch of shading
+        pygame.draw.circle(surface, sc, (cx, oy + 98), 30)
+        pygame.draw.circle(surface, so, (cx, oy + 98), 30, 1)
+        pygame.draw.arc(surface, hi, (cx - 26, oy + 70, 52, 52), 2.3, 3.5, 2)
+
         # Neck
-        rr(-7, 117, 14, 22)
-        # Shoulders
-        rr(-52, 138, 104, 14)
-        # Torso
-        rr(-34, 138, 68, 105)
-        # Upper arms
-        rr(-60, 150, 20, 75)    # left
-        rr( 40, 150, 20, 75)    # right
-        # Forearms
-        rr(-62, 225, 20, 60)    # left
-        rr( 42, 225, 20, 60)    # right
-        # Belt / hips
-        rr(-30, 243, 60, 16)
-        rr(-38, 259, 76, 20)
-        # Thighs
-        rr(-36, 279, 30, 80)    # left
-        rr(  6, 279, 30, 80)    # right
-        # Calves
-        rr(-36, 359, 28, 65)    # left
-        rr(  8, 359, 28, 65)    # right
-        # Feet
-        rr(-44, 424, 40, 14)    # left
-        rr(  4, 424, 40, 14)    # right
+        poly([(-8, 126), (8, 126), (7, 150), (-7, 150)])
+
+        # Torso — tapered chest-to-waist, with a faint chest highlight line
+        poly([(-60, 150), (60, 150), (40, 270), (-40, 270)])
+        pygame.draw.line(surface, hi, (cx - 30, oy + 178), (cx + 30, oy + 178), 1)
+
+        # Shoulder caps
+        joint(-60, 158, 14)
+        joint(60, 158, 14)
+
+        # Arms: upper arm → elbow → forearm → hand
+        for side in (-1, 1):
+            ax = side * 66
+            limb(ax, 162, 24, 20, 78)       # upper arm
+            joint(ax, 240, 10)               # elbow
+            limb(ax, 240, 20, 17, 64)        # forearm
+            joint(ax, 314, 10)               # hand
+
+        # Hips
+        poly([(-44, 270), (44, 270), (48, 296), (-48, 296)])
+
+        # Legs: thigh → knee → calf → foot
+        for side in (-1, 1):
+            lx = side * 22
+            limb(lx, 296, 36, 30, 92)        # thigh
+            joint(lx, 388, 12)                # knee
+            limb(lx, 388, 28, 23, 78)         # calf
+            foot = pygame.Rect(0, 0, 46, 16)
+            foot.center = (cx + lx, oy + 474)
+            pygame.draw.ellipse(surface, sc, foot)
+            pygame.draw.ellipse(surface, so, foot, 1)
 
     def _draw_character_panel(self, surface: pygame.Surface,
                                player, hdr_h: int):
@@ -367,7 +394,7 @@ class InventoryScreen:
                 surface.blit(eh, eh.get_rect(center=r.center))
 
         # Player stats at the very bottom of the left panel
-        stats_y = oy + 490
+        stats_y = oy + 510
         stats = [
             (f"ATK  {player.attack}",  (252, 160, 100)),
             (f"DEF  {player.defense}", (100, 160, 252)),
