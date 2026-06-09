@@ -31,12 +31,16 @@ class BossSpec:
 
 
 BOSS_SCHEDULE: list[BossSpec] = [
-    BossSpec("Lich",          cr_min= 45, cr_max= 140, floor_min= 3, chance=0.30, force_after=9),
-    BossSpec("DemonLord",     cr_min= 90, cr_max= 220, floor_min= 6, chance=0.28, force_after=9),
-    BossSpec("StoneGolem",    cr_min=155, cr_max= 310, floor_min= 9, chance=0.25, force_after=9),
-    BossSpec("VampireLord",   cr_min=230, cr_max= 400, floor_min=13, chance=0.22, force_after=9),
-    BossSpec("ElderDragon",   cr_min=320, cr_max= 530, floor_min=18, chance=0.20, force_after=9),
-    BossSpec("IronColossus",  cr_min=440, cr_max=9999, floor_min=24, chance=0.18, force_after=9),
+    BossSpec("TrollKing",     cr_min= 15, cr_max= 100, floor_min= 3, chance=0.32, force_after=9),
+    BossSpec("Lich",          cr_min= 60, cr_max= 160, floor_min= 7, chance=0.30, force_after=9),
+    BossSpec("DemonLord",     cr_min=110, cr_max= 250, floor_min=12, chance=0.28, force_after=9),
+    BossSpec("StoneGolem",    cr_min=180, cr_max= 360, floor_min=17, chance=0.25, force_after=9),
+    BossSpec("ChaosWitch",    cr_min=240, cr_max= 440, floor_min=22, chance=0.25, force_after=9),
+    BossSpec("VampireLord",   cr_min=320, cr_max= 520, floor_min=28, chance=0.22, force_after=9),
+    BossSpec("FrostGiant",    cr_min=420, cr_max= 640, floor_min=34, chance=0.22, force_after=9),
+    BossSpec("ElderDragon",   cr_min=530, cr_max= 780, floor_min=40, chance=0.20, force_after=9),
+    BossSpec("IronColossus",  cr_min=660, cr_max= 950, floor_min=48, chance=0.18, force_after=9),
+    BossSpec("VoidReaper",    cr_min=800, cr_max=9999, floor_min=57, chance=0.16, force_after=9),
 ]
 
 
@@ -79,15 +83,20 @@ def pick_boss(player, floor: int,
     The pool auto-resets when all six bosses have been defeated, so the
     cycle continues indefinitely on deeper floors.
     """
-    from src.entities.enemy import (Lich, DemonLord, StoneGolem,
-                                     VampireLord, ElderDragon, IronColossus)
+    from src.entities.enemy import (TrollKing, Lich, DemonLord, StoneGolem,
+                                     ChaosWitch, VampireLord, FrostGiant,
+                                     ElderDragon, IronColossus, VoidReaper)
     _CLASS = {
+        "TrollKing":    TrollKing,
         "Lich":         Lich,
         "DemonLord":    DemonLord,
         "StoneGolem":   StoneGolem,
+        "ChaosWitch":   ChaosWitch,
         "VampireLord":  VampireLord,
+        "FrostGiant":   FrostGiant,
         "ElderDragon":  ElderDragon,
         "IronColossus": IronColossus,
+        "VoidReaper":   VoidReaper,
     }
 
     # If every boss defeated → full reset so cycle continues

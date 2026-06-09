@@ -627,9 +627,9 @@ class Lich(BossEnemy):
     ASSET_KEY      = "lich"
     BOSS_NAME      = "The Lich"
     COLOR          = (80, 0, 140)
-    MAX_HP         = 450;   ATTACK = 32;   DEFENSE = 6
+    MAX_HP         = 680;   ATTACK = 46;   DEFENSE = 10
     SPEED          = 65.0;  DETECT = 475.0; ATK_RANGE = 52.0; ATK_CD = 1.9
-    XP_REWARD      = 650
+    XP_REWARD      = 850
     CHARGE_INTERVAL = 10.0; CHARGE_DURATION = 0.8
 
     def draw(self, surface: pygame.Surface, camera):
@@ -690,9 +690,9 @@ class DemonLord(BossEnemy):
     ASSET_KEY      = "demonlord"
     BOSS_NAME      = "Demon Lord"
     COLOR          = (160, 10, 20)
-    MAX_HP         = 650;   ATTACK = 42;   DEFENSE = 8
+    MAX_HP         = 980;   ATTACK = 60;   DEFENSE = 14
     SPEED          = 85.0; DETECT = 400.0; ATK_RANGE = 55.0; ATK_CD = 1.1
-    XP_REWARD      = 650
+    XP_REWARD      = 900
     CHARGE_INTERVAL = 5.0; CHARGE_DURATION = 1.3
 
     def draw(self, surface: pygame.Surface, camera):
@@ -760,9 +760,9 @@ class StoneGolem(BossEnemy):
     ASSET_KEY      = "stonegolem"
     BOSS_NAME      = "Stone Golem"
     COLOR          = (100, 95, 88)
-    MAX_HP         = 950;   ATTACK = 58;   DEFENSE = 20
+    MAX_HP         = 1450;  ATTACK = 84;   DEFENSE = 32
     SPEED          = 42.0;  DETECT = 325.0; ATK_RANGE = 60.0; ATK_CD = 2.6
-    XP_REWARD      = 650
+    XP_REWARD      = 1000
     CHARGE_INTERVAL = 8.0; CHARGE_DURATION = 1.1
 
     def draw(self, surface: pygame.Surface, camera):
@@ -820,9 +820,9 @@ class VampireLord(BossEnemy):
     ASSET_KEY      = "vampirelord"
     BOSS_NAME      = "Vampire Lord"
     COLOR          = (100, 0, 60)
-    MAX_HP         = 900;   ATTACK = 55;   DEFENSE = 12
+    MAX_HP         = 1380;  ATTACK = 80;   DEFENSE = 20
     SPEED          = 100.0; DETECT = 430.0; ATK_RANGE = 48.0; ATK_CD = 0.85
-    XP_REWARD      = 800
+    XP_REWARD      = 1100
     CHARGE_INTERVAL = 4.0; CHARGE_DURATION = 0.9
 
     def update(self, dt: float, player, dungeon):
@@ -900,9 +900,9 @@ class ElderDragon(BossEnemy):
     ASSET_KEY      = "elderdragon"
     BOSS_NAME      = "Elder Dragon"
     COLOR          = (30, 100, 20)
-    MAX_HP         = 1400;  ATTACK = 80;   DEFENSE = 22
+    MAX_HP         = 2100;  ATTACK = 116;  DEFENSE = 36
     SPEED          = 64.0;  DETECT = 380.0; ATK_RANGE = 56.0; ATK_CD = 1.6
-    XP_REWARD      = 1000
+    XP_REWARD      = 1400
     CHARGE_INTERVAL = 5.5; CHARGE_DURATION = 1.4
 
     def draw(self, surface: pygame.Surface, camera):
@@ -991,9 +991,9 @@ class IronColossus(BossEnemy):
     ASSET_KEY      = "ironcolossus"
     BOSS_NAME      = "Iron Colossus"
     COLOR          = (80, 80, 90)
-    MAX_HP         = 1800;  ATTACK = 95;   DEFENSE = 35
+    MAX_HP         = 2800;  ATTACK = 138;  DEFENSE = 55
     SPEED          = 40.0;  DETECT = 300.0; ATK_RANGE = 60.0; ATK_CD = 2.8
-    XP_REWARD      = 1200
+    XP_REWARD      = 1700
     CHARGE_INTERVAL = 9.0; CHARGE_DURATION = 1.2
 
     def draw(self, surface: pygame.Surface, camera):
@@ -1066,9 +1066,406 @@ class IronColossus(BossEnemy):
         surface.blit(core_s, (cx - core_r - 4, cy - core_r - 4))
 
 
+class TrollKing(BossEnemy):
+    """The Troll King — hulking brute, earliest boss, regenerates slowly."""
+    ASSET_KEY      = "trollking"
+    BOSS_NAME      = "Troll King"
+    COLOR          = (38, 120, 42)
+    MAX_HP         = 420;   ATTACK = 32;   DEFENSE = 6
+    SPEED          = 78.0;  DETECT = 300.0; ATK_RANGE = 48.0; ATK_CD = 1.4
+    XP_REWARD      = 600
+    CHARGE_INTERVAL = 7.0; CHARGE_DURATION = 1.2
+
+    def update(self, dt: float, player, dungeon):
+        super().update(dt, player, dungeon)
+        if self.alive and self.hp < self.max_hp:
+            self.hp = min(self.max_hp, self.hp + 4.0 * dt)
+
+    def draw(self, surface: pygame.Surface, camera):
+        dr = camera.apply(self.rect)
+        if not self._is_on_screen(dr):
+            return
+        self._draw_boss_aura(surface, dr)
+        self._draw_shadow(surface, dr)
+        self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
+        cx, cy = dr.centerx, dr.centery
+
+        _BLK  = (0, 0, 0)
+        _BODY = self._hurt_color((38, 120, 42))
+        _DARK = (18, 60, 20)
+        _SKIN = (60, 150, 55)
+        _EYE  = (220, 30, 30)
+        _FANG = (230, 215, 180)
+        _CLUB = (110, 80, 40)
+        _SPIKE= (180, 160, 100)
+        _CROWN= (200, 165, 0)
+
+        # Body
+        pygame.draw.rect(surface, _BLK,  dr.inflate(4, 4))
+        pygame.draw.rect(surface, _DARK, dr)
+        pygame.draw.rect(surface, _BODY, dr.inflate(-6, -6))
+
+        # Muscle shading — horizontal bands
+        for row in range(3):
+            ry = dr.top + 8 + row * (dr.h // 4)
+            pygame.draw.line(surface, _DARK, (dr.left + 4, ry), (dr.right - 4, ry), 2)
+
+        # Arms — thick stumps
+        for sign, ax in ((-1, dr.left - 10), (1, dr.right + 2)):
+            pygame.draw.rect(surface, _BLK,  (ax - 1, cy - 10, 12, 22))
+            pygame.draw.rect(surface, _BODY, (ax,     cy - 9,  10, 20))
+            # Knuckle spikes
+            for ki in range(3):
+                pygame.draw.polygon(surface, _SPIKE,
+                    [(ax + 2 + ki*3, cy + 11),
+                     (ax + 4 + ki*3, cy + 16),
+                     (ax + 6 + ki*3, cy + 11)])
+
+        # Head
+        head_r = pygame.Rect(cx - 14, dr.top - 4, 28, 22)
+        pygame.draw.rect(surface, _BLK,  head_r.inflate(2, 2))
+        pygame.draw.rect(surface, _DARK, head_r)
+        pygame.draw.rect(surface, _SKIN, head_r.inflate(-4, -2))
+
+        # Crude crown
+        for ox in (-8, -3, 2, 7):
+            pygame.draw.rect(surface, _CROWN, (cx + ox, head_r.top - 7, 4, 8))
+        pygame.draw.rect(surface, _CROWN, (cx - 10, head_r.top - 2, 20, 4))
+
+        # Eyes
+        pygame.draw.rect(surface, _BLK, (cx - 9, head_r.top + 4, 6, 5))
+        pygame.draw.rect(surface, _BLK, (cx + 3, head_r.top + 4, 6, 5))
+        pygame.draw.rect(surface, _EYE, (cx - 8, head_r.top + 5, 4, 3))
+        pygame.draw.rect(surface, _EYE, (cx + 4, head_r.top + 5, 4, 3))
+
+        # Tusks
+        pygame.draw.polygon(surface, _FANG,
+            [(cx - 5, head_r.bottom - 2), (cx - 3, head_r.bottom + 7), (cx - 1, head_r.bottom - 2)])
+        pygame.draw.polygon(surface, _FANG,
+            [(cx + 1, head_r.bottom - 2), (cx + 3, head_r.bottom + 7), (cx + 5, head_r.bottom - 2)])
+
+        # Spiked club (right side)
+        club_x = dr.right + 4
+        club_y0, club_y1 = cy - 4, cy + dr.h // 2 + 4
+        pygame.draw.line(surface, _BLK,  (club_x, club_y0), (club_x, club_y1), 7)
+        pygame.draw.line(surface, _CLUB, (club_x, club_y0), (club_x, club_y1), 5)
+        for si in range(4):
+            sy2 = club_y0 + si * 10
+            pygame.draw.polygon(surface, _SPIKE,
+                [(club_x - 3, sy2), (club_x + 7, sy2 + 3), (club_x - 3, sy2 + 6)])
+
+        # Regen glow when healing
+        if self.hp < self.max_hp:
+            pulse = 0.4 + 0.4 * math.sin(self._elite_aura_t * 5.0)
+            gs = pygame.Surface((dr.w + 16, dr.h + 16), pygame.SRCALPHA)
+            pygame.draw.rect(gs, (40, 200, 60, int(50 * pulse)), gs.get_rect(), border_radius=6)
+            surface.blit(gs, (dr.left - 8, dr.top - 8))
+
+
+class ChaosWitch(BossEnemy):
+    """The Chaos Witch — unpredictable sorceress wreathed in wild magic."""
+    ASSET_KEY      = "chaoswitch"
+    BOSS_NAME      = "Chaos Witch"
+    COLOR          = (200, 40, 180)
+    MAX_HP         = 800;   ATTACK = 56;   DEFENSE = 9
+    SPEED          = 90.0;  DETECT = 420.0; ATK_RANGE = 46.0; ATK_CD = 1.0
+    XP_REWARD      = 950
+    CHARGE_INTERVAL = 5.5; CHARGE_DURATION = 0.9
+
+    def draw(self, surface: pygame.Surface, camera):
+        dr = camera.apply(self.rect)
+        if not self._is_on_screen(dr):
+            return
+        self._draw_boss_aura(surface, dr)
+        self._draw_shadow(surface, dr)
+        self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
+        cx, cy = dr.centerx, dr.centery
+
+        t_anim = self._elite_aura_t
+        _BLK   = (0, 0, 0)
+        # Shifting chaos hue
+        r_c = int(180 + 75 * math.sin(t_anim * 1.3))
+        g_c = int(40  + 40 * math.sin(t_anim * 1.7 + 1.0))
+        b_c = int(180 + 75 * math.cos(t_anim * 1.1))
+        _ROBE  = self._hurt_color((max(0,min(255,r_c)), max(0,min(255,g_c)), max(0,min(255,b_c))))
+        _DARK  = (60, 0, 60)
+        _SKIN  = (220, 195, 210)
+        _STAR  = (252, 230, 100)
+        _STAFF = (90, 60, 130)
+
+        # Swirling robe hem
+        n_hem = 8
+        hem_pts = []
+        for j in range(n_hem):
+            hx_ = dr.left - 3 + (dr.width + 6) * j // (n_hem - 1)
+            hy_ = dr.bottom + 4 + int(math.sin(t_anim * 5.0 + j * 0.9) * 7)
+            hem_pts.append((hx_, hy_))
+        robe_pts = list(hem_pts) + [
+            (dr.right + 4, cy + 4),
+            (cx + 4, dr.top + 8),
+            (cx,     dr.top + 2),
+            (cx - 4, dr.top + 8),
+            (dr.left - 4, cy + 4),
+        ]
+        pygame.draw.polygon(surface, _BLK,  [(x+1, y+1) for x, y in robe_pts])
+        pygame.draw.polygon(surface, _DARK, robe_pts)
+        inner = hem_pts[1:-1] + [
+            (dr.right + 2, cy + 4),
+            (cx + 3, dr.top + 10),
+            (cx,     dr.top + 4),
+            (cx - 3, dr.top + 10),
+            (dr.left + 2, cy + 4),
+        ]
+        pygame.draw.polygon(surface, _ROBE, inner)
+
+        # Hat
+        hat_pts = [(cx, dr.top - 22), (cx - 12, dr.top + 2), (cx + 12, dr.top + 2)]
+        pygame.draw.polygon(surface, _BLK,  [(x+1, y+1) for x, y in hat_pts])
+        pygame.draw.polygon(surface, _DARK, hat_pts)
+        pygame.draw.rect(surface, _DARK, (cx - 14, dr.top + 2, 28, 5))
+        pygame.draw.rect(surface, _ROBE, (cx - 13, dr.top + 3, 26, 3))
+
+        # Face
+        face_y = dr.top + 6
+        pygame.draw.rect(surface, _BLK,  (cx - 8, face_y, 16, 14))
+        pygame.draw.rect(surface, _SKIN, (cx - 7, face_y + 1, 14, 12))
+        # Eyes — glowing chaos colour
+        eye_col = (min(255, r_c + 60), min(255, g_c + 40), min(255, b_c + 60))
+        pygame.draw.rect(surface, eye_col, (cx - 6, face_y + 3, 4, 3))
+        pygame.draw.rect(surface, eye_col, (cx + 2, face_y + 3, 4, 3))
+
+        # Orbiting chaos stars
+        for i in range(4):
+            angle = t_anim * 2.8 + i * math.pi / 2
+            sx2 = cx + int(math.cos(angle) * (dr.w // 2 + 10))
+            sy2 = cy + int(math.sin(angle) * (dr.h // 2 + 6))
+            r_s = 3 + int(2 * math.sin(t_anim * 4 + i))
+            sc  = (min(255, 100 + i * 50), min(255, 200 - i * 30), min(255, 50 + i * 60))
+            gs  = pygame.Surface((r_s * 4 + 2, r_s * 4 + 2), pygame.SRCALPHA)
+            pygame.draw.circle(gs, (*sc, 160), (r_s * 2 + 1, r_s * 2 + 1), r_s * 2)
+            pygame.draw.circle(gs, (*sc, 255), (r_s * 2 + 1, r_s * 2 + 1), r_s)
+            surface.blit(gs, (sx2 - r_s * 2 - 1, sy2 - r_s * 2 - 1))
+
+        # Staff
+        staff_x = cx + dr.w // 2 + 2
+        pygame.draw.line(surface, _BLK,   (staff_x, dr.bottom + 4), (staff_x - 4, dr.top - 8), 5)
+        pygame.draw.line(surface, _STAFF, (staff_x, dr.bottom + 4), (staff_x - 4, dr.top - 8), 3)
+        orb_x, orb_y = staff_x - 4, dr.top - 10
+        orb_r = 6
+        orb_s = pygame.Surface((orb_r * 3, orb_r * 3), pygame.SRCALPHA)
+        orb_col = (min(255, r_c + 80), min(255, g_c + 60), min(255, b_c + 80))
+        pygame.draw.circle(orb_s, (*orb_col, 200), (orb_r + orb_r//2, orb_r + orb_r//2), orb_r + 2)
+        pygame.draw.circle(orb_s, (255, 255, 255, 220), (orb_r + orb_r//2, orb_r + orb_r//2), orb_r // 2)
+        surface.blit(orb_s, (orb_x - orb_r - orb_r//2, orb_y - orb_r - orb_r//2))
+
+
+class FrostGiant(BossEnemy):
+    """The Frost Giant — titanic ice warrior, slow but devastating."""
+    ASSET_KEY      = "frostgiant"
+    BOSS_NAME      = "Frost Giant"
+    COLOR          = (60, 140, 220)
+    MAX_HP         = 1700;  ATTACK = 98;   DEFENSE = 28
+    SPEED          = 50.0;  DETECT = 360.0; ATK_RANGE = 58.0; ATK_CD = 2.2
+    XP_REWARD      = 1200
+    CHARGE_INTERVAL = 8.0; CHARGE_DURATION = 1.3
+    ON_HIT_STATUS   = "slow"
+    ON_HIT_DURATION = 3.5
+
+    def draw(self, surface: pygame.Surface, camera):
+        dr = camera.apply(self.rect)
+        if not self._is_on_screen(dr):
+            return
+        self._draw_boss_aura(surface, dr)
+        self._draw_shadow(surface, dr)
+        self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
+        cx, cy = dr.centerx, dr.centery
+
+        _BLK   = (0, 0, 0)
+        _ICE   = self._hurt_color((60, 140, 220))
+        _DARK  = (20, 60, 110)
+        _HI    = (160, 220, 255)
+        _FROST = (200, 240, 255)
+        _EYE   = (220, 245, 255)
+        _ICICLE= (130, 200, 240)
+
+        # Body
+        pygame.draw.rect(surface, _BLK,  dr.inflate(4, 4))
+        pygame.draw.rect(surface, _DARK, dr)
+        pygame.draw.rect(surface, _ICE,  dr.inflate(-6, -6))
+
+        # Ice plate cracks / facets
+        for lx, ly, ex, ey in [
+            (dr.left+6,  dr.top+10, cx-4,       cy-4),
+            (cx+4,       dr.top+8,  dr.right-6,  cy),
+            (dr.left+8,  cy+6,      cx,          dr.bottom-8),
+            (cx+2,       cy+4,      dr.right-8,  dr.bottom-10),
+        ]:
+            pygame.draw.line(surface, _DARK, (lx, ly), (ex, ey), 2)
+            pygame.draw.line(surface, _HI,   (lx+1, ly+1), (ex+1, ey+1), 1)
+
+        # Shoulder ice plates
+        for sx_off in (dr.left - 7, dr.right + 1):
+            sh = pygame.Rect(sx_off, dr.top + 4, 10, 18)
+            pygame.draw.rect(surface, _BLK,  sh.inflate(2, 2))
+            pygame.draw.rect(surface, _DARK, sh)
+            pygame.draw.rect(surface, _ICE,  sh.inflate(-2, -2))
+            pygame.draw.line(surface, _HI, (sh.left+1, sh.top+1), (sh.right-1, sh.top+1))
+
+        # Icicle spikes on shoulders
+        for sx_off, sign in ((dr.left - 7, -1), (dr.right + 9, 1)):
+            for ii in range(3):
+                ix = sx_off + (ii - 1) * 4
+                pygame.draw.polygon(surface, _ICICLE,
+                    [(ix - 2, dr.top + 4), (ix + 2, dr.top + 4), (ix, dr.top - 6 - ii * 3)])
+                pygame.draw.line(surface, _HI, (ix, dr.top + 4), (ix, dr.top - 3 - ii * 2), 1)
+
+        # Head
+        head_r = pygame.Rect(cx - 12, dr.top - 6, 24, 20)
+        pygame.draw.rect(surface, _BLK,  head_r.inflate(2, 2))
+        pygame.draw.rect(surface, _DARK, head_r)
+        pygame.draw.rect(surface, _ICE,  head_r.inflate(-4, -2))
+        # Crown of icicles
+        for ii in range(5):
+            ix = head_r.left + 3 + ii * 5
+            pygame.draw.polygon(surface, _ICICLE,
+                [(ix - 2, head_r.top), (ix + 2, head_r.top), (ix, head_r.top - 8 - (ii%2)*4)])
+        # Eyes — cold white glow
+        pygame.draw.rect(surface, _DARK, (cx - 9, head_r.top + 4, 6, 5))
+        pygame.draw.rect(surface, _DARK, (cx + 3, head_r.top + 4, 6, 5))
+        pygame.draw.rect(surface, _EYE,  (cx - 8, head_r.top + 5, 4, 3))
+        pygame.draw.rect(surface, _EYE,  (cx + 4, head_r.top + 5, 4, 3))
+        # Beard icicles
+        for bi in range(5):
+            bx_ = cx - 8 + bi * 4
+            pygame.draw.line(surface, _ICICLE,
+                (bx_, head_r.bottom - 1), (bx_, head_r.bottom + 6 + bi % 3 * 3), 2)
+
+        # Frost breath particles
+        t_anim = self._elite_aura_t
+        for pi in range(5):
+            angle = math.pi * 0.7 + pi * 0.15
+            dist  = 14 + pi * 8 + int(4 * math.sin(t_anim * 3 + pi))
+            px2   = cx + int(math.cos(angle) * dist)
+            py2   = head_r.bottom + 2 + int(math.sin(angle) * dist // 2)
+            a_p   = max(0, 180 - pi * 30)
+            fs    = pygame.Surface((6, 6), pygame.SRCALPHA)
+            pygame.draw.circle(fs, (*_FROST, a_p), (3, 3), 3)
+            surface.blit(fs, (px2 - 3, py2 - 3))
+
+        # Highlight rim
+        pygame.draw.rect(surface, _HI, dr.inflate(-6, -6), 1)
+
+
+class VoidReaper(BossEnemy):
+    """The Void Reaper — scythe-wielding shade from beyond reality."""
+    ASSET_KEY      = "voidreaper"
+    BOSS_NAME      = "Void Reaper"
+    COLOR          = (60, 0, 100)
+    MAX_HP         = 3600;  ATTACK = 175;  DEFENSE = 48
+    SPEED          = 72.0;  DETECT = 450.0; ATK_RANGE = 60.0; ATK_CD = 1.4
+    XP_REWARD      = 2200
+    CHARGE_INTERVAL = 6.5; CHARGE_DURATION = 1.1
+
+    def draw(self, surface: pygame.Surface, camera):
+        dr = camera.apply(self.rect)
+        if not self._is_on_screen(dr):
+            return
+        self._draw_boss_aura(surface, dr)
+        self._draw_shadow(surface, dr)
+        self._draw_hp_bar(surface, dr)
+        if self._try_sprite_asset(surface, camera, self.ASSET_KEY): return
+        cx, cy = dr.centerx, dr.centery
+
+        t_anim = self._elite_aura_t
+        _BLK   = (0, 0, 0)
+        _VOID  = self._hurt_color((30, 0, 55))
+        _CLOAK = (60, 0, 100)
+        _DARK  = (14, 0, 28)
+        _GLOW  = (200, 80, 255)
+        _SCYTHE= (130, 110, 160)
+        _EDGE  = (220, 180, 255)
+
+        # Shifting void shroud
+        shroud_pts = []
+        n_sh = 12
+        base_r_x = dr.w // 2 + 6
+        base_r_y = dr.h // 2 + 8
+        for i in range(n_sh):
+            angle = 2 * math.pi * i / n_sh + t_anim * 0.6
+            wobble = 1.0 + 0.18 * math.sin(t_anim * 3.0 + i * 1.3)
+            shroud_pts.append((
+                cx + int(math.cos(angle) * base_r_x * wobble),
+                cy + int(math.sin(angle) * base_r_y * wobble),
+            ))
+        pygame.draw.polygon(surface, _BLK,  [(x+2, y+2) for x, y in shroud_pts])
+        pygame.draw.polygon(surface, _DARK, shroud_pts)
+
+        inner_pts = []
+        for i in range(n_sh):
+            angle = 2 * math.pi * i / n_sh + t_anim * 0.6
+            wobble = 0.85 + 0.12 * math.sin(t_anim * 3.0 + i * 1.3 + 0.5)
+            inner_pts.append((
+                cx + int(math.cos(angle) * (base_r_x - 6) * wobble),
+                cy + int(math.sin(angle) * (base_r_y - 6) * wobble),
+            ))
+        pygame.draw.polygon(surface, _CLOAK, inner_pts)
+
+        # Void core — black hole centre
+        core_s = pygame.Surface((24, 24), pygame.SRCALPHA)
+        pygame.draw.circle(core_s, (*_GLOW, 80), (12, 12), 12)
+        pygame.draw.circle(core_s, (0, 0, 0, 220), (12, 12), 8)
+        surface.blit(core_s, (cx - 12, cy - 12))
+
+        # Skull face
+        skull_y = dr.top + 2
+        pygame.draw.rect(surface, _DARK, (cx - 10, skull_y, 20, 18))
+        pygame.draw.rect(surface, (30, 0, 48), (cx - 9, skull_y + 1, 18, 16))
+        # Eye sockets with void glow
+        for ex_off in (-6, 3):
+            pygame.draw.rect(surface, _BLK,  (cx + ex_off, skull_y + 4, 6, 6))
+            gs = pygame.Surface((8, 8), pygame.SRCALPHA)
+            pygame.draw.circle(gs, (*_GLOW, 200), (4, 4), 3)
+            surface.blit(gs, (cx + ex_off - 1, skull_y + 3))
+        # Teeth
+        for ti in range(5):
+            pygame.draw.rect(surface, _DARK, (cx - 7 + ti * 3, skull_y + 14, 2, 4))
+
+        # Scythe
+        hx0, hy0 = dr.right + 4, cy + dr.h // 2
+        hx1, hy1 = cx - 4, dr.top - 14
+        pygame.draw.line(surface, _BLK,    (hx0, hy0), (hx1, hy1), 5)
+        pygame.draw.line(surface, _SCYTHE, (hx0, hy0), (hx1, hy1), 3)
+        # Curved blade
+        blade_pts = [
+            (hx1, hy1),
+            (hx1 - 14, hy1 + 6),
+            (hx1 - 20, hy1 + 18),
+            (hx1 - 10, hy1 + 22),
+            (hx1,      hy1 + 14),
+        ]
+        pygame.draw.polygon(surface, _BLK,   [(x+1, y+1) for x, y in blade_pts])
+        pygame.draw.polygon(surface, _SCYTHE, blade_pts)
+        pygame.draw.lines(surface, _EDGE, False, blade_pts, 1)
+
+        # Void particle trail
+        for pi in range(6):
+            angle = t_anim * 1.8 + pi * math.pi / 3
+            dist  = 20 + pi * 6
+            px2   = cx + int(math.cos(angle) * dist)
+            py2   = cy + int(math.sin(angle) * dist * 0.7)
+            a_p   = max(0, 160 - pi * 22)
+            ps    = pygame.Surface((8, 8), pygame.SRCALPHA)
+            pygame.draw.circle(ps, (*_GLOW, a_p), (4, 4), 3)
+            surface.blit(ps, (px2 - 4, py2 - 4))
+
+
 # ─── Registry ─────────────────────────────────────────────────────────────────
 
-_BOSS_ROTATION = [Lich, DemonLord, StoneGolem, VampireLord, ElderDragon, IronColossus]
+_BOSS_ROTATION = [TrollKing, Lich, DemonLord, StoneGolem, ChaosWitch,
+                  VampireLord, FrostGiant, ElderDragon, IronColossus, VoidReaper]
 
 _BY_LEVEL: dict[int, list] = {
     1:  [Goblin],

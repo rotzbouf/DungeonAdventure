@@ -15,6 +15,24 @@ _BAR_BG     = (40,   35,  25)
 _BAR_FILL   = (80,  160,  80)
 
 
+def _wrap_text(text: str, font: pygame.font.Font, max_w: int) -> list[str]:
+    """Split *text* into lines that fit within *max_w* pixels."""
+    words = text.split(" ")
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = (current + " " + word).lstrip() if current else word
+        if font.size(candidate)[0] <= max_w:
+            current = candidate
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines or [""]
+
+
 class QuestLogScreen:
     def __init__(self):
         self._font_lg = pygame.font.SysFont("monospace", 25, bold=True)
@@ -31,7 +49,7 @@ class QuestLogScreen:
         surface.blit(bg, (0, 0))
 
         # Panel geometry
-        pw, ph = 580, H - 36
+        pw, ph = 760, H - 36
         px = (W - pw) // 2
         py = 18
         panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
@@ -50,11 +68,13 @@ class QuestLogScreen:
 
         def line(text: str, color: tuple, indent: int = 0):
             nonlocal y
-            if y > py + ph - 20:
-                return
-            s = self._font_sm.render(text, True, color)
-            surface.blit(s, (px + 14 + indent, y))
-            y += lh
+            max_w = pw - 14 - indent - 14
+            for wrapped in _wrap_text(text, self._font_sm, max_w):
+                if y > py + ph - 20:
+                    return
+                s = self._font_sm.render(wrapped, True, color)
+                surface.blit(s, (px + 14 + indent, y))
+                y += lh
 
         def section(title: str):
             nonlocal y
