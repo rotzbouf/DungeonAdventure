@@ -121,6 +121,8 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
         self._net_floor: int       = 1        # server's current floor
         self._net_seed:  int | None = None    # server's current dungeon seed
 
+        self._paused_state: str | None = None   # state before ESC → menu
+
         self._dmg_nums:   list = []
         self.chests:      list = []
         self.projectiles: list = []
@@ -325,9 +327,14 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                     elif self.state == STATE_HERO_SELECT:
                         self._hero_select.handle_event(event)
                     elif self.state == STATE_PLAYING:
+                        self._paused_state = STATE_PLAYING
                         self.state = STATE_MENU
                     elif self.state == STATE_TOWN:
+                        self._paused_state = STATE_TOWN
                         self.state = STATE_MENU
+                    elif self.state == STATE_MENU and self._paused_state:
+                        self.state = self._paused_state
+                        self._paused_state = None
                     else:
                         pygame.quit(); sys.exit()
 
@@ -402,7 +409,7 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 if self.state == STATE_PLAYING and not any_overlay:
                     if k == game_settings.key("return_town"):
                         self._return_to_town()
-                if self.state == STATE_PLAYING and not any_overlay:
+                if self.state == STATE_PLAYING and not any_overlay and not self.net_client:
                     if k == game_settings.key("attack"):
                         mods = pygame.key.get_mods()
                         if (mods & pygame.KMOD_SHIFT and
@@ -465,7 +472,10 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
                 if self.state == STATE_MENU:
                     for btn_id, brect in self._menu_btn_rects.items():
                         if brect.collidepoint(event.pos):
-                            if btn_id == "new_game":
+                            if btn_id == "resume":
+                                self.state = self._paused_state
+                                self._paused_state = None
+                            elif btn_id == "new_game":
                                 self._open_char_create()
                             elif btn_id == "continue":
                                 if savesys.has_save():
@@ -940,10 +950,12 @@ class Game(SessionLayer, TownLayer, CombatLayer, SpellLayer, ProjectileLayer, Pa
     # ─── Hero flow helpers ────────────────────────────────────────────────────────
 
     def _open_char_create(self):
+        self._paused_state = None
         self._char_create.open()
         self.state = STATE_CHAR_CREATE
 
     def _open_hero_select(self):
+        self._paused_state = None
         self._hero_select.open(savesys.list_heroes())
         self.state = STATE_HERO_SELECT
 

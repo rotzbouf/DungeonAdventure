@@ -439,7 +439,8 @@ class RendererLayer:
         BTN_H  = 68
         VGAP   = 20
         btn_y0 = int(SCREEN_HEIGHT * 0.41)
-        btn_area_cy = btn_y0 + (3 * BTN_H + 2 * VGAP) // 2
+        _n_btns_preview = 4 if getattr(self, '_paused_state', None) else 3
+        btn_area_cy = btn_y0 + (_n_btns_preview * BTN_H + (_n_btns_preview - 1) * VGAP) // 2
 
         if statue_left:
             sy = btn_area_cy - SPR_SIZE // 2
@@ -463,6 +464,7 @@ class RendererLayer:
 
         # ── Buttons ───────────────────────────────────────────────────────────
         has_save  = savesys.has_save()
+        paused    = getattr(self, '_paused_state', None) is not None
         mouse_pos = pygame.mouse.get_pos()
 
         _BTN_BG    = (22,  15,  40)
@@ -471,12 +473,20 @@ class RendererLayer:
         _BTN_BD_HV = (220, 175,   0)
         _BTN_DIM   = (48,  42,  60)
         _BTN_BD_DIM= (40,  30,  55)
+        _BTN_BD_RES= (60, 180,  80)   # green border for resume
+        _BTN_HV_RES= (80, 220, 100)
 
-        btn_defs = [
+        btn_defs = []
+        if paused:
+            btn_defs.append(("resume",   t("menu.resume"),   "[Esc]", True))
+        btn_defs += [
             ("new_game", t("menu.new_game"), "[Enter]", True),
             ("continue", t("menu.continue"), "[C]",     has_save),
             ("settings", t("menu.settings"), "[S]",     True),
         ]
+
+        n_btns = len(btn_defs)
+        btn_area_cy = btn_y0 + (n_btns * BTN_H + (n_btns - 1) * VGAP) // 2
 
         self._menu_btn_rects = {}
 
@@ -487,13 +497,18 @@ class RendererLayer:
             self._menu_btn_rects[btn_id] = brect
 
             hov = active and brect.collidepoint(mouse_pos)
+            is_resume = btn_id == "resume"
 
             if not active:
                 bg_col, bd_col, txt_col = _BTN_BG, _BTN_BD_DIM, _BTN_DIM
             elif hov:
-                bg_col, bd_col, txt_col = _BTN_HV, _BTN_BD_HV, YELLOW
+                bg_col = _BTN_HV
+                bd_col = _BTN_HV_RES if is_resume else _BTN_BD_HV
+                txt_col = YELLOW
             else:
-                bg_col, bd_col, txt_col = _BTN_BG, _BTN_BD, WHITE
+                bg_col = _BTN_BG
+                bd_col = _BTN_BD_RES if is_resume else _BTN_BD
+                txt_col = WHITE
 
             # Button panel + border
             pygame.draw.rect(self.screen, bg_col, brect, border_radius=6)
@@ -516,7 +531,7 @@ class RendererLayer:
                 left=brect.right + 16, centery=brect.centery))
 
         # ── Bottom divider ────────────────────────────────────────────────────
-        bot_y = btn_y0 + 3 * BTN_H + 2 * VGAP + 28
+        bot_y = btn_y0 + n_btns * BTN_H + (n_btns - 1) * VGAP + 28
         pygame.draw.line(self.screen, _STONE_HI, (cx-320, bot_y), (cx-14, bot_y), 1)
         pygame.draw.polygon(self.screen, _GOLD,
                             [(cx, bot_y-7), (cx+7, bot_y), (cx, bot_y+7), (cx-7, bot_y)])

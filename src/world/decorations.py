@@ -64,11 +64,11 @@ _THEME_STATUES: dict[str, list[str]] = {
 
 # Sprites that live outside the statues/ sub-folder
 _THEME_EXTRAS: dict[str, list[str]] = {
-    "dungeon":  ["zot_pillar.png"],
-    "crypt":    [],
+    "dungeon":  ["dry_fountain.png"],
+    "crypt":    ["sarcophagus_open.png"],
     "forge":    ["boulder.png"],
     "inferno":  ["boulder.png"],
-    "abyss":    ["zot_pillar.png"],
+    "abyss":    ["sarcophagus_open.png"],
 }
 
 _TOWN_STATUE_POOL = [

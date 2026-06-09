@@ -136,6 +136,7 @@ class TownLayer:
         self._craft_screen.update(dt)
         self._house_screen.update(dt)
         self._town_notice_t = max(0.0, self._town_notice_t - dt)
+        self.hud.update(dt)
         # Mana regen handled by player.update above
 
     def _draw_town(self):

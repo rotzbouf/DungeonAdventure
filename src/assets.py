@@ -24,7 +24,7 @@ import pygame
 if getattr(sys, "frozen", False):
     _ASSETS = Path(sys._MEIPASS) / "assets"   # type: ignore[attr-defined]
 else:
-    _ASSETS = Path(__file__).parent.parent / "assets"
+    _ASSETS = Path(__file__).resolve().parent.parent / "assets"
 
 _OVERLAYS = _ASSETS / "player_overlays"
 

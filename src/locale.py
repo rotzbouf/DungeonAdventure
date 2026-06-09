@@ -136,6 +136,7 @@ _T: dict[str, dict[str, str]] = {
     # ── Main Menu ─────────────────────────────────────────────────────────────
     "menu.subtitle":       {"en": "A Classic Dungeon Crawler",
                             "de": "Ein klassisches Dungeon-Abenteuer"},
+    "menu.resume":         {"en": "RESUME",      "de": "FORTFAHREN"},
     "menu.new_game":       {"en": "NEW  HERO",   "de": "NEUER HELD"},
     "menu.continue":       {"en": "LOAD  HERO",  "de": "HELD LADEN"},
     "menu.settings":       {"en": "SETTINGS",    "de": "EINSTELLUNGEN"},
