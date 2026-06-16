@@ -1,5 +1,10 @@
 # Dungeon Adventure
 
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![pygame](https://img.shields.io/badge/pygame-2.6%2B-green)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
+![Version](https://img.shields.io/badge/version-0.4.4-orange)
+
 A procedurally generated dungeon crawler built with Python and Pygame.
 Fight through an endless dungeon of escalating danger — collect loot, enchant your gear,
 craft materials, master a deep skill tree, and see how far you can descend.
